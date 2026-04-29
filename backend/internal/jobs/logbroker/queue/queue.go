@@ -2,6 +2,7 @@ package logbrokerqueue
 
 import (
 	"github.com/Roshan-anand/godploy/internal/lib/sse"
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/google/uuid"
 )
 
@@ -12,6 +13,7 @@ type PubData struct {
 
 type EndLogData struct {
 	DeploymentID uuid.UUID
+	Status       types.DeploymentStatus
 }
 
 type Subscriber struct {

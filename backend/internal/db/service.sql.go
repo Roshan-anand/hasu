@@ -342,6 +342,19 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 	return i, err
 }
 
+const getDeploymentStatus = `-- name: GetDeploymentStatus :one
+SELECT status
+FROM deployments
+WHERE id = ?
+`
+
+func (q *Queries) GetDeploymentStatus(ctx context.Context, id uuid.UUID) (types.DeploymentStatus, error) {
+	row := q.db.QueryRowContext(ctx, getDeploymentStatus, id)
+	var status types.DeploymentStatus
+	err := row.Scan(&status)
+	return status, err
+}
+
 const getDeploymentsByServiceID = `-- name: GetDeploymentsByServiceID :many
 SELECT id, service_id, name, status, created_at
 FROM deployments

@@ -1,32 +1,5 @@
-// type UserState = {
-// 	name: string;
-// 	email: string;
-// 	currentOrg: Organization;
-// 	orgs: Organization[];
-// 	isAuth: boolean;
-// 	setUser: (data: AuthResponse) => void;
-// };
-
 import type { AuthResponse, Organization } from '@/features/auth/type';
 import { getContext, setContext } from 'svelte';
-
-// export const userState = $state<UserState>({
-// 	name: '',
-// 	email: '',
-// 	currentOrg: { id: '', name: '' },
-// 	orgs: [],
-// 	isAuth: false,
-
-// 	setUser(data) {
-// 		this.name = data.name;
-// 		this.email = data.email;
-// 		this.currentOrg = {
-// 			id: data.org_id,
-// 			name: data.org_name
-// 		};
-// 		this.isAuth = true;
-// 	}
-// });
 
 interface UserState {
 	name: string;
@@ -47,19 +20,14 @@ class UserStateClass implements UserState {
 	orgs = $state<Organization[]>([]);
 	isAuth = $state(false);
 
-	setCurrentOrg(org: Organization) {
-		this.currentOrg = org;
-	}
+	setCurrentOrg = (org: Organization) => (this.currentOrg = org);
 
-	setOrg(orgs: Organization[]) {
-		this.orgs = orgs;
-	}
+	setOrg = (orgs: Organization[]) => (this.orgs = orgs);
 
-	pushOrg(newOrg: Organization) {
-		this.orgs = [newOrg, ...this.orgs.filter((org) => org.id !== newOrg.id)];
-	}
+	pushOrg = (newOrg: Organization) =>
+		(this.orgs = [newOrg, ...this.orgs.filter((org) => org.id !== newOrg.id)]);
 
-	setUser(data: AuthResponse) {
+	setUser = (data: AuthResponse) => {
 		this.name = data.name;
 		this.email = data.email;
 		this.currentOrg = {
@@ -67,16 +35,16 @@ class UserStateClass implements UserState {
 			name: data.org_name
 		};
 		this.isAuth = true;
-	}
+	};
 }
 
 const DEFAULT_KEY = 'user:state';
 
 export const getUserState = (key: string = DEFAULT_KEY) => {
-	return getContext<UserState>(key);
+	return getContext<UserState>(Symbol.for(key));
 };
 
 export const setUserState = (key: string = DEFAULT_KEY) => {
 	const userState = new UserStateClass();
-	return setContext(key, userState);
+	setContext(Symbol.for(key), userState);
 };

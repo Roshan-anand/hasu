@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Roshan-anand/godploy/internal/config"
+	"github.com/Roshan-anand/godploy/internal/db"
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/google/uuid"
@@ -27,7 +28,6 @@ func InitLogsBroker(s *config.Server) *LogsBroker {
 }
 
 func (job *LogsBroker) LogsBrokerJob(ctx context.Context, pub chan *logbrokerqueue.PubData, end chan *logbrokerqueue.EndLogData) {
-	fmt.Println("LogBroker: started")
 	for {
 		select {
 		case p, ok := <-pub:
@@ -62,36 +62,40 @@ func (job *LogsBroker) LogsBrokerJob(ctx context.Context, pub chan *logbrokerque
 				fmt.Println("End channel closed, exiting logBroker")
 				return
 			}
-			fmt.Printf("Received end signal for deployment ID: %s\n", e.DeploymentID)
-			job.EndLogJob(e.DeploymentID)
+			dID := e.DeploymentID
 
+			// push all logs from buffer to badgerDB
+			logs := job.bufferGet(dID)
+			badgerDB := job.Server.BadgerDB.Pool
+			txn := badgerDB.NewTransaction(true)
+
+			for i, log := range logs {
+				key := fmt.Sprintf("%s_%d", dID.String(), i)
+				if err := txn.Set([]byte(key), []byte(log)); err == badger.ErrTxnTooBig {
+					_ = txn.Commit()
+					txn = badgerDB.NewTransaction(true)
+					_ = txn.Set([]byte(key), []byte(log))
+				}
+			}
+			_ = txn.Commit()
+
+			// update deployment status in database
+			if err := job.Server.DB.Queries.UpdateDeploymentStatus(context.Background(), db.UpdateDeploymentStatusParams{
+				Status: e.Status,
+				ID:     dID,
+			}); err != nil {
+				fmt.Println("Error updating deployment status in database:", err)
+			}
+
+			// remove subscribers of the deployment
+			for userID, sub := range job.Server.LogBrokerQ.Subscribers {
+				if sub.DeploymentID == dID {
+					job.Server.LogBrokerQ.UnsubscribeLogs(userID)
+				}
+			}
 		case <-ctx.Done():
 			fmt.Println("Context cancelled, exiting logBroker")
 			return
-		}
-	}
-}
-
-// push all the buffered logs inside db
-func (job *LogsBroker) EndLogJob(dID uuid.UUID) {
-	logs := job.bufferGet(dID)
-	db := job.Server.BadgerDB.Pool
-	txn := db.NewTransaction(true)
-
-	for i, log := range logs {
-		key := fmt.Sprintf("%s_%d", dID.String(), i)
-		if err := txn.Set([]byte(key), []byte(log)); err == badger.ErrTxnTooBig {
-			_ = txn.Commit()
-			txn = db.NewTransaction(true)
-			_ = txn.Set([]byte(key), []byte(log))
-		}
-	}
-	_ = txn.Commit()
-
-	// remove subscribers of the deployment
-	for userID, sub := range job.Server.LogBrokerQ.Subscribers {
-		if sub.DeploymentID == dID {
-			job.Server.LogBrokerQ.UnsubscribeLogs(userID)
 		}
 	}
 }

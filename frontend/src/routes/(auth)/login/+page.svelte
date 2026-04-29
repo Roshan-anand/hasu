@@ -8,7 +8,7 @@
 	import { Checkbox } from '@/components/ui/checkbox';
 	import { Label } from '@/components/ui/label';
 	import { resolve } from '$app/paths';
-	import { useLoginMutation } from '@/features/auth/mutation';
+	import { useLoginMutation } from '@/features/auth/mutation.svelte';
 
 	const login = useLoginMutation();
 

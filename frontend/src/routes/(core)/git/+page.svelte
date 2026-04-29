@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '@/components/ui/button';
-	import { useDeleteGithubAppMutation } from '@/features/git/mutation';
-	import { gitProviders, useGithubAppsQuery } from '@/features/git/query';
+	import { useDeleteGithubAppMutation } from '@/features/git/mutation.svelte';
+	import { gitProviders, useGithubAppsQuery } from '@/features/git/query.svelte';
 	import { getUserState } from '@/features/global/store.svelte';
 	import Icon from '@iconify/svelte';
 

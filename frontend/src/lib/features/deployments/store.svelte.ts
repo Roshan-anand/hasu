@@ -1,20 +1,21 @@
-// AI summary: Class-based context store for deployment tab UI state consumed by deployment feature hooks.
 import { getContext, setContext } from 'svelte';
 
 interface DeploymentsFeatureState {
 	deletingDeploymentId: string;
+	setDeletingDeploymentId: (id: string) => void;
 }
 
 class DeploymentsFeatureStateClass implements DeploymentsFeatureState {
 	deletingDeploymentId = $state('');
+	setDeletingDeploymentId = (id: string) => (this.deletingDeploymentId = id);
 }
 
 const DEFAULT_KEY = 'deployments:feature:state';
 
 export const getDeploymentsFeatureState = (key: string = DEFAULT_KEY) => {
-	return getContext<DeploymentsFeatureState>(key);
+	return getContext<DeploymentsFeatureState>(Symbol.for(key));
 };
 
 export const setDeploymentsFeatureState = (key: string = DEFAULT_KEY) => {
-	return setContext(key, new DeploymentsFeatureStateClass());
+	setContext(Symbol.for(key), new DeploymentsFeatureStateClass());
 };

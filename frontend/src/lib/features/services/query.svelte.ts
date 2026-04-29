@@ -1,13 +1,12 @@
-// AI summary: Service feature query owns app-list loading behavior and syncs shared feature store state.
 import { api, axiosErr } from '@/axios';
 import { createQuery } from '@tanstack/svelte-query';
-import { getServicesFeatureState } from './store.svelte';
+import { getServiceState } from './store.svelte';
 import type { GithubApp } from './type';
 
 export const getGithubAppsQueryKey = (orgId: string) => ['github-apps', orgId] as const;
 
 export function useGithubAppsQuery(getOrgId: () => string) {
-	const featureState = getServicesFeatureState();
+	const featureState = getServiceState();
 
 	return createQuery(() => ({
 		queryKey: getGithubAppsQueryKey(getOrgId()),

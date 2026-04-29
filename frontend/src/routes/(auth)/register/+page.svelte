@@ -8,7 +8,7 @@
 	import { Checkbox } from '@/components/ui/checkbox';
 	import { Label } from '@/components/ui/label';
 	import { resolve } from '$app/paths';
-	import { useRegisterMutation } from '@/features/auth/mutation';
+	import { useRegisterMutation } from '@/features/auth/mutation.svelte';
 
 	const register = useRegisterMutation();
 

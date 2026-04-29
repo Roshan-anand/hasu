@@ -8,7 +8,7 @@
 	import { resolve } from '$app/paths';
 	import { Trash2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import { useServicePageUiState } from './context.svelte';
+	import { getServiceState } from '@/features/services/store.svelte';
 
 	type ServiceType = 'psql' | 'app';
 	type ScopeType = 'project' | 'org';
@@ -40,7 +40,7 @@
 	}>();
 
 	let deletingServiceId = $state('');
-	const pageUi = useServicePageUiState();
+	const serviceState = getServiceState();
 
 	const getServiceListQueryKey = () => ['services', scopeType, scopeId];
 
@@ -77,15 +77,15 @@
 		}
 	}));
 
-	function deleteService(serviceId: string, type: ServiceType) {
+	const deleteService = (serviceId: string, type: ServiceType) => {
 		if (deleteServiceMutation.isPending) return;
 		deleteServiceMutation.mutate({ service_id: serviceId, type });
-	}
+	};
 
 	const filteredServices = $derived.by(() => {
 		if (!servicesQuery.data) return [];
 
-		const keyword = pageUi.searchQuery.trim().toLowerCase();
+		const keyword = serviceState.searchQuery.trim().toLowerCase();
 		if (keyword === '') return servicesQuery.data;
 
 		return servicesQuery.data.filter((service) => service.name.toLowerCase().includes(keyword));
@@ -149,7 +149,7 @@
 	{:else}
 		<h3 class="text-muted-foreground size-full flex flex-col items-center justify-center gap-2">
 			<span>No services found</span>
-			<CreateBtn onclick={pageUi.openCreateDialog} />
+			<CreateBtn onclick={serviceState.openCreateDialog} />
 		</h3>
 	{/if}
 </section>

@@ -1,15 +1,14 @@
 <script lang="ts">
 	import { Button } from '@/components/ui/button';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { useDeleteDeploymentMutation } from '@/features/deployments/mutation';
-	import { useServiceDeploymentsQuery } from '@/features/deployments/query';
+	import { useDeleteDeploymentMutation } from '@/features/deployments/mutation.svelte';
+	import { useServiceDeploymentsQuery } from '@/features/deployments/query.svelte';
 	import { getDeploymentsFeatureState } from '@/features/deployments/store.svelte';
 	import DeploymentLogs from './deployement_logs.svelte';
 
 	let { serviceId }: { serviceId: string } = $props();
 	const featureState = getDeploymentsFeatureState();
 
-	// AI summary: Query deployments by current service id, and update query cache on delete
 	// so the list updates immediately without waiting for a refetch.
 	const deploymentsQuery = useServiceDeploymentsQuery(() => serviceId);
 

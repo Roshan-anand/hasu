@@ -10,7 +10,6 @@
 	let streamState = $state<'connecting' | 'connected' | 'closed'>('closed');
 	let eventSource: EventSource | null = null;
 
-	// AI summary: Open an authenticated EventSource only while the dialog is open,
 	// append incoming log lines, and always close the stream when the dialog closes.
 	function closeStream() {
 		if (!eventSource) return;

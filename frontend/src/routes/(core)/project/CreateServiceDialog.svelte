@@ -6,11 +6,14 @@
 	import * as Select from '@/components/ui/select';
 	import { Textarea } from '@/components/ui/textarea';
 	import { gitProviders, serviceTypes } from '@/features/services/const';
-	import { useCreateServiceMutation, useGetReposMutation } from '@/features/services/mutation';
-	import { useGithubAppsQuery } from '@/features/services/query';
-	import { getServicesFeatureState } from '@/features/services/store.svelte';
+	import {
+		useCreateServiceMutation,
+		useGetReposMutation
+	} from '@/features/services/mutation.svelte';
+	import { useGithubAppsQuery } from '@/features/services/query.svelte';
+	import { getServiceState } from '@/features/services/store.svelte';
 	import type { GithubApp, GitProviderKey, GitProviderOption } from '@/features/services/type';
-	import { useServiceCreateProjectsQuery } from '@/features/projects/query';
+	import { useServiceCreateProjectsQuery } from '@/features/projects/query.svelte';
 	import { queryClient } from '@/query';
 	import { createForm, revalidateLogic } from '@tanstack/svelte-form';
 	import Icon from '@iconify/svelte';
@@ -20,17 +23,10 @@
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod';
 	import type { ServiceType } from '@/types';
-	import type { ServicePageUiState } from '@/components/services/context.svelte';
 	import { getUserState } from '@/features/global/store.svelte';
 
-	const {
-		pageUi
-	}: {
-		pageUi: ServicePageUiState;
-	} = $props();
-
 	const { currentOrg } = getUserState();
-	const featureState = getServicesFeatureState();
+	const featureState = getServiceState();
 
 	const projectIdFromPath = $derived(page.params.id ?? '');
 	const isProjectScoped = $derived(projectIdFromPath !== '');
@@ -44,7 +40,7 @@
 
 	featureState.setAfterCreateSuccess(async ({ id, type }) => {
 		await queryClient.invalidateQueries({ queryKey: ['services'] });
-		pageUi.closeCreateDialog();
+		featureState.closeCreateDialog();
 		resetGitRepoSelection();
 		form.reset();
 
@@ -164,12 +160,12 @@
 		}
 	}));
 
-	function closeDialog() {
+	const closeDialog = () => {
 		if (createServiceMutation.isPending) return;
-		pageUi.closeCreateDialog();
-	}
+		featureState.closeCreateDialog();
+	};
 
-	function resetGitRepoSelection() {
+	const resetGitRepoSelection = () => {
 		form.resetField('git_provider');
 		form.resetField('git_app_id');
 		form.resetField('git_repo_id');
@@ -177,9 +173,9 @@
 		form.resetField('build_path');
 		featureState.githubApps = [];
 		featureState.githubRepos = [];
-	}
+	};
 
-	function onServiceTypeChange(type: ServiceType) {
+	const onServiceTypeChange = (type: ServiceType) => {
 		const currentType = form.getFieldValue('type');
 		form.setFieldValue('type', type);
 
@@ -194,10 +190,10 @@
 			form.resetField('db_password');
 			form.resetField('image');
 		}
-	}
+	};
 
 	$effect(() => {
-		if (!pageUi.createDialogOpen) return;
+		if (!featureState.createDialogOpen) return;
 		if (form.getFieldValue('type') !== 'app') return;
 		if (currentOrg.id === '') return;
 		if (githubAppsQuery.isFetching) return;
@@ -206,7 +202,7 @@
 		void githubAppsQuery.refetch();
 	});
 
-	function selectGithubApp(app: GithubApp) {
+	const selectGithubApp = (app: GithubApp) => {
 		if (currentOrg.id === '' || createServiceMutation.isPending || getReposMutation.isPending)
 			return;
 
@@ -223,16 +219,16 @@
 			provider: githubProvider,
 			appId: app.app_id
 		});
-	}
+	};
 
-	function onGithubAppSelect(appId: string) {
+	const onGithubAppSelect = (appId: string) => {
 		const app = featureState.githubApps.find((item) => item.app_id.toString() === appId);
 		if (!app) return;
 
 		selectGithubApp(app);
-	}
+	};
 
-	function fetchGitProvider(provider: GitProviderOption) {
+	const fetchGitProvider = (provider: GitProviderOption) => {
 		if (provider.api === '' || currentOrg.id === '' || createServiceMutation.isPending) return;
 
 		form.setFieldValue('git_provider', provider.key);
@@ -244,35 +240,35 @@
 		if (provider.key === 'github' && featureState.githubApps.length === 0) {
 			void githubAppsQuery.refetch();
 		}
-	}
+	};
 
-	function onRepoSelect(repoId: string) {
+	const onRepoSelect = (repoId: string) => {
 		const repo = featureState.githubRepos.find((r) => r.id.toString() === repoId);
 		if (!repo) return;
 
 		form.setFieldValue('git_repo_id', repoId);
 		form.setFieldValue('git_branch', repo.default_branch);
-	}
+	};
 
-	function onBranchSelect(branchName: string) {
+	const onBranchSelect = (branchName: string) => {
 		form.setFieldValue('git_branch', branchName);
-	}
+	};
 
-	function getRepoBranches(repoId: string): string[] {
+	const getRepoBranches = (repoId: string): string[] => {
 		const selectedRepo = featureState.githubRepos.find((repo) => repo.id.toString() === repoId);
 		return selectedRepo ? [selectedRepo.default_branch] : [];
-	}
+	};
 
-	function getGithubAppName(appId: string): string {
+	const getGithubAppName = (appId: string): string => {
 		return featureState.githubApps.find((app) => app.app_id.toString() === appId)?.name ?? '';
-	}
+	};
 
-	function getGithubRepoName(repoId: string): string {
+	const getGithubRepoName = (repoId: string): string => {
 		return featureState.githubRepos.find((repo) => repo.id.toString() === repoId)?.full_name ?? '';
-	}
+	};
 </script>
 
-<Dialog.Root bind:open={pageUi.createDialogOpen}>
+<Dialog.Root bind:open={featureState.createDialogOpen}>
 	<Dialog.Portal>
 		<Dialog.Overlay class="fixed inset-0 z-40 bg-black/40" />
 		<Dialog.Content

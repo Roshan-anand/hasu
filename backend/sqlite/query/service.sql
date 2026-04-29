@@ -72,6 +72,11 @@ FROM deployments
 WHERE service_id = ?
 ORDER BY created_at DESC;
 
+-- name: GetDeploymentStatus :one
+SELECT status
+FROM deployments
+WHERE id = ?;
+
 -- name: UpdateDeploymentStatus :exec
 UPDATE deployments
 SET status = ?

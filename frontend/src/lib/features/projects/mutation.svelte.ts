@@ -1,15 +1,14 @@
-// AI summary: Feature-owned project mutations include cache updates and UX side effects without route-level callback wiring.
 import { api, axiosErr } from '@/axios';
 import { queryClient } from '@/query';
 import { getUserState } from '@/features/global/store.svelte';
 import { createMutation } from '@tanstack/svelte-query';
 import { toast } from 'svelte-sonner';
-import { getProjectsQueryKey } from './query';
-import { getProjectsFeatureState } from './store.svelte';
+import { getProjectsQueryKey } from './query.svelte';
+import { getProjectState } from './store.svelte';
 import type { ApiMessageRes, CreateProjectPayload, DeleteProjectPayload, Project } from './type';
 
 export function useCreateProjectMutation() {
-	const featureState = getProjectsFeatureState();
+	const { closeDialog } = getProjectState();
 	const { currentOrg } = getUserState();
 
 	return createMutation(() => ({
@@ -24,9 +23,7 @@ export function useCreateProjectMutation() {
 				}
 			);
 
-			featureState.projectName = '';
-			featureState.projectDescription = '';
-			featureState.createDialogOpen = false;
+			closeDialog();
 			toast.success('Project created successfully');
 		},
 		onError: (error) => axiosErr(error as Error, 'Faild to create project')
@@ -34,7 +31,7 @@ export function useCreateProjectMutation() {
 }
 
 export function useDeleteProjectMutation() {
-	const featureState = getProjectsFeatureState();
+	const featureState = getProjectState();
 	const { currentOrg } = getUserState();
 
 	return createMutation(() => ({

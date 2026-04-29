@@ -22,7 +22,7 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 
 			fmt.Println("BuildWorker: started working ...")
 
-			for i := range 20 {
+			for i := range 2 {
 				w.Server.LogBrokerQ.PublishLog(&logbrokerqueue.PubData{
 					ID:  d.DeploymentID,
 					Msg: fmt.Sprintf("build : %v", i),

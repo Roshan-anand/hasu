@@ -3,9 +3,12 @@
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { useCreateProjectMutation, useDeleteProjectMutation } from '@/features/projects/mutation';
-	import { setProjectsFeatureState } from '@/features/projects/store.svelte';
-	import { useProjectsQuery } from '@/features/projects/query';
+	import {
+		useCreateProjectMutation,
+		useDeleteProjectMutation
+	} from '@/features/projects/mutation.svelte';
+	import { getProjectState } from '@/features/projects/store.svelte';
+	import { useProjectsQuery } from '@/features/projects/query.svelte';
 	import type { Project } from '@/features/projects/type';
 	import { Search, Trash2 } from '@lucide/svelte';
 	import * as Dialog from '@/components/ui/dialog';
@@ -14,7 +17,7 @@
 	import { getUserState } from '@/features/global/store.svelte';
 
 	const { currentOrg } = getUserState();
-	const featureState = setProjectsFeatureState();
+	const featureState = getProjectState();
 
 	let searchQuery = $state('');
 

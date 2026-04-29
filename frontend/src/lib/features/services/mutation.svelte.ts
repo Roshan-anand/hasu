@@ -1,8 +1,6 @@
-// AI summary: Service feature mutations own repo-loading and create-service side effects via feature store state/callbacks.
 import { api, axiosErr } from '@/axios';
 import { createMutation } from '@tanstack/svelte-query';
 import { toast } from 'svelte-sonner';
-import { getServicesFeatureState } from './store.svelte';
 import type {
 	ApiMessageRes,
 	CreateServicePayload,
@@ -11,9 +9,10 @@ import type {
 	GithubRepo,
 	GitProviderOption
 } from './type';
+import { getServiceState } from './store.svelte';
 
 export function useGetReposMutation() {
-	const featureState = getServicesFeatureState();
+	const featureState = getServiceState();
 
 	return createMutation(() => ({
 		mutationFn: async ({
@@ -49,7 +48,7 @@ export function useGetReposMutation() {
 }
 
 export function useCreateServiceMutation() {
-	const featureState = getServicesFeatureState();
+	const featureState = getServiceState();
 
 	return createMutation(() => ({
 		mutationFn: async (payload: CreateServicePayload) => {

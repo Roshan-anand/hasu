@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -9,6 +11,7 @@ import (
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
 	"github.com/Roshan-anand/godploy/internal/lib"
 	"github.com/Roshan-anand/godploy/internal/lib/sse"
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -116,7 +119,7 @@ func (h *ServiceHandler) DeleteServiceDeployment(c *echo.Context) error {
 //
 // route: GET /api/service/deployment/logs?deployment_id
 func (h *ServiceHandler) SubscribeServiceDeploymentLogs(c *echo.Context) error {
-
+	q := h.Server.DB.Queries
 	dID, err := uuid.Parse(c.QueryParam("deployment_id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, lib.Res{Message: "invalid deployment_id"})
@@ -128,6 +131,21 @@ func (h *ServiceHandler) SubscribeServiceDeploymentLogs(c *echo.Context) error {
 	w.Header().Set("Connection", "keep-alive")
 
 	sse := sse.NewSSE(w)
+
+	status, err := q.GetDeploymentStatus(h.qCtx, dID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "failed to get deployment status"})
+	}
+
+	if status != types.DeploymentInProgress {
+		logs, err := h.Server.BadgerDB.GetAllLogsByDeploymentID(dID)
+		logsB, err := json.Marshal(logs)
+		if err != nil {
+			fmt.Println("Error marshalling logs to JSON:", err)
+		}
+		sse.SendSSE("logs", logsB)
+		return nil
+	}
 
 	userID := lib.NewID()
 	h.Server.LogBrokerQ.SubscribeLogs(userID, &logbrokerqueue.Subscriber{

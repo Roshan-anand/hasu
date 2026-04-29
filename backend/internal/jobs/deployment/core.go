@@ -1,6 +1,8 @@
 package deploymentjob
 
-import "github.com/Roshan-anand/godploy/internal/config"
+import (
+	"github.com/Roshan-anand/godploy/internal/config"
+)
 
 type worker struct {
 	Server *config.Server

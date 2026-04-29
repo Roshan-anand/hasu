@@ -1,4 +1,3 @@
-// AI summary: Feature-scoped extraction of route query/mutation contracts to keep page runes and form logic focused on UI orchestration.
 export interface GithubApp {
 	name: string;
 	app_id: number;

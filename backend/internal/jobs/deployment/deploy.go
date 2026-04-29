@@ -7,6 +7,7 @@ import (
 
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 )
 
 // responsible for pulling code and storing it local
@@ -21,7 +22,7 @@ func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.De
 
 			fmt.Println("DeployWorker: started working ...")
 
-			for i := range 5 {
+			for i := range 1 {
 				w.Server.LogBrokerQ.PublishLog(&logbrokerqueue.PubData{
 					ID:  d.DeploymentID,
 					Msg: fmt.Sprintf("deploy : %v", i),
@@ -32,7 +33,9 @@ func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.De
 			// end the logs
 			w.Server.LogBrokerQ.EndLogs(&logbrokerqueue.EndLogData{
 				DeploymentID: d.DeploymentID,
+				Status:       types.DeploymentSuccess,
 			})
+
 			fmt.Printf("DeployWorker: finished working ...")
 		case <-ctx.Done():
 			fmt.Println("DeployWorker: context cancelled, exiting")

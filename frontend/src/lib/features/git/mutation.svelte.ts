@@ -1,10 +1,9 @@
-// AI summary: Feature-owned git mutation handles cache writes and notifications internally for github app deletion.
 import { api, axiosErr } from '@/axios';
 import { queryClient } from '@/query';
 import { getUserState } from '@/features/global/store.svelte';
 import { createMutation } from '@tanstack/svelte-query';
 import { toast } from 'svelte-sonner';
-import { getGithubAppsQueryKey } from './query';
+import { getGithubAppsQueryKey } from './query.svelte';
 import type { DeleteGithubAppPayload, GithubApp } from './type';
 
 export function useDeleteGithubAppMutation() {

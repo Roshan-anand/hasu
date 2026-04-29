@@ -22,7 +22,7 @@ func (w *worker) PullWorker(ctx context.Context, data chan *deploymentqueue.Pull
 
 			fmt.Println("PullWorker: started working ...")
 
-			for i := range 5 {
+			for i := range 1 {
 				w.Server.LogBrokerQ.PublishLog(&logbrokerqueue.PubData{
 					ID:  d.DeploymentID,
 					Msg: fmt.Sprintf("pull : %v", i),

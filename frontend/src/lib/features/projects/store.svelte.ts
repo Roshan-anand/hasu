@@ -1,26 +1,31 @@
-// AI summary: Class-based context store for project-page UI state consumed by project feature hooks.
 import { getContext, setContext } from 'svelte';
 
-interface ProjectsFeatureState {
+interface ProjectState {
 	createDialogOpen: boolean;
 	projectName: string;
 	projectDescription: string;
 	deletingProjectId: string;
+	closeDialog: () => void;
 }
 
-class ProjectsFeatureStateClass implements ProjectsFeatureState {
+class ProjectStateClass implements ProjectState {
 	createDialogOpen = $state(false);
 	projectName = $state('');
 	projectDescription = $state('');
 	deletingProjectId = $state('');
+	closeDialog = () => {
+		this.createDialogOpen = false;
+		this.projectName = '';
+		this.projectDescription = '';
+	};
 }
 
 const DEFAULT_KEY = 'projects:feature:state';
 
-export const getProjectsFeatureState = (key: string = DEFAULT_KEY) => {
-	return getContext<ProjectsFeatureState>(key);
+export const getProjectState = (key: string = DEFAULT_KEY) => {
+	return getContext<ProjectState>(Symbol.for(key));
 };
 
-export const setProjectsFeatureState = (key: string = DEFAULT_KEY) => {
-	return setContext(key, new ProjectsFeatureStateClass());
+export const setProjectState = (key: string = DEFAULT_KEY) => {
+	setContext(Symbol.for(key), new ProjectStateClass());
 };
