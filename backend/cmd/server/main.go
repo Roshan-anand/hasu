@@ -45,7 +45,7 @@ func createServer() (*config.Server, error) {
 
 	// setup log broker
 	lb := logbroker.InitLogsBroker(s)
-	go lb.LogsBrokerJob(context.Background(), s.LogBrokerQ.Pub)
+	go lb.LogsBrokerJob(context.Background(), s.LogBrokerQ.Pub, s.LogBrokerQ.End)
 
 	return s, nil
 }

@@ -71,7 +71,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		ID:        lib.NewID(),
 		Name:      deploymentName,
 		ServiceID: service.ID,
-		Status:    "queued",
+		Status:    types.DeploymentInProgress,
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create deployment"})

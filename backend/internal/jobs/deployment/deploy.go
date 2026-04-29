@@ -11,7 +11,6 @@ import (
 
 // responsible for pulling code and storing it local
 func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.DeployJobData) {
-	fmt.Println("DeployWorker: started")
 	for {
 		select {
 		case d, ok := <-data:
@@ -30,6 +29,10 @@ func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.De
 				time.Sleep(1 * time.Second)
 			}
 
+			// end the logs
+			w.Server.LogBrokerQ.EndLogs(&logbrokerqueue.EndLogData{
+				DeploymentID: d.DeploymentID,
+			})
 			fmt.Printf("DeployWorker: finished working ...")
 		case <-ctx.Done():
 			fmt.Println("DeployWorker: context cancelled, exiting")

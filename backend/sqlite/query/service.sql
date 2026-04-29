@@ -72,6 +72,11 @@ FROM deployments
 WHERE service_id = ?
 ORDER BY created_at DESC;
 
+-- name: UpdateDeploymentStatus :exec
+UPDATE deployments
+SET status = ?
+WHERE id = ?;
+
 -- name: DeleteDeploymentByID :exec
 DELETE FROM deployments
 WHERE id = ?;

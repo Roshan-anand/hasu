@@ -64,10 +64,10 @@ RETURNING id
 `
 
 type CreateDeploymentParams struct {
-	ID        uuid.UUID `json:"id"`
-	ServiceID uuid.UUID `json:"service_id"`
-	Name      string    `json:"name"`
-	Status    string    `json:"status"`
+	ID        uuid.UUID              `json:"id"`
+	ServiceID uuid.UUID              `json:"service_id"`
+	Name      string                 `json:"name"`
+	Status    types.DeploymentStatus `json:"status"`
 }
 
 func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error) {
@@ -418,5 +418,21 @@ type SetPsqlServiceIdParams struct {
 
 func (q *Queries) SetPsqlServiceId(ctx context.Context, arg SetPsqlServiceIdParams) error {
 	_, err := q.db.ExecContext(ctx, setPsqlServiceId, arg.ServiceID, arg.ID)
+	return err
+}
+
+const updateDeploymentStatus = `-- name: UpdateDeploymentStatus :exec
+UPDATE deployments
+SET status = ?
+WHERE id = ?
+`
+
+type UpdateDeploymentStatusParams struct {
+	Status types.DeploymentStatus `json:"status"`
+	ID     uuid.UUID              `json:"id"`
+}
+
+func (q *Queries) UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateDeploymentStatus, arg.Status, arg.ID)
 	return err
 }

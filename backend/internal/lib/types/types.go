@@ -13,3 +13,11 @@ const (
 	PsqlServiceType ServiceType = "psql"
 	AppServiceType  ServiceType = "app"
 )
+
+type DeploymentStatus string
+
+const (
+	DeploymentInProgress DeploymentStatus = "in_progress"
+	DeploymentSuccess    DeploymentStatus = "success"
+	DeploymentFailed     DeploymentStatus = "failed"
+)

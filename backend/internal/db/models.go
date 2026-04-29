@@ -28,11 +28,11 @@ type AppService struct {
 }
 
 type Deployment struct {
-	ID        uuid.UUID `json:"id"`
-	ServiceID uuid.UUID `json:"service_id"`
-	Name      string    `json:"name"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        uuid.UUID              `json:"id"`
+	ServiceID uuid.UUID              `json:"service_id"`
+	Name      string                 `json:"name"`
+	Status    types.DeploymentStatus `json:"status"`
+	CreatedAt time.Time              `json:"created_at"`
 }
 
 type GithubApp struct {

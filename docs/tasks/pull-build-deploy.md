@@ -7,15 +7,15 @@
 - [X] API to trigger SSE of deployment logs.
   - open SSE connection.
   - subscribe to logsbroker.
-- [ ] UI to stream deployment logs.
+- [x] UI to stream deployment logs.
 - [ ] Worker pool to execute pull & store code.
 - [ ] Worker pool to execute build & create image.
 - [ ] Worker pool to execute deploy using docker stack.
 - [x] setup BadgerDB.
 - [ ] logbroker to publish logs.
-  - setup buffer to store logs in memory.
-  - send logs to SSE clients.
+  - [ ] setup buffer to store logs in memory.
+  - [ ] send logs to SSE clients.
     - look for all subs for current log_id
     - also if client is new then send all logs from BadgerDB then buffer then current log.
-  - send logs to BadgerDB.
+  - [ ] send logs to BadgerDB.
     - certain amt of logs in buffer trigger DB uploads

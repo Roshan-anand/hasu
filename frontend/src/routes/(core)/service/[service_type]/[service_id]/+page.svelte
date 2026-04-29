@@ -5,8 +5,8 @@
 	import { Skeleton } from '@/components/ui/skeleton';
 	import type { ServiceDetails } from '@/types.js';
 	import { createQuery } from '@tanstack/svelte-query';
-	import DeployementSection from './deployement.svelte';
 	import Nav from './nav.svelte';
+	import Deployment from './deployment.svelte';
 
 	const { data } = $props();
 	const serviceType = $derived(data.serviceType);
@@ -51,7 +51,7 @@
 	{:else if tab === 'logs'}
 		<p class="text-muted-foreground">Logs tab content goes here</p>
 	{:else if tab === 'deployment'}
-		<DeployementSection {serviceId} />
+		<Deployment {serviceId} />
 	{:else if tab === 'env'}
 		<p class="text-muted-foreground">Environment variables tab content goes here</p>
 	{:else}

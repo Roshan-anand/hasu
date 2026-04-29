@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { NavigationMenu as NavigationMenuPrimitive } from "bits-ui";
-	import { cn } from "@/utils.js";
+	import { NavigationMenu as NavigationMenuPrimitive } from 'bits-ui';
+	import { cn } from '@/utils.js';
 
 	let {
 		ref = $bindable(null),
@@ -12,9 +12,6 @@
 <NavigationMenuPrimitive.List
 	bind:ref
 	data-slot="navigation-menu-list"
-	class={cn(
-		"gap-0 group flex flex-1 list-none items-center justify-center",
-		className
-	)}
+	class={cn('gap-0 group flex flex-1 list-none items-center justify-center', className)}
 	{...restProps}
 />

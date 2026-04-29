@@ -1,6 +1,6 @@
 ## service operations
 
-- [ ] API to get selected service info
+- [x] API to get selected service info
 
 ## DB service
 
@@ -15,13 +15,13 @@
 ## Application service
 
 - [ ] API to Create Application service.
-- [ ] API to show repo list.
-- [ ] API to trigger pull/build/deploy for selected repo.
+- [x] API to show repo list.
+- [x] API to trigger pull/build/deploy for selected repo.
 - [ ] API to stop Application service.
 - [ ] API to rebuild service.
-- [ ] SSE for build logs.
+- [x] SSE for build logs.
 - [ ] API to get deployed service list.
-- [ ] API to get all the deployment list.
+- [x] API to get all the deployment list.
 - [ ] SSE for service logs.
 - [ ] API to update env.
 - [ ] API to update SSL & domain of the service.

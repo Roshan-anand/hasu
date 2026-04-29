@@ -9,7 +9,7 @@ import (
 )
 
 type BadgerDB struct {
-	pool *badger.DB
+	Pool *badger.DB
 }
 
 func InitBadgerDB(dir string) (*BadgerDB, error) {
@@ -26,11 +26,11 @@ func InitBadgerDB(dir string) (*BadgerDB, error) {
 	}
 
 	fmt.Println("badgerDB connection established ...")
-	return &BadgerDB{pool: pool}, nil
+	return &BadgerDB{Pool: pool}, nil
 }
 
 // close the database connection
 func (db *BadgerDB) CloseDb() error {
 	fmt.Println("closing database connection")
-	return db.pool.Close()
+	return db.Pool.Close()
 }

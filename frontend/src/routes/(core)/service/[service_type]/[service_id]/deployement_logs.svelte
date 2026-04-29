@@ -29,8 +29,14 @@
 		const url = `/api/service/deployment/logs?deployment_id=${deploymentId}`;
 		eventSource = new EventSource(url, { withCredentials: true });
 
-		eventSource.addEventListener('logs', (event: MessageEvent<string>) => {
+		eventSource.addEventListener('log', (event: MessageEvent<string>) => {
 			logs.push(event.data);
+			streamState = 'connected';
+		});
+
+		eventSource.addEventListener('logs', (event: MessageEvent<string>) => {
+			const prevLogs = JSON.parse(event.data) as string[];
+			logs = [...logs, ...prevLogs];
 			streamState = 'connected';
 		});
 

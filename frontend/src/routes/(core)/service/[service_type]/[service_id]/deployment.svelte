@@ -36,7 +36,7 @@
 	}));
 
 	const deleteDeploymentMutation = createMutation(() => ({
-		mutationFn: ({ deployment_id }: DeleteDeploymentPayload) => {
+		mutationFn: async ({ deployment_id }: DeleteDeploymentPayload) => {
 			return api
 				.delete<DeleteDeploymentResponse>('/service/deployment', {
 					data: { deployment_id }
@@ -85,7 +85,9 @@
 		<p class="mt-3 text-sm text-muted-foreground">No deployments found for this service</p>
 	{:else}
 		<div class="mt-3 overflow-hidden rounded-md border">
-			<div class="grid grid-cols-[1.5fr_1fr_1fr_auto] gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
+			<div
+				class="grid grid-cols-[1.5fr_1fr_1fr_auto] gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground"
+			>
 				<span>Name</span>
 				<span>Status</span>
 				<span>Created</span>
@@ -93,7 +95,9 @@
 			</div>
 
 			{#each deploymentsQuery.data as deployment (deployment.id)}
-				<div class="grid grid-cols-[1.5fr_1fr_1fr_auto] items-center gap-2 border-b px-3 py-2 text-sm last:border-b-0">
+				<div
+					class="grid grid-cols-[1.5fr_1fr_1fr_auto] items-center gap-2 border-b px-3 py-2 text-sm last:border-b-0"
+				>
 					<p class="truncate">{deployment.name}</p>
 					<p class="capitalize">{deployment.status}</p>
 					<p>{new Date(deployment.created_at).toLocaleString()}</p>
