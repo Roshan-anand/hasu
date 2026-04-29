@@ -76,7 +76,7 @@ func InitDb(dir string) (*DataBase, error) {
 	// TODO : replace path with config value
 	dsn := "file:" + p +
 		"?_pragma=journal_mode(WAL)" +
-		"&_pragma=foreign_keys(ON)" +
+		"&_foreign_keys=1" +
 		"&_pragma=busy_timeout(5000)" +
 		"&_pragma=synchronous(NORMAL)"
 	pool, err := sql.Open("sqlite3", dsn)

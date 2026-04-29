@@ -1,5 +1,3 @@
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE organization (
     id uuid PRIMARY KEY,
     name TEXT NOT NULL,
@@ -59,7 +57,6 @@ CREATE TABLE app_service (
     id uuid PRIMARY KEY,
     project_id uuid NOT NULL REFERENCES project(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
-    service_id TEXT NOT NULL REFERENCES service(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     app_name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL,
