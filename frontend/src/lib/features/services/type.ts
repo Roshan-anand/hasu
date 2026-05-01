@@ -1,30 +1,30 @@
 import type { ServiceType } from '@/types';
 
-export interface CreateServiceResponse {
+export type CreateServiceResponse = {
 	id: string;
 	type: ServiceType;
-}
+};
 
 export type GitProviderKey = 'github' | 'gitlab' | 'bitbucket';
 
-export interface GitProviderOption {
+export type GitProviderOption = {
 	key: GitProviderKey;
 	name: string;
 	icon: string;
 	api: string;
-}
+};
 
-export interface ApiMessageRes {
+export type ApiMessageRes = {
 	message: string;
-}
+};
 
-export interface GithubApp {
+export type GithubApp = {
 	name: string;
 	app_id: number;
 	created_at: string;
-}
+};
 
-export interface GithubRepo {
+export type GithubRepo = {
 	id: number;
 	name: string;
 	full_name: string;
@@ -32,16 +32,16 @@ export interface GithubRepo {
 	repo_url: string;
 	private: boolean;
 	default_branch: string;
-}
+};
 
-export interface GetRepoResult {
+export type GetRepoResult = {
 	status: number;
 	repos: GithubRepo[];
 	message: string;
 	provider: GitProviderKey;
-}
+};
 
-export interface CreateAppServiceBody {
+export type CreateAppServiceBody = {
 	project_id: string;
 	name: string;
 	description: string;
@@ -53,9 +53,9 @@ export interface CreateAppServiceBody {
 	git_repo_url: string;
 	git_branch: string;
 	build_path: string;
-}
+};
 
-export interface CreatePsqlServiceBody {
+export type CreatePsqlServiceBody = {
 	project_id: string;
 	name: string;
 	description: string;
@@ -64,7 +64,7 @@ export interface CreatePsqlServiceBody {
 	db_user: string;
 	db_password: string;
 	image: string;
-}
+};
 
 export type CreateServicePayload =
 	| { type: 'app'; body: CreateAppServiceBody }

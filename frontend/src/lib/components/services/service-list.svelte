@@ -13,26 +13,26 @@
 	type ServiceType = 'psql' | 'app';
 	type ScopeType = 'project' | 'org';
 
-	interface ServiceRow {
+	type ServiceRow = {
 		id: string;
 		type: ServiceType;
 		name: string;
 		description: string;
 		created_at: string;
-	}
+	};
 
-	interface ServiceListResponse {
+	type ServiceListResponse = {
 		services: ServiceRow[];
-	}
+	};
 
-	interface DeleteServicePayload {
+	type DeleteServicePayload = {
 		service_id: string;
 		type: ServiceType;
-	}
+	};
 
-	interface DeleteResponse {
+	type DeleteResponse = {
 		message: string;
-	}
+	};
 
 	let { scopeId, scopeType } = $props<{
 		scopeId: string;

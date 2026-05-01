@@ -1,18 +1,18 @@
-export interface Project {
+export type Project = {
 	id: string;
 	name: string;
 	description: string;
-}
+};
 
-export interface CreateProjectPayload {
+export type CreateProjectPayload = {
 	project_name: string;
 	description: string;
-}
+};
 
-export interface DeleteProjectPayload {
+export type DeleteProjectPayload = {
 	id: string;
-}
+};
 
-export interface ApiMessageRes {
+export type ApiMessageRes = {
 	message: string;
-}
+};

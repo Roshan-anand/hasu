@@ -20,13 +20,13 @@
 	let createDialogOpen = $state(false);
 	let orgName = $state('');
 
-	interface SwitchOrgPayload {
+	type SwitchOrgPayload = {
 		org_id: string;
-	}
+	};
 
-	interface CreateOrgPayload {
+	type CreateOrgPayload = {
 		name: string;
-	}
+	};
 
 	const getOrgsQueryKey = () => ['orgs', email] as const;
 

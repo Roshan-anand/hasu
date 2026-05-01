@@ -1,15 +1,15 @@
-export interface GithubApp {
+export type GithubApp = {
 	name: string;
 	app_id: number;
 	created_at: string;
-}
+};
 
-export interface GitProvider {
+export type GitProvider = {
 	name: string;
 	icon: string;
 	redirect: string;
-}
+};
 
-export interface DeleteGithubAppPayload {
+export type DeleteGithubAppPayload = {
 	app_id: number;
-}
+};
