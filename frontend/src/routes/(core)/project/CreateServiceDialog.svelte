@@ -462,24 +462,33 @@
 											{#snippet children(field)}
 												<div class="space-y-1.5">
 													<Label for="github-app-select">GitHub App</Label>
-													<Select.Root
-														type="single"
-														value={field.state.value}
-														onValueChange={(value) => {
-															field.handleChange(value);
-															onGithubAppSelect(value);
-														}}
-														disabled={createServiceMutation.isPending}
-													>
-														<Select.Trigger class="w-full" id="github-app-select">
-															{getGithubAppName(gitState.gitAppId) || 'Select GitHub app'}
-														</Select.Trigger>
-														<Select.Content>
-															{#each featureState.githubApps as app (app.app_id)}
-																<Select.Item value={app.app_id.toString()} label={app.name} />
-															{/each}
-														</Select.Content>
-													</Select.Root>
+													{#if featureState.githubApps.length === 0}
+														<div class="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+															No app connected.
+															<a href={resolve('/(core)/git')} class="ml-1 underline underline-offset-4">
+																Go to Git
+															</a>
+														</div>
+													{:else}
+														<Select.Root
+															type="single"
+															value={field.state.value}
+															onValueChange={(value) => {
+																field.handleChange(value);
+																onGithubAppSelect(value);
+															}}
+															disabled={createServiceMutation.isPending}
+														>
+															<Select.Trigger class="w-full" id="github-app-select">
+																{getGithubAppName(gitState.gitAppId) || 'Select GitHub app'}
+															</Select.Trigger>
+															<Select.Content>
+																{#each featureState.githubApps as app (app.app_id)}
+																	<Select.Item value={app.app_id.toString()} label={app.name} />
+																{/each}
+															</Select.Content>
+														</Select.Root>
+													{/if}
 													{#if field.state.meta.errors.length}
 														<p class="text-sm font-medium text-destructive">
 															{field.state.meta.errors[0]}

@@ -38,7 +38,7 @@
   - [x] input field for build path after **branch-selection**.
   - [ ] select field for selecting watch path after **build-path-selection**.
   - [x] update create service api to accept build path, repo nd branch. [easy, api]
-  - [ ] if no github app connected then show msg and link to connect github app. [easy, ui]
+  - [x] if no github app connected then show msg and link to connect github app. [easy, ui]
 - [ ] at [CheckUserExistsInOrg](../../backend/internal/handlers/utils.go) func return org details instead of just bool.
 
 ## Potential bugs
