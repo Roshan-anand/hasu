@@ -3,10 +3,12 @@ package deploymentjob
 import (
 	"context"
 	"fmt"
-	"time"
+	"os/exec"
+	"strings"
 
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 )
 
 // responsible for pulling code and storing it local
@@ -19,24 +21,32 @@ func (w *worker) PullWorker(ctx context.Context, data chan *deploymentqueue.Pull
 				return
 			}
 
-			fmt.Println("PullWorker: started working ...")
+			fmt.Println("PullWorker: started working ...", d.Url)
+			l := w.Server.LogBrokerQ
 
-			for i := range 1 {
-				w.Server.LogBrokerQ.PublishLog(&logbrokerqueue.PubData{
+			folderName := strings.ReplaceAll(d.Url, "/", "-")
+			repoUrl := fmt.Sprintf("https://oauth2:%s@%s", d.Token, d.Url)
+			outputPath := fmt.Sprintf("/etc/godploy/code/[%s-%s]", folderName, d.Branch)
+
+			cmd := exec.Command("git", "clone", "--branch", d.Branch, "--depth", "1", repoUrl, outputPath)
+			if err := runWorkerCmd(l, d.DeploymentID, cmd); err != nil {
+				fmt.Printf("PullWorker: error running command: %v\n", err)
+				l.PublishLog(&logbrokerqueue.PubData{
 					ID:  d.DeploymentID,
-					Msg: fmt.Sprintf("pull : %v", i),
+					Msg: "something went wrong !!",
 				})
-				time.Sleep(1 * time.Second)
+
+				l.EndLogs(&logbrokerqueue.EndLogData{
+					DeploymentID: d.DeploymentID,
+					Status:       types.DeploymentFailed,
+				})
+
+			} else {
+				w.Server.DeploymentQ.EnqueueBuildJob(&deploymentqueue.BuildJobData{
+					DeploymentID: d.DeploymentID,
+				})
 			}
 
-			w.Server.DeploymentQ.EnqueueBuildJob(&deploymentqueue.BuildJobData{
-				DeploymentID: d.DeploymentID,
-			})
-			// repoURL := fmt.Sprintf("https://oauth2:%s@github.com/%s/%s.git", pData.Token, pData.Owner, pData.Repo)
-
-			// outputPath := fmt.Sprintf("/etc/godploy/code/%s-%s-%s", pData.Owner, pData.Repo, pData.Branch)
-
-			// _ = exec.Command("git", "clone", "--branch", pData.Branch, "--depth", "1", repoURL, outputPath)
 		case <-ctx.Done():
 			fmt.Println("PullWorker: context cancelled, exiting")
 			return

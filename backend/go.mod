@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.18.0
+	github.com/creack/pty v1.1.24
 	github.com/dgraph-io/badger/v4 v4.9.1
 	github.com/go-playground/validator/v10 v10.30.2
 	github.com/golang-jwt/jwt/v5 v5.3.1

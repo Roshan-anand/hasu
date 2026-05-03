@@ -14,8 +14,8 @@ import (
 )
 
 const createAppService = `-- name: CreateAppService :one
-INSERT INTO app_service (id, project_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_branch, build_path, watch_path)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO app_service (id, project_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_repo_url, git_branch, build_path, watch_path)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, type
 `
 
@@ -31,6 +31,7 @@ type CreateAppServiceParams struct {
 	GhAppID     int64             `json:"gh_app_id"`
 	GitRepoID   string            `json:"git_repo_id"`
 	GitRepoName string            `json:"git_repo_name"`
+	GitRepoUrl  string            `json:"git_repo_url"`
 	GitBranch   string            `json:"git_branch"`
 	BuildPath   string            `json:"build_path"`
 	WatchPath   string            `json:"watch_path"`
@@ -54,6 +55,7 @@ func (q *Queries) CreateAppService(ctx context.Context, arg CreateAppServicePara
 		arg.GhAppID,
 		arg.GitRepoID,
 		arg.GitRepoName,
+		arg.GitRepoUrl,
 		arg.GitBranch,
 		arg.BuildPath,
 		arg.WatchPath,
@@ -269,7 +271,7 @@ func (q *Queries) GetAllServicesByProjectId(ctx context.Context, projectid uuid.
 }
 
 const getAppServiceById = `-- name: GetAppServiceById :one
-SELECT id, project_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_branch, build_path, watch_path, created_at
+SELECT id, project_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_repo_url, git_branch, build_path, watch_path, created_at
 FROM app_service
 WHERE id = ?
 `
@@ -289,6 +291,7 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (AppServi
 		&i.GhAppID,
 		&i.GitRepoID,
 		&i.GitRepoName,
+		&i.GitRepoUrl,
 		&i.GitBranch,
 		&i.BuildPath,
 		&i.WatchPath,
@@ -362,6 +365,7 @@ SET git_provider = ?,
     gh_app_id = ?,
     git_repo_id = ?,
     git_repo_name = ?,
+    git_repo_url = ?,
     git_branch = ?,
     build_path = ?,
     watch_path = ?
@@ -373,6 +377,7 @@ type UpdateAppServiceDetailsParams struct {
 	GhAppID     int64     `json:"gh_app_id"`
 	GitRepoID   string    `json:"git_repo_id"`
 	GitRepoName string    `json:"git_repo_name"`
+	GitRepoUrl  string    `json:"git_repo_url"`
 	GitBranch   string    `json:"git_branch"`
 	BuildPath   string    `json:"build_path"`
 	WatchPath   string    `json:"watch_path"`
@@ -385,6 +390,7 @@ func (q *Queries) UpdateAppServiceDetails(ctx context.Context, arg UpdateAppServ
 		arg.GhAppID,
 		arg.GitRepoID,
 		arg.GitRepoName,
+		arg.GitRepoUrl,
 		arg.GitBranch,
 		arg.BuildPath,
 		arg.WatchPath,

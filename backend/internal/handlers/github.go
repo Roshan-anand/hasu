@@ -289,6 +289,22 @@ func (h *GitHandler) DeleteGithubApp(c *echo.Context) error {
 		return c.JSON(http.StatusForbidden, lib.Res{Message: "admin access required"})
 	}
 
+	ghApp, err := q.GetGhAppByAppId(h.ghCtx, b.AppID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to delete github app"})
+	}
+
+	client, err := lib.CreateAppClient(ghApp.AppID, ghApp.PemKey)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to delete github app"})
+	}
+
+	_, err = client.Apps.DeleteInstallation(h.qCtx, ghApp.AppID)
+	if err != nil {
+		fmt.Println("Error deleting github app installation:", err)
+		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to delete github app"})
+	}
+
 	if err := q.DeleteGithubApp(h.qCtx, b.AppID); err != nil {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to delete github app"})
 	}

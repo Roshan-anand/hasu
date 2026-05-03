@@ -10,22 +10,17 @@ type PullJobData struct {
 	Token        string
 	Url          string
 	Branch       string
+	StorePath    string
+	BuildPath    string
 }
 
 type BuildJobData struct {
 	DeploymentID uuid.UUID
-	Token        string
-	Owner        string
-	Repo         string
-	Branch       string
+	BuildPath    string
 }
 
 type DeployJobData struct {
 	DeploymentID uuid.UUID
-	Token        string
-	Owner        string
-	Repo         string
-	Branch       string
 }
 
 type JobQueue struct {

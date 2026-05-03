@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS app_service (
     gh_app_id INTEGER NOT NULL REFERENCES github_app(app_id) ON DELETE CASCADE,
     git_repo_id TEXT NOT NULL,
     git_repo_name TEXT NOT NULL,
+    git_repo_url TEXT NOT NULL,
     git_branch TEXT NOT NULL,
     build_path TEXT NOT NULL,
     watch_path TEXT NOT NULL,

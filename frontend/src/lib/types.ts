@@ -26,6 +26,7 @@ export type AppService = {
 	gh_app_id: number;
 	git_repo_id: string;
 	git_repo_name: string;
+	git_repo_url: string;
 	git_branch: string;
 	build_path: string;
 	watch_path: string;

@@ -74,6 +74,7 @@
 					gh_app_id: ghAppId,
 					git_repo_id: value.git_repo_id,
 					git_repo_name: selectedRepo?.full_name ?? service.git_repo_name,
+					git_repo_url: selectedRepo?.repo_url ?? service.git_repo_url,
 					git_branch: value.git_branch,
 					build_path: buildPath,
 					watch_path: watchPath

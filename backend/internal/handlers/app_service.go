@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
@@ -34,6 +35,7 @@ type UpdateAppServiceReq struct {
 	GhAppID     int64     `json:"gh_app_id" validate:"required"`
 	GitRepoID   string    `json:"git_repo_id" validate:"required"`
 	GitRepoName string    `json:"git_repo_name" validate:"required"`
+	GitRepoURL  string    `json:"git_repo_url" validate:"required"`
 	GitBranch   string    `json:"git_branch" validate:"required"`
 	BuildPath   string    `json:"build_path" validate:"required"`
 	WatchPath   string    `json:"watch_path" validate:"required"`
@@ -58,6 +60,13 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "failed to verify github app"})
 	}
 
+	// parse url
+	u, err := url.Parse(b.GitRepoURL)
+	if err != nil {
+		panic(err)
+	}
+	url := u.Host + u.Path
+
 	// create a new app service
 	b.AppName += lib.GenerateRandomID(6)
 	service, err := q.CreateAppService(h.qCtx, db.CreateAppServiceParams{
@@ -72,6 +81,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		GhAppID:     ghApp.AppID,
 		GitRepoID:   b.GitRepoID,
 		GitRepoName: b.GitRepoName,
+		GitRepoUrl:  url,
 		GitBranch:   b.GitBranch,
 		BuildPath:   b.BuildPath,
 		WatchPath:   b.WatchPath,
@@ -79,7 +89,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create service"})
 	}
-	
+
 	// create a new deployment for the app service
 	deploymentName := fmt.Sprintf("%s-%s", b.AppName, lib.GenerateRandomID(6))
 	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
@@ -101,9 +111,10 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	// push a new deployment job to the queue
 	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
 		DeploymentID: dID,
-		Url:          b.GitRepoURL,
-		Branch:       b.GitBranch,
 		Token:        token,
+		Url:          url,
+		Branch:       b.GitBranch,
+		BuildPath:    b.BuildPath,
 	})
 
 	return c.JSON(http.StatusOK, service)
@@ -173,6 +184,7 @@ func (h *ServiceHandler) UpdateAppService(c *echo.Context) error {
 		GhAppID:     ghApp.AppID,
 		GitRepoID:   b.GitRepoID,
 		GitRepoName: b.GitRepoName,
+		GitRepoUrl:  b.GitRepoURL,
 		GitBranch:   b.GitBranch,
 		BuildPath:   b.BuildPath,
 		WatchPath:   b.WatchPath,
