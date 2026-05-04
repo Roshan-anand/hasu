@@ -58,19 +58,6 @@ export type GetRepoResult = {
 	provider: GitProviderKey;
 };
 
-export type CreateAppServiceBody = {
-	org_id: string;
-	name: string;
-	git_provider: GitProviderKey;
-	gh_app_id: number;
-	git_repo_id: string;
-	git_repo_name: string;
-	git_repo_url: string;
-	default_branch: string;
-	build_path: string;
-	watch_path: string;
-};
-
 export type UpdateAppServiceBody = {
 	service_id: string;
 	git_provider: GitProviderKey;
@@ -83,8 +70,18 @@ export type UpdateAppServiceBody = {
 	watch_path: string;
 };
 
+export type CreateAppServiceBody = {
+	name: string;
+	git_provider: GitProviderKey;
+	gh_app_id: string;
+	git_repo_id: string;
+	git_repo_name: string;
+	git_repo_url: string;
+	build_path: string;
+	watch_path: string;
+};
+
 export type CreatePsqlServiceBody = {
-	org_id: string;
 	name: string;
 	db_name: string;
 	db_user: string;
@@ -93,5 +90,20 @@ export type CreatePsqlServiceBody = {
 };
 
 export type CreateServicePayload =
-	| { type: 'app'; body: CreateAppServiceBody }
-	| { type: 'psql'; body: CreatePsqlServiceBody };
+	| {
+			type: 'app';
+			body: CreateAppServiceBody & {
+				org_id: string;
+				default_branch: string;
+			};
+	  }
+	| {
+			type: 'psql';
+			body: CreatePsqlServiceBody & {
+				org_id: string;
+			};
+	  };
+
+export type CreateServiceForm =
+	| (CreateAppServiceBody & { type: 'app' })
+	| (CreatePsqlServiceBody & { type: 'psql' });

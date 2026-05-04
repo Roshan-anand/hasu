@@ -9,7 +9,7 @@
 		onSelect,
 		disabled = false
 	}: {
-		value: GitProviderKey | '';
+		value: GitProviderKey;
 		onSelect: (provider: GitProviderOption) => void;
 		disabled?: boolean;
 	} = $props();
@@ -22,7 +22,7 @@
 			variant="outline"
 			disabled={disabled || provider.api === ''}
 			onclick={() => onSelect(provider)}
-			class={`flex-1 ${value === provider.key ? 'border-primary text-primary' : ''}`}
+			class={`flex-1 ${value === provider.key ? 'border-primary' : ''}`}
 		>
 			<Icon icon={provider.icon} width="20" height="20" />
 			<p>{provider.name}</p>

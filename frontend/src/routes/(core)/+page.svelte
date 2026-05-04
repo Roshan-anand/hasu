@@ -10,8 +10,8 @@
 	import type { ServiceType } from '@/types';
 	import { Search, Trash2 } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
-	import CreateServiceDialog from './CreateServiceDialog.svelte';
 	import { useGetServicesQuery } from '@/features/services/query.svelte';
+	import CreateServiceDialog from '@/components/services/CreateServiceDialog.svelte';
 
 	const { currentOrg } = getUserState();
 	const currentOrgId = $derived(currentOrg.id);
