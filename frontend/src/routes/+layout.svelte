@@ -9,8 +9,8 @@
 	import { setUserState } from '@/features/global/store.svelte';
 
 	let { children } = $props();
-	
-	setUserState()
+
+	setUserState();
 
 	if (import.meta.env.VITE_APP_ENV === 'production') {
 		axios

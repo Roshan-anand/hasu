@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 )
 
 type IPResponse struct {
@@ -31,4 +33,17 @@ func GetPublicUrl() string {
 	}
 
 	return fmt.Sprintf("https://%s:8080", data.IP)
+}
+
+func ValidatePublicUrl(link string) bool {
+	u, err := url.Parse(link)
+	if err != nil {
+		return false
+	}
+
+	if _, err := net.LookupHost(u.Host); err != nil {
+		return false
+	}
+
+	return true
 }

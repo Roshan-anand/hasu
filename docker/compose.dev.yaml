@@ -55,12 +55,13 @@ services:
           path: ../backend/go.mod
         - action: rebuild
           path: ../backend/go.sum
+        - action: rebuild
+          path: ../.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ../.env:/app/backend/.env:rw
       - godploy-dev-data:/app/backend/data/sqlite
       - godploy-dev-logs:/app/backend/data/badger
-    env_file:
-      - ../.env
     environment:
       - JWT_SECRET=red_balloon
       - APP_ENV=dev

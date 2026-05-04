@@ -10,7 +10,6 @@
 		useGetReposMutation,
 		useUpdateAppServiceMutation
 	} from '@/features/services/mutation.svelte';
-	import { useGithubAppsQuery } from '@/features/services/query.svelte';
 	import { getServiceState } from '@/features/services/store.svelte';
 	import type { GithubApp, GitProviderKey, GitProviderOption } from '@/features/services/type';
 	import { getUserState } from '@/features/global/store.svelte';
@@ -19,6 +18,7 @@
 	import { createForm, revalidateLogic } from '@tanstack/svelte-form';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod';
+	import { useGithubAppsQuery } from '@/features/git/query.svelte';
 
 	let { service } = $props<{ service: ServiceBase & AppService }>();
 	const { currentOrg } = getUserState();

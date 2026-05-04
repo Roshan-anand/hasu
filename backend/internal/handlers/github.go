@@ -50,13 +50,13 @@ type DeleteGithubAppReq struct {
 }
 
 type GetGithubRepoListRes struct {
-	ID            int64    `json:"id"`
-	Name          string   `json:"name"`
-	FullName      string   `json:"full_name"`
-	Private       bool     `json:"private"`
-	DefaultBranch string   `json:"default_branch"`
-	HtmlURL       string   `json:"html_url"`
-	RepoURL       string   `json:"repo_url"`
+	ID            int64  `json:"id"`
+	Name          string `json:"name"`
+	FullName      string `json:"full_name"`
+	Private       bool   `json:"private"`
+	DefaultBranch string `json:"default_branch"`
+	HtmlURL       string `json:"html_url"`
+	RepoURL       string `json:"repo_url"`
 }
 
 func InitGitHandlers(s *config.Server) *GitHandler {

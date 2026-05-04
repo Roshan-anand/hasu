@@ -15,28 +15,28 @@ import (
 )
 
 type CreateAppServiceReq struct {
-	OrgID       uuid.UUID `json:"org_id" validate:"required"`
-	Name        string    `json:"name" validate:"required"`
-	GitProvider string    `json:"git_provider" validate:"required"`
-	GhAppID     int64     `json:"gh_app_id" validate:"required"`
-	GitRepoID   string    `json:"git_repo_id" validate:"required"`
-	GitRepoName string    `json:"git_repo_name" validate:"required"`
-	GitRepoURL  string    `json:"git_repo_url" validate:"required"`
-	DefaultBranch string  `json:"default_branch" validate:"required"`
-	BuildPath   string    `json:"build_path" validate:"required"`
-	WatchPath   string    `json:"watch_path" validate:"required"`
+	OrgID         uuid.UUID `json:"org_id" validate:"required"`
+	Name          string    `json:"name" validate:"required"`
+	GitProvider   string    `json:"git_provider" validate:"required"`
+	GhAppID       int64     `json:"gh_app_id" validate:"required"`
+	GitRepoID     string    `json:"git_repo_id" validate:"required"`
+	GitRepoName   string    `json:"git_repo_name" validate:"required"`
+	GitRepoURL    string    `json:"git_repo_url" validate:"required"`
+	DefaultBranch string    `json:"default_branch" validate:"required"`
+	BuildPath     string    `json:"build_path" validate:"required"`
+	WatchPath     string    `json:"watch_path" validate:"required"`
 }
 
 type UpdateAppServiceReq struct {
-	ServiceID   uuid.UUID `json:"service_id" validate:"required"`
-	GitProvider string    `json:"git_provider" validate:"required"`
-	GhAppID     int64     `json:"gh_app_id" validate:"required"`
-	GitRepoID   string    `json:"git_repo_id" validate:"required"`
-	GitRepoName string    `json:"git_repo_name" validate:"required"`
-	GitRepoURL  string    `json:"git_repo_url" validate:"required"`
-	DefaultBranch string  `json:"default_branch" validate:"required"`
-	BuildPath   string    `json:"build_path" validate:"required"`
-	WatchPath   string    `json:"watch_path" validate:"required"`
+	ServiceID     uuid.UUID `json:"service_id" validate:"required"`
+	GitProvider   string    `json:"git_provider" validate:"required"`
+	GhAppID       int64     `json:"gh_app_id" validate:"required"`
+	GitRepoID     string    `json:"git_repo_id" validate:"required"`
+	GitRepoName   string    `json:"git_repo_name" validate:"required"`
+	GitRepoURL    string    `json:"git_repo_url" validate:"required"`
+	DefaultBranch string    `json:"default_branch" validate:"required"`
+	BuildPath     string    `json:"build_path" validate:"required"`
+	WatchPath     string    `json:"watch_path" validate:"required"`
 }
 
 // create a new app service
@@ -105,13 +105,13 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	}
 
 	// push a new deployment job to the queue
-		h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
-			DeploymentID: dID,
-			Token:        token,
-			Url:          url,
-			Branch:       b.DefaultBranch,
-			BuildPath:    b.BuildPath,
-		})
+	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
+		DeploymentID: dID,
+		Token:        token,
+		Url:          url,
+		Branch:       b.DefaultBranch,
+		BuildPath:    b.BuildPath,
+	})
 
 	return c.JSON(http.StatusOK, service)
 }
@@ -176,15 +176,15 @@ func (h *ServiceHandler) UpdateAppService(c *echo.Context) error {
 	}
 
 	if err := q.UpdateAppServiceDetails(h.qCtx, db.UpdateAppServiceDetailsParams{
-		GitProvider: b.GitProvider,
-		GhAppID:     ghApp.AppID,
-		GitRepoID:   b.GitRepoID,
-		GitRepoName: b.GitRepoName,
-		GitRepoUrl:  b.GitRepoURL,
+		GitProvider:   b.GitProvider,
+		GhAppID:       ghApp.AppID,
+		GitRepoID:     b.GitRepoID,
+		GitRepoName:   b.GitRepoName,
+		GitRepoUrl:    b.GitRepoURL,
 		DefaultBranch: b.DefaultBranch,
-		BuildPath:   b.BuildPath,
-		WatchPath:   b.WatchPath,
-		ID:          b.ServiceID,
+		BuildPath:     b.BuildPath,
+		WatchPath:     b.WatchPath,
+		ID:            b.ServiceID,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "failed to update app service"})
 	}

@@ -24,8 +24,11 @@ func createServer() (*config.Server, error) {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// validate public ip
 	if cfg.AppEnv == types.ProdMode {
 		cfg.ServerUrl = lib.GetPublicUrl()
+	} else if !lib.ValidatePublicUrl(cfg.ServerUrl) {
+		return nil, fmt.Errorf("invalid server url: %s", cfg.ServerUrl)
 	}
 
 	// create server instance

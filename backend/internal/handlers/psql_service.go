@@ -28,12 +28,12 @@ type PsqlServiceHandler struct {
 }
 
 type CreatePsqlServiceReq struct {
-	OrgID       uuid.UUID `json:"org_id" validate:"required"`
-	Name        string    `json:"name" validate:"required"`
-	DbName      string    `json:"db_name" validate:"required"`
-	DbUser      string    `json:"db_user" validate:"required"`
-	DbPassword  string    `json:"db_password" validate:"required"`
-	Image       string    `json:"image" validate:"required"`
+	OrgID      uuid.UUID `json:"org_id" validate:"required"`
+	Name       string    `json:"name" validate:"required"`
+	DbName     string    `json:"db_name" validate:"required"`
+	DbUser     string    `json:"db_user" validate:"required"`
+	DbPassword string    `json:"db_password" validate:"required"`
+	Image      string    `json:"image" validate:"required"`
 }
 
 func InitPsqlServiceHandlers(s *config.Server) *PsqlServiceHandler {

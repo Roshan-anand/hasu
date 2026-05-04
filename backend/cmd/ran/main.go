@@ -2,19 +2,21 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 )
 
 func main() {
-	link := "https://github.com/Roshan-anand/code-join.git"
-
+	link := "https://coaching-anyone-badly-trader.trycloudflare.com"
 	u, err := url.Parse(link)
 	if err != nil {
 		panic(err)
 	}
 
-	// Remove leading "/"
-	path := u.Host + u.Path
+	addrs, err := net.LookupHost(u.Host)
+	if err != nil {
+		panic(err)
+	}
 
-	fmt.Println(path)
+	fmt.Println(addrs)
 }
