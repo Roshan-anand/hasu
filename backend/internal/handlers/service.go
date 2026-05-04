@@ -45,7 +45,7 @@ func (h *ServiceHandler) GetAllServices(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "failed to get user's current org"})
 	}
 
-	services, err := q.GetAllServices(h.qCtx, orgID)
+	services, err := q.GetAllService(h.qCtx, orgID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "failed to get services"})
 	}

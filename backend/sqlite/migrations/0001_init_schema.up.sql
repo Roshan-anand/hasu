@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS user (
     email TEXT UNIQUE NOT NULL,
     hash_pass TEXT NOT NULL,
     role TEXT NOT NULL,
-    current_org_id uuid NOT NULL REFERENCES organization(id) ON DELETE RESTRICT,
+    current_org_id uuid NOT NULL REFERENCES organization(id),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS app_service (
     git_repo_id TEXT NOT NULL,
     git_repo_name TEXT NOT NULL,
     git_repo_url TEXT NOT NULL,
-    git_branch TEXT NOT NULL,
+    default_branch TEXT NOT NULL,
     build_path TEXT NOT NULL,
     watch_path TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL

@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
 	"github.com/Roshan-anand/godploy/internal/lib"
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -107,22 +109,20 @@ func (h *OrgHandler) DeleteOrg(c *echo.Context) error {
 	}
 
 	q := h.Server.DB.Queries
-	if isAdmin, err := q.IsUserAdmin(h.qCtx, u.Email); err != nil {
-		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "internal server error"})
-	} else if !isAdmin {
-		return c.JSON(http.StatusForbidden, lib.Res{Message: "admin access required"})
-	}
-
-	count, err := q.CountUserOrgs(h.qCtx)
+	user, err := q.GetUserByEmail(h.qCtx, u.Email)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "internal server error"})
 	}
 
-	if count <= 1 {
-		return c.JSON(http.StatusBadRequest, lib.Res{Message: "Cannot delete the only organization"})
+	switch {
+	case user.OrgID == b.OrgID:
+		return c.JSON(http.StatusConflict, lib.Res{Message: "Cannot delete the current organization"})
+	case user.Role != types.AdminRole:
+		return c.JSON(http.StatusForbidden, lib.Res{Message: "admin access required"})
 	}
 
 	if err := q.DeleteOrg(h.qCtx, b.OrgID); err != nil {
+		fmt.Printf("Error deleting organization: %v\n", err)
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to delete organization"})
 	}
 

@@ -4,7 +4,6 @@ export type AppGitFormValues = {
 	git_provider: GitProviderKey | '';
 	git_app_id: string;
 	git_repo_id: string;
-	git_branch: string;
 	build_path: string;
 	watch_path: string;
 };
@@ -21,7 +20,6 @@ export const validateAppGitForm = (value: AppGitFormValues) => {
 	if (value.git_provider === 'github') {
 		if (value.git_app_id === '') fields.git_app_id = 'GitHub app is required';
 		if (value.git_repo_id === '') fields.git_repo_id = 'Repository is required';
-		if (value.git_branch === '') fields.git_branch = 'Branch is required';
 		if (value.build_path.trim() === '') fields.build_path = 'Build path is required';
 		if (value.watch_path.trim() === '') fields.watch_path = 'Watch path is required';
 	}

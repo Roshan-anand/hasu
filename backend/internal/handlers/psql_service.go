@@ -30,8 +30,6 @@ type PsqlServiceHandler struct {
 type CreatePsqlServiceReq struct {
 	OrgID       uuid.UUID `json:"org_id" validate:"required"`
 	Name        string    `json:"name" validate:"required"`
-	AppName     string    `json:"app_name" validate:"required"`
-	Description string    `json:"description"`
 	DbName      string    `json:"db_name" validate:"required"`
 	DbUser      string    `json:"db_user" validate:"required"`
 	DbPassword  string    `json:"db_password" validate:"required"`
@@ -57,8 +55,7 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
-	// service name to be unique
-	b.AppName += lib.GenerateRandomID(6)
+	serviceName := fmt.Sprintf("%s-%s", b.Name, lib.GenerateRandomID(6))
 
 	service, err := h.Server.DB.Queries.CreatePsqlService(h.qCtx, db.CreatePsqlServiceParams{
 		ID:             lib.NewID(),
@@ -66,8 +63,7 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 		Type:           types.PsqlServiceType,
 		ServiceID:      "",
 		Name:           b.Name,
-		AppName:        b.AppName,
-		Description:    b.Description,
+		AppName:        serviceName,
 		DbName:         b.DbName,
 		DbUser:         b.DbUser,
 		DbPassword:     b.DbPassword, // TODO : make is hased

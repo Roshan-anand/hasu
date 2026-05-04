@@ -37,7 +37,7 @@
 			git_provider: service.git_provider as GitProviderKey,
 			git_app_id: service.gh_app_id.toString(),
 			git_repo_id: service.git_repo_id,
-			git_branch: service.git_branch,
+			default_branch: service.default_branch,
 			build_path: initialBuildPath,
 			watch_path: initialWatchPath
 		},
@@ -75,7 +75,7 @@
 					git_repo_id: value.git_repo_id,
 					git_repo_name: selectedRepo?.full_name ?? service.git_repo_name,
 					git_repo_url: selectedRepo?.repo_url ?? service.git_repo_url,
-					git_branch: value.git_branch,
+					default_branch: selectedRepo?.default_branch ?? service.default_branch,
 					build_path: buildPath,
 					watch_path: watchPath
 				},
@@ -95,7 +95,6 @@
 	const resetGitRepoSelection = () => {
 		form.resetField('git_app_id');
 		form.resetField('git_repo_id');
-		form.resetField('git_branch');
 		featureState.githubRepos = [];
 	};
 
@@ -109,7 +108,6 @@
 		form.setFieldValue('git_provider', 'github');
 		form.setFieldValue('git_app_id', app.app_id.toString());
 		form.setFieldValue('git_repo_id', '');
-		form.setFieldValue('git_branch', '');
 		featureState.githubRepos = [];
 		lastFetchedAppId = app.app_id;
 
@@ -141,17 +139,6 @@
 		if (!repo) return;
 
 		form.setFieldValue('git_repo_id', repoId);
-		form.setFieldValue('git_branch', repo.default_branch);
-	};
-
-	const onBranchSelect = (branchName: string) => {
-		form.setFieldValue('git_branch', branchName);
-	};
-
-	const getRepoBranches = (repoId: string): string[] => {
-		const selectedRepo = featureState.githubRepos.find((repo) => repo.id.toString() === repoId);
-		if (!selectedRepo) return repoId === service.git_repo_id ? [service.git_branch] : [];
-		return selectedRepo.branches.length > 0 ? selectedRepo.branches : [selectedRepo.default_branch];
 	};
 
 	const getGithubAppName = (appId: string): string => {
@@ -170,7 +157,7 @@
 		git_provider: GitProviderKey | '';
 		git_app_id: string;
 		git_repo_id: string;
-		git_branch: string;
+		default_branch: string;
 		build_path: string;
 		watch_path: string;
 	}) => {
@@ -178,7 +165,7 @@
 			value.git_provider !== service.git_provider ||
 			value.git_app_id !== service.gh_app_id.toString() ||
 			value.git_repo_id !== service.git_repo_id ||
-			value.git_branch !== service.git_branch ||
+			value.default_branch !== service.default_branch ||
 			normalizePathValue(value.build_path) !== initialBuildPath ||
 			normalizePathValue(value.watch_path) !== initialWatchPath
 		);
@@ -308,37 +295,6 @@
 						<Select.Content>
 							{#each featureState.githubRepos as repo (repo.id)}
 								<Select.Item value={repo.id.toString()} label={repo.full_name} />
-							{/each}
-						</Select.Content>
-					</Select.Root>
-					{#if field.state.meta.errors.length}
-						<p class="text-sm font-medium text-destructive">
-							{field.state.meta.errors[0]}
-						</p>
-					{/if}
-				</div>
-			{/snippet}
-		</form.Field>
-
-		<form.Field name="git_branch">
-			{#snippet children(field)}
-				<div class="space-y-1.5">
-					<Label for="git-branch-select">Branch</Label>
-					<Select.Root
-						type="single"
-						value={field.state.value}
-						onValueChange={(value) => {
-							field.handleChange(value);
-							onBranchSelect(value);
-						}}
-						disabled={form.getFieldValue('git_repo_id') === ''}
-					>
-						<Select.Trigger class="w-full" id="git-branch-select">
-							{field.state.value || 'Select branch'}
-						</Select.Trigger>
-						<Select.Content>
-							{#each getRepoBranches(form.getFieldValue('git_repo_id')) as branch (branch)}
-								<Select.Item value={branch} label={branch} />
 							{/each}
 						</Select.Content>
 					</Select.Root>

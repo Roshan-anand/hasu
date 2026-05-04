@@ -1,4 +1,4 @@
--- name: GetAllServices :many
+-- name: GetAllService :many
 SELECT ps.id, ps.type, ps.name, ps.description, ps.created_at
 FROM psql_service ps
 WHERE ps.organization_id = @org_id
@@ -27,7 +27,7 @@ DELETE FROM psql_service
 WHERE id = ?;
 
 -- name: CreateAppService :one
-INSERT INTO app_service (id, organization_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_repo_url, git_branch, build_path, watch_path)
+INSERT INTO app_service (id, organization_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_repo_url, default_branch, build_path, watch_path)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, type;
 
@@ -52,7 +52,7 @@ SET git_provider = ?,
     git_repo_id = ?,
     git_repo_name = ?,
     git_repo_url = ?,
-    git_branch = ?,
+    default_branch = ?,
     build_path = ?,
     watch_path = ?
 WHERE id = ?;

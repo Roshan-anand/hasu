@@ -49,7 +49,6 @@ export type GithubRepo = {
 	repo_url: string;
 	private: boolean;
 	default_branch: string;
-	branches: string[];
 };
 
 export type GetRepoResult = {
@@ -62,14 +61,12 @@ export type GetRepoResult = {
 export type CreateAppServiceBody = {
 	org_id: string;
 	name: string;
-	description: string;
-	app_name: string;
 	git_provider: GitProviderKey;
 	gh_app_id: number;
 	git_repo_id: string;
 	git_repo_name: string;
 	git_repo_url: string;
-	git_branch: string;
+	default_branch: string;
 	build_path: string;
 	watch_path: string;
 };
@@ -81,7 +78,7 @@ export type UpdateAppServiceBody = {
 	git_repo_id: string;
 	git_repo_name: string;
 	git_repo_url: string;
-	git_branch: string;
+	default_branch: string;
 	build_path: string;
 	watch_path: string;
 };
@@ -89,8 +86,6 @@ export type UpdateAppServiceBody = {
 export type CreatePsqlServiceBody = {
 	org_id: string;
 	name: string;
-	description: string;
-	app_name: string;
 	db_name: string;
 	db_user: string;
 	db_password: string;

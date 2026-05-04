@@ -17,14 +17,12 @@ import (
 type CreateAppServiceReq struct {
 	OrgID       uuid.UUID `json:"org_id" validate:"required"`
 	Name        string    `json:"name" validate:"required"`
-	AppName     string    `json:"app_name" validate:"required"`
-	Description string    `json:"description"`
 	GitProvider string    `json:"git_provider" validate:"required"`
 	GhAppID     int64     `json:"gh_app_id" validate:"required"`
 	GitRepoID   string    `json:"git_repo_id" validate:"required"`
 	GitRepoName string    `json:"git_repo_name" validate:"required"`
 	GitRepoURL  string    `json:"git_repo_url" validate:"required"`
-	GitBranch   string    `json:"git_branch" validate:"required"`
+	DefaultBranch string  `json:"default_branch" validate:"required"`
 	BuildPath   string    `json:"build_path" validate:"required"`
 	WatchPath   string    `json:"watch_path" validate:"required"`
 }
@@ -36,7 +34,7 @@ type UpdateAppServiceReq struct {
 	GitRepoID   string    `json:"git_repo_id" validate:"required"`
 	GitRepoName string    `json:"git_repo_name" validate:"required"`
 	GitRepoURL  string    `json:"git_repo_url" validate:"required"`
-	GitBranch   string    `json:"git_branch" validate:"required"`
+	DefaultBranch string  `json:"default_branch" validate:"required"`
 	BuildPath   string    `json:"build_path" validate:"required"`
 	WatchPath   string    `json:"watch_path" validate:"required"`
 }
@@ -67,22 +65,20 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	}
 	url := u.Host + u.Path
 
-	// create a new app service
-	b.AppName += lib.GenerateRandomID(6)
+	serviceName := fmt.Sprintf("%s-%s", b.Name, lib.GenerateRandomID(6))
 	service, err := q.CreateAppService(h.qCtx, db.CreateAppServiceParams{
 		ID:             lib.NewID(),
 		OrganizationID: b.OrgID,
 		Type:           types.AppServiceType,
 		ServiceID:      "",
 		Name:           b.Name,
-		AppName:        b.AppName,
-		Description:    b.Description,
+		AppName:        serviceName,
 		GitProvider:    b.GitProvider,
 		GhAppID:        ghApp.AppID,
 		GitRepoID:      b.GitRepoID,
 		GitRepoName:    b.GitRepoName,
 		GitRepoUrl:     url,
-		GitBranch:      b.GitBranch,
+		DefaultBranch:  b.DefaultBranch,
 		BuildPath:      b.BuildPath,
 		WatchPath:      b.WatchPath,
 	})
@@ -91,7 +87,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	}
 
 	// create a new deployment for the app service
-	deploymentName := fmt.Sprintf("%s-%s", b.AppName, lib.GenerateRandomID(6))
+	deploymentName := fmt.Sprintf("%s-%s", serviceName, lib.GenerateRandomID(6))
 	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 		ID:        lib.NewID(),
 		Name:      deploymentName,
@@ -109,13 +105,13 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	}
 
 	// push a new deployment job to the queue
-	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
-		DeploymentID: dID,
-		Token:        token,
-		Url:          url,
-		Branch:       b.GitBranch,
-		BuildPath:    b.BuildPath,
-	})
+		h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
+			DeploymentID: dID,
+			Token:        token,
+			Url:          url,
+			Branch:       b.DefaultBranch,
+			BuildPath:    b.BuildPath,
+		})
 
 	return c.JSON(http.StatusOK, service)
 }
@@ -185,7 +181,7 @@ func (h *ServiceHandler) UpdateAppService(c *echo.Context) error {
 		GitRepoID:   b.GitRepoID,
 		GitRepoName: b.GitRepoName,
 		GitRepoUrl:  b.GitRepoURL,
-		GitBranch:   b.GitBranch,
+		DefaultBranch: b.DefaultBranch,
 		BuildPath:   b.BuildPath,
 		WatchPath:   b.WatchPath,
 		ID:          b.ServiceID,

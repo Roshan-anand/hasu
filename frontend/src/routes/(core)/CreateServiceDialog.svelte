@@ -5,7 +5,6 @@
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import * as Select from '@/components/ui/select';
-	import { Textarea } from '@/components/ui/textarea';
 	import { gitProviders, serviceTypes } from '@/features/services/const';
 	import { normalizePathValue, validateAppGitForm } from '@/features/services/form';
 	import {
@@ -50,13 +49,10 @@
 	const form = createForm(() => ({
 		defaultValues: {
 			name: '',
-			description: '',
 			type: 'app',
-			app_name: '',
 			git_provider: '' as GitProviderKey | '',
 			git_app_id: '',
 			git_repo_id: '',
-			git_branch: '',
 			build_path: '/',
 			watch_path: '/',
 			db_name: '',
@@ -114,14 +110,12 @@
 					body: {
 						org_id: currentOrg.id,
 						name: value.name.trim(),
-						description: value.description.trim(),
-						app_name: value.app_name.trim(),
 						git_provider: (value.git_provider || 'github') as GitProviderKey,
 						gh_app_id: ghAppId,
 						git_repo_id: value.git_repo_id,
 						git_repo_name: selectedGithubRepo.full_name,
 						git_repo_url: selectedGithubRepo.repo_url,
-						git_branch: value.git_branch,
+						default_branch: selectedGithubRepo.default_branch,
 						build_path: buildPath,
 						watch_path: watchPath
 					}
@@ -134,8 +128,6 @@
 				body: {
 					org_id: currentOrg.id,
 					name: value.name.trim(),
-					description: value.description.trim(),
-					app_name: value.app_name.trim(),
 					db_name: value.db_name.trim(),
 					db_user: value.db_user.trim(),
 					db_password: value.db_password,
@@ -154,7 +146,6 @@
 		form.resetField('git_provider');
 		form.resetField('git_app_id');
 		form.resetField('git_repo_id');
-		form.resetField('git_branch');
 		form.resetField('build_path');
 		form.resetField('watch_path');
 		featureState.githubApps = [];
@@ -175,6 +166,12 @@
 			form.resetField('db_user');
 			form.resetField('db_password');
 			form.resetField('image');
+		} else {
+			form.resetField('git_provider');
+			form.resetField('git_app_id');
+			form.resetField('git_repo_id');
+			form.resetField('build_path');
+			form.resetField('watch_path');
 		}
 	};
 
@@ -198,7 +195,6 @@
 		form.setFieldValue('git_provider', 'github');
 		form.setFieldValue('git_app_id', app.app_id.toString());
 		form.setFieldValue('git_repo_id', '');
-		form.setFieldValue('git_branch', '');
 		featureState.githubRepos = [];
 
 		getReposMutation.mutate({
@@ -220,7 +216,6 @@
 		form.setFieldValue('git_provider', provider.key);
 		form.setFieldValue('git_app_id', '');
 		form.setFieldValue('git_repo_id', '');
-		form.setFieldValue('git_branch', '');
 		featureState.githubRepos = [];
 
 		if (provider.key === 'github' && featureState.githubApps.length === 0) {
@@ -233,17 +228,6 @@
 		if (!repo) return;
 
 		form.setFieldValue('git_repo_id', repoId);
-		form.setFieldValue('git_branch', repo.default_branch);
-	};
-
-	const onBranchSelect = (branchName: string) => {
-		form.setFieldValue('git_branch', branchName);
-	};
-
-	const getRepoBranches = (repoId: string): string[] => {
-		const selectedRepo = featureState.githubRepos.find((repo) => repo.id.toString() === repoId);
-		if (!selectedRepo) return [];
-		return selectedRepo.branches.length > 0 ? selectedRepo.branches : [selectedRepo.default_branch];
 	};
 
 	const getGithubAppName = (appId: string): string => {
@@ -296,28 +280,6 @@
 					{/snippet}
 				</form.Field>
 
-				<form.Field
-					name="description"
-					validators={{ onChange: z.string().min(1, 'Description is required') }}
-				>
-					{#snippet children(field)}
-						<div class="space-y-1.5">
-							<Label for={field.name}>Service Description</Label>
-							<Textarea
-								id={field.name}
-								placeholder="What does this service do?"
-								value={field.state.value}
-								onblur={field.handleBlur}
-								oninput={(e) => field.handleChange(e.currentTarget.value)}
-								disabled={createServiceMutation.isPending}
-							/>
-							{#if field.state.meta.errors.length}
-								<p class="text-sm font-medium text-destructive">{field.state.meta.errors[0]}</p>
-							{/if}
-						</div>
-					{/snippet}
-				</form.Field>
-
 				<form.Field name="type">
 					{#snippet children(field)}
 						<div class="space-y-1.5">
@@ -340,28 +302,6 @@
 					{/snippet}
 				</form.Field>
 
-				<form.Field
-					name="app_name"
-					validators={{ onChange: z.string().min(3, 'App name must be at least 3 characters') }}
-				>
-					{#snippet children(field)}
-						<div class="space-y-1.5">
-							<Label for={field.name}>App Name</Label>
-							<Input
-								id={field.name}
-								placeholder="payments-db"
-								value={field.state.value}
-								onblur={field.handleBlur}
-								oninput={(e) => field.handleChange(e.currentTarget.value)}
-								disabled={createServiceMutation.isPending}
-							/>
-							{#if field.state.meta.errors.length}
-								<p class="text-sm font-medium text-destructive">{field.state.meta.errors[0]}</p>
-							{/if}
-						</div>
-					{/snippet}
-				</form.Field>
-
 				<form.Subscribe selector={(state) => state.values.type}>
 					{#snippet children(currentType)}
 						{#if currentType === 'app'}
@@ -369,8 +309,7 @@
 								selector={(state) => ({
 									gitProvider: state.values.git_provider,
 									gitAppId: state.values.git_app_id,
-									gitRepoId: state.values.git_repo_id,
-									gitBranch: state.values.git_branch
+									gitRepoId: state.values.git_repo_id
 								})}
 							>
 								{#snippet children(gitState)}
@@ -472,39 +411,8 @@
 											{/snippet}
 										</form.Field>
 
-										<form.Field name="git_branch">
-											{#snippet children(field)}
-												<div class="space-y-1.5">
-													<Label for="git-branch-select">Branch</Label>
-													<Select.Root
-														type="single"
-														value={field.state.value}
-														onValueChange={(value) => {
-															field.handleChange(value);
-															onBranchSelect(value);
-														}}
-														disabled={gitState.gitRepoId === ''}
-													>
-														<Select.Trigger class="w-full" id="git-branch-select">
-															{gitState.gitBranch || 'Select branch'}
-														</Select.Trigger>
-														<Select.Content>
-															{#each getRepoBranches(gitState.gitRepoId) as branch (branch)}
-																<Select.Item value={branch} label={branch} />
-															{/each}
-														</Select.Content>
-													</Select.Root>
-													{#if field.state.meta.errors.length}
-														<p class="text-sm font-medium text-destructive">
-															{field.state.meta.errors[0]}
-														</p>
-													{/if}
-												</div>
-											{/snippet}
-										</form.Field>
-
-										<form.Field
-											name="build_path"
+								<form.Field
+									name="build_path"
 											validators={{
 												onChange: z.string().min(1, 'Build path is required'),
 												onDynamic: ({ value, fieldApi }) => {
