@@ -7,7 +7,7 @@
 
 	const { currentOrg } = getUserState();
 
-	const getGithubAppsQuery = useGithubAppsQuery(() => currentOrg.id);
+	const getGithubAppsQuery = useGithubAppsQuery();
 	const deleteGithubAppMutation = useDeleteGithubAppMutation();
 
 	const providerRedirect = (loc: string) => (window.location.href = loc);

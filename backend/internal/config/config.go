@@ -1,8 +1,9 @@
 package config
 
 import (
-	"fmt"
 	"os"
+
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 )
 
 type Config struct {
@@ -15,16 +16,14 @@ type Config struct {
 	ServerUrl        string
 	SqliteDir        string
 	BadgerDir        string
-	AppEnv           string
+	AppEnv           types.AppEnv
 }
 
 func LoadConfig() (*Config, error) {
-	appEnv := os.Getenv("APP_ENV")
+	appEnv := os.Getenv("SERVER_ENV")
 	jwtSecrect := os.Getenv("JWT_SECRET")
 	webUrl := os.Getenv("WEB_URL")
 	srvUrl := os.Getenv("SERVER_PUBLIC_URL")
-
-	fmt.Println("server url : ", srvUrl)
 
 	// TODO : load from env variable
 	return &Config{
@@ -36,7 +35,7 @@ func LoadConfig() (*Config, error) {
 		WebUrl:           webUrl,
 		SqliteDir:        "data/sqlite",
 		BadgerDir:        "data/badger",
-		AppEnv:           appEnv,
+		AppEnv:           types.AppEnv(appEnv),
 		ServerUrl:        srvUrl,
 	}, nil
 }

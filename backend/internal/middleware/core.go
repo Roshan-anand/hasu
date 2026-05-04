@@ -8,6 +8,7 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/lib"
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 )
@@ -27,7 +28,7 @@ func NewMiddlewares(s *config.Server) *Middlewares {
 func (m *Middlewares) GlobalMiddlewareCors() echo.MiddlewareFunc {
 	cfg := middleware.CORSConfig{
 		AllowOrigins:     []string{m.Server.Config.WebUrl},
-		AllowCredentials: m.Server.Config.AppEnv == "dev",
+		AllowCredentials: m.Server.Config.AppEnv == types.DevMode,
 	}
 
 	return middleware.CORSWithConfig(cfg)

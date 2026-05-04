@@ -83,8 +83,8 @@ func generateSessionToken() (string, error) {
 // cookieFlags returns Secure and SameSite values based on the app environment.
 // dev: SameSite=None + Secure=true (required by browsers for cross-origin cookies)
 // prod: SameSite=Lax + Secure=true (same-origin, standard secure setup)
-func cookieFlags(appEnv string) (secure bool, sameSite http.SameSite) {
-	if appEnv == "dev" {
+func cookieFlags(appEnv types.AppEnv) (secure bool, sameSite http.SameSite) {
+	if appEnv == types.DevMode {
 		return true, http.SameSiteNoneMode
 	}
 	return true, http.SameSiteLaxMode

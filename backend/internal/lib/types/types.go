@@ -1,5 +1,12 @@
 package types
 
+type AppEnv string
+
+const (
+	DevMode  AppEnv = "development"
+	ProdMode AppEnv = "production"
+)
+
 type UserRole string
 
 const (

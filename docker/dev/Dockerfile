@@ -22,6 +22,8 @@ CMD ["bun", "dev", "--host", "0.0.0.0", "--port", "3000"]
 # Stage 2: Backend development with go.
 FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS backend-dev
 
+ENV SERVER_ENV=development
+
 # Install development tools in a single layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \

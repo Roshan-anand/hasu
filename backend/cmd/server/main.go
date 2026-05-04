@@ -10,6 +10,8 @@ import (
 	"github.com/Roshan-anand/godploy/internal/config"
 	deploymentjob "github.com/Roshan-anand/godploy/internal/jobs/deployment"
 	"github.com/Roshan-anand/godploy/internal/jobs/logbroker"
+	"github.com/Roshan-anand/godploy/internal/lib"
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/Roshan-anand/godploy/internal/routes"
 	"github.com/joho/godotenv"
 )
@@ -20,6 +22,10 @@ func createServer() (*config.Server, error) {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	if cfg.AppEnv == types.ProdMode {
+		cfg.ServerUrl = lib.GetPublicUrl()
 	}
 
 	// create server instance

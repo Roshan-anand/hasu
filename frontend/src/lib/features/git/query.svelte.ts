@@ -21,10 +21,11 @@ export const gitProviders: GitProvider[] = [
 	}
 ];
 
+export const getGithubAppsQueryKey = (orgId: string) => ['github-apps', orgId] as const;
 export function useGithubAppsQuery() {
 	const { currentOrg } = getUserState();
 	return createQuery(() => ({
-		queryKey: ['github-apps', currentOrg],
+		queryKey: getGithubAppsQueryKey(currentOrg.id),
 		queryFn: () => api.get<GithubApp[] | null>('/provider/github/app/list').then((res) => res.data),
 		enabled: currentOrg.id != ''
 	}));
