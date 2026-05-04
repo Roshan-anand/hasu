@@ -25,6 +25,9 @@ type CreateAppServiceReq struct {
 	DefaultBranch string    `json:"default_branch" validate:"required"`
 	BuildPath     string    `json:"build_path" validate:"required"`
 	WatchPath     string    `json:"watch_path" validate:"required"`
+	Env           string    `json:"env"`
+	BuildArgs     string    `json:"build_args"`
+	BuildSecrets  string    `json:"build_secrets"`
 }
 
 type UpdateAppServiceReq struct {
@@ -81,6 +84,9 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		DefaultBranch:  b.DefaultBranch,
 		BuildPath:      b.BuildPath,
 		WatchPath:      b.WatchPath,
+		Env:            b.Env,
+		BuildArgs:      b.BuildArgs,
+		BuildSecrets:   b.BuildSecrets,
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create service"})

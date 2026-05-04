@@ -79,6 +79,9 @@ export type CreateAppServiceBody = {
 	git_repo_url: string;
 	build_path: string;
 	watch_path: string;
+	env: string;
+	build_args: string;
+	build_secrets: string;
 };
 
 export type CreatePsqlServiceBody = {

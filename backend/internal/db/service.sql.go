@@ -14,8 +14,8 @@ import (
 )
 
 const createAppService = `-- name: CreateAppService :one
-INSERT INTO app_service (id, organization_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_repo_url, default_branch, build_path, watch_path)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO app_service (id, organization_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_repo_url, default_branch, build_path, watch_path, env, build_args, build_secrets)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, type
 `
 
@@ -35,6 +35,9 @@ type CreateAppServiceParams struct {
 	DefaultBranch  string            `json:"default_branch"`
 	BuildPath      string            `json:"build_path"`
 	WatchPath      string            `json:"watch_path"`
+	Env            string            `json:"env"`
+	BuildArgs      string            `json:"build_args"`
+	BuildSecrets   string            `json:"build_secrets"`
 }
 
 type CreateAppServiceRow struct {
@@ -59,6 +62,9 @@ func (q *Queries) CreateAppService(ctx context.Context, arg CreateAppServicePara
 		arg.DefaultBranch,
 		arg.BuildPath,
 		arg.WatchPath,
+		arg.Env,
+		arg.BuildArgs,
+		arg.BuildSecrets,
 	)
 	var i CreateAppServiceRow
 	err := row.Scan(&i.ID, &i.Type)
@@ -179,7 +185,7 @@ func (q *Queries) GetAllService(ctx context.Context, orgID uuid.UUID) ([]GetAllS
 }
 
 const getAppServiceById = `-- name: GetAppServiceById :one
-SELECT id, organization_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_repo_url, default_branch, build_path, watch_path, created_at
+SELECT id, organization_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_repo_url, default_branch, build_path, watch_path, env, build_args, build_secrets, created_at
 FROM app_service
 WHERE id = ?
 `
@@ -203,6 +209,9 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (AppServi
 		&i.DefaultBranch,
 		&i.BuildPath,
 		&i.WatchPath,
+		&i.Env,
+		&i.BuildArgs,
+		&i.BuildSecrets,
 		&i.CreatedAt,
 	)
 	return i, err

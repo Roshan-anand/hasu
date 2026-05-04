@@ -61,6 +61,9 @@ CREATE TABLE IF NOT EXISTS app_service (
     default_branch TEXT NOT NULL,
     build_path TEXT NOT NULL,
     watch_path TEXT NOT NULL,
+    env TEXT NOT NULL,
+    build_args TEXT NOT NULL,
+    build_secrets TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 

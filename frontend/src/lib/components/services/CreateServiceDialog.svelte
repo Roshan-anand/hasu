@@ -4,6 +4,7 @@
 	import GitProviderField from '@/components/services/git-provider-field.svelte';
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
+	import { Textarea } from '@/components/ui/textarea';
 	import * as Select from '@/components/ui/select';
 	import { gitProviders, serviceTypes } from '@/features/services/const';
 	import { normalizePathValue } from '@/features/services/form';
@@ -55,7 +56,10 @@
 			git_repo_name: '',
 			git_repo_url: '',
 			build_path: '/',
-			watch_path: '/'
+			watch_path: '/',
+			env: '',
+			build_args: '',
+			build_secrets: ''
 		} as CreateServiceForm,
 		onSubmit: ({ value }) => {
 			if (currentOrg.id === '') {
@@ -93,7 +97,10 @@
 						git_repo_url: selectedGithubRepo.repo_url,
 						default_branch: selectedGithubRepo.default_branch,
 						build_path: buildPath,
-						watch_path: watchPath
+						watch_path: watchPath,
+						env: value.env,
+						build_args: value.build_args,
+						build_secrets: value.build_secrets
 					}
 				});
 				return;
@@ -346,6 +353,60 @@
 									<Input
 										id={field.name}
 										placeholder="/"
+										value={field.state.value}
+										onblur={field.handleBlur}
+										oninput={(e) => field.handleChange(e.currentTarget.value)}
+										disabled={createServiceMutation.isPending}
+									/>
+									<FormError errors={field.state.meta.errors} />
+								</div>
+							{/snippet}
+						</form.Field>
+
+						<form.Field name="env">
+							{#snippet children(field)}
+								<div class="space-y-1.5">
+									<Label for={field.name}>Environment</Label>
+									<Textarea
+										id={field.name}
+										spellcheck={false}
+										placeholder="KEY=value"
+										value={field.state.value}
+										onblur={field.handleBlur}
+										oninput={(e) => field.handleChange(e.currentTarget.value)}
+										disabled={createServiceMutation.isPending}
+									/>
+									<FormError errors={field.state.meta.errors} />
+								</div>
+							{/snippet}
+						</form.Field>
+
+						<form.Field name="build_args">
+							{#snippet children(field)}
+								<div class="space-y-1.5">
+									<Label for={field.name}>Build Args</Label>
+									<Textarea
+										id={field.name}
+										spellcheck={false}
+										placeholder="KEY=value"
+										value={field.state.value}
+										onblur={field.handleBlur}
+										oninput={(e) => field.handleChange(e.currentTarget.value)}
+										disabled={createServiceMutation.isPending}
+									/>
+									<FormError errors={field.state.meta.errors} />
+								</div>
+							{/snippet}
+						</form.Field>
+
+						<form.Field name="build_secrets">
+							{#snippet children(field)}
+								<div class="space-y-1.5">
+									<Label for={field.name}>Build Secrets</Label>
+									<Textarea
+										id={field.name}
+										spellcheck={false}
+										placeholder="KEY=value"
 										value={field.state.value}
 										onblur={field.handleBlur}
 										oninput={(e) => field.handleChange(e.currentTarget.value)}

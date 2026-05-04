@@ -27,8 +27,8 @@ DELETE FROM psql_service
 WHERE id = ?;
 
 -- name: CreateAppService :one
-INSERT INTO app_service (id, organization_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_repo_url, default_branch, build_path, watch_path)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO app_service (id, organization_id, type, service_id, name, app_name, description, git_provider, gh_app_id, git_repo_id, git_repo_name, git_repo_url, default_branch, build_path, watch_path, env, build_args, build_secrets)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, type;
 
 -- name: GetAppServiceById :one

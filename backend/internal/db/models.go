@@ -28,6 +28,9 @@ type AppService struct {
 	DefaultBranch  string            `json:"default_branch"`
 	BuildPath      string            `json:"build_path"`
 	WatchPath      string            `json:"watch_path"`
+	Env            string            `json:"env"`
+	BuildArgs      string            `json:"build_args"`
+	BuildSecrets   string            `json:"build_secrets"`
 	CreatedAt      time.Time         `json:"created_at"`
 }
 
