@@ -1,22 +1,18 @@
 import { getContext, setContext } from 'svelte';
-import type { CreateServiceResponse, GithubApp, GithubRepo } from './type';
+import type { GithubApp, GithubRepo } from './type';
 
 export interface ServiceStore {
 	githubApps: GithubApp[];
 	githubRepos: GithubRepo[];
-	searchQuery: string;
 	createDialogOpen: boolean;
 	openCreateDialog: () => void;
 	closeCreateDialog: () => void;
 	setGithubApps: (apps: GithubApp[]) => void;
-	afterCreateSuccess: (response: CreateServiceResponse) => Promise<void>;
-	setAfterCreateSuccess: (fn: (response: CreateServiceResponse) => Promise<void>) => void;
 }
 
 class ServiceStoreClass implements ServiceStore {
 	githubApps = $state<GithubApp[]>([]);
 	githubRepos = $state<GithubRepo[]>([]);
-	searchQuery = $state('');
 	createDialogOpen = $state(false);
 	setGithubApps = (apps: GithubApp[]) => (this.githubApps = apps);
 	openCreateDialog = () => {
@@ -24,12 +20,6 @@ class ServiceStoreClass implements ServiceStore {
 	};
 	closeCreateDialog = () => {
 		this.createDialogOpen = false;
-	};
-
-	afterCreateSuccess = $state<(response: CreateServiceResponse) => Promise<void>>(async () => {});
-
-	setAfterCreateSuccess = (fn: (response: CreateServiceResponse) => Promise<void>) => {
-		this.afterCreateSuccess = fn;
 	};
 }
 

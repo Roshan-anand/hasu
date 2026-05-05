@@ -42,9 +42,10 @@
   - [ ] Deploy, Stop, Rebuild service.
   - [ ] Predefined service templates (PSQL, MongoDB).
   - [x] Application Service template (for user code deployments).
-  - [ ] Pull logs streaming.
-  - [ ] Build logs streaming.
-  - [ ] Deploy logs streaming.
+  - [x] Workers logs streaming.
+  - [ ] Pull Job
+  - [ ] Build Job
+  - [ ] Deploy Job
   - [ ] Service logs streaming.
   - [ ] Environment variable management.
   - [ ] SSL certificate management (Let's Encrypt integration).

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -47,12 +48,11 @@ func (h *ServiceHandler) GetAllServices(c *echo.Context) error {
 
 	services, err := q.GetAllService(h.qCtx, orgID)
 	if err != nil {
+		fmt.Printf("error getting services for org_id: %v, error: %v\n", orgID, err)
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "failed to get services"})
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"services": services,
-	})
+	return c.JSON(http.StatusOK, services)
 }
 
 // get all service deployment jobs

@@ -9,6 +9,7 @@
 	import { Label } from '@/components/ui/label';
 	import { resolve } from '$app/paths';
 	import { useLoginMutation } from '@/features/auth/mutation.svelte';
+	import FormError from '@/components/services/FormError.svelte';
 
 	const login = useLoginMutation();
 
@@ -64,11 +65,7 @@
 									onblur={field.handleBlur}
 									oninput={(e) => field.handleChange(e.currentTarget.value)}
 								/>
-								{#if field.state.meta.errors.length}
-									<p class="text-sm font-medium text-destructive">
-										{field.state.meta.errors[0] ?? 'Invalid email'}
-									</p>
-								{/if}
+								<FormError errors={field.state.meta.errors} />
 							</div>
 						{/snippet}
 					</form.Field>
@@ -92,11 +89,7 @@
 									onblur={field.handleBlur}
 									oninput={(e) => field.handleChange(e.currentTarget.value)}
 								/>
-								{#if field.state.meta.errors.length}
-									<p class="text-sm font-medium text-destructive">
-										{field.state.meta.errors[0] ?? 'invalid password'}
-									</p>
-								{/if}
+								<FormError errors={field.state.meta.errors} />
 							</div>
 						{/snippet}
 					</form.Field>

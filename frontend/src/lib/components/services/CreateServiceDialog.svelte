@@ -14,9 +14,7 @@
 	} from '@/features/services/mutation.svelte';
 	import { getServiceState } from '@/features/services/store.svelte';
 	import type { CreateServiceForm, GithubApp, GitProviderOption } from '@/features/services/type';
-	import { queryClient } from '@/query';
 	import { createForm } from '@tanstack/svelte-form';
-	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod';
@@ -29,20 +27,6 @@
 
 	const githubAppsQuery = useGithubAppsQuery();
 	const getReposMutation = useGetReposMutation();
-
-	featureState.setAfterCreateSuccess(async ({ id, type }) => {
-		await queryClient.invalidateQueries({ queryKey: ['services'] });
-		featureState.closeCreateDialog();
-		form.reset();
-
-		toast.success('Service created successfully');
-		await goto(
-			resolve('/(core)/[service_type]/[service_id]?tab=deployment', {
-				service_type: type,
-				service_id: id
-			})
-		);
-	});
 
 	const createServiceMutation = useCreateServiceMutation();
 

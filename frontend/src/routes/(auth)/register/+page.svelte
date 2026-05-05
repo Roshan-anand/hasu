@@ -9,6 +9,7 @@
 	import { Label } from '@/components/ui/label';
 	import { resolve } from '$app/paths';
 	import { useRegisterMutation } from '@/features/auth/mutation.svelte';
+	import FormError from '@/components/services/FormError.svelte';
 
 	const register = useRegisterMutation();
 
@@ -59,7 +60,7 @@
 					<form.Field
 						name="name"
 						validators={{
-							onChange: z.string().min(2, 'Name must be at least 2 characters')
+							onChange: z.string().min(3, 'Name must be at least 3 characters')
 						}}
 					>
 						{#snippet children(field)}
@@ -74,11 +75,7 @@
 									onblur={field.handleBlur}
 									oninput={(e) => field.handleChange(e.currentTarget.value)}
 								/>
-								{#if field.state.meta.errors.length}
-									<p class="text-sm font-medium text-destructive">
-										{field.state.meta.errors[0]}
-									</p>
-								{/if}
+								<FormError errors={field.state.meta.errors} />
 							</div>
 						{/snippet}
 					</form.Field>
@@ -127,11 +124,7 @@
 									onblur={field.handleBlur}
 									oninput={(e) => field.handleChange(e.currentTarget.value)}
 								/>
-								{#if field.state.meta.errors.length}
-									<p class="text-sm font-medium text-destructive">
-										{field.state.meta.errors[0] ?? 'invalid password'}
-									</p>
-								{/if}
+								<FormError errors={field.state.meta.errors} />
 							</div>
 						{/snippet}
 					</form.Field>
@@ -139,7 +132,7 @@
 					<form.Field
 						name="organisation"
 						validators={{
-							onChange: z.string().min(2, 'Organisation must be at least 2 characters')
+							onChange: z.string().min(3, 'Organisation must be at least 3 characters')
 						}}
 					>
 						{#snippet children(field)}
@@ -154,11 +147,7 @@
 									onblur={field.handleBlur}
 									oninput={(e) => field.handleChange(e.currentTarget.value)}
 								/>
-								{#if field.state.meta.errors.length}
-									<p class="text-sm font-medium text-destructive">
-										{field.state.meta.errors[0]}
-									</p>
-								{/if}
+								<FormError errors={field.state.meta.errors} />
 							</div>
 						{/snippet}
 					</form.Field>

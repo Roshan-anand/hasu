@@ -62,7 +62,6 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	app := service.Group("/app")
 	app.GET("/:id", h.Service.GetAppServiceById)
 	app.POST("", h.Service.CreateAppService)
-	app.POST("/update", h.Service.UpdateAppService)
 	app.DELETE("", h.Service.DeleteAppService)
 
 	gh := protected.Group("/provider/github")

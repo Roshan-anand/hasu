@@ -52,18 +52,25 @@ CREATE TABLE IF NOT EXISTS app_service (
     service_id TEXT NOT NULL,
     name TEXT NOT NULL,
     app_name TEXT NOT NULL UNIQUE,
-    description TEXT NOT NULL,
     git_provider TEXT NOT NULL,
-    gh_app_id INTEGER NOT NULL REFERENCES github_app(app_id) ON DELETE CASCADE,
-    git_repo_id TEXT NOT NULL,
-    git_repo_name TEXT NOT NULL,
-    git_repo_url TEXT NOT NULL,
-    default_branch TEXT NOT NULL,
+    gh_app_id INTEGER NOT NULL REFERENCES github_app(app_id) ON DELETE SET NULL,
+    gh_repo_id TEXT NOT NULL,
+    gh_repo_name TEXT NOT NULL,
+    gh_repo_url TEXT NOT NULL,
+    default_branch_id uuid NOT NULL REFERENCES app_service_branch(id) ON DELETE SET NULL,
     build_path TEXT NOT NULL,
     watch_path TEXT NOT NULL,
     env TEXT NOT NULL,
     build_args TEXT NOT NULL,
     build_secrets TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS app_service_branch (
+    id uuid PRIMARY KEY,
+    branch_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    app_service_id uuid NOT NULL REFERENCES app_service(id) ON DELETE CASCADE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 

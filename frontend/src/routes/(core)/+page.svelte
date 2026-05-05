@@ -14,29 +14,22 @@
 	import CreateServiceDialog from '@/components/services/CreateServiceDialog.svelte';
 
 	const { currentOrg } = getUserState();
-	const currentOrgId = $derived(currentOrg.id);
 	const serviceState = setServiceState();
-	let deletingServiceId = $state('');
+	let searchQuery = $state('');
 
 	const servicesQuery = useGetServicesQuery();
-	const deleteServiceMutation = useDeleteServiceMutation(() => currentOrgId, {
-		onMutate: ({ service_id }) => {
-			deletingServiceId = service_id;
-		},
-		onSettled: () => {
-			deletingServiceId = '';
-		}
-	});
+	const deleteServiceMutation = useDeleteServiceMutation();
 
 	const deleteService = (serviceId: string, type: ServiceType) => {
 		if (deleteServiceMutation.isPending) return;
 		deleteServiceMutation.mutate({ service_id: serviceId, type });
 	};
 
+	// to filter services based on search input
 	const filteredServices = $derived.by(() => {
 		if (!servicesQuery.data) return [];
 
-		const keyword = serviceState.searchQuery.trim().toLowerCase();
+		const keyword = searchQuery.trim().toLowerCase();
 		if (keyword === '') return servicesQuery.data;
 
 		return servicesQuery.data.filter((service) => service.name.toLowerCase().includes(keyword));
@@ -51,7 +44,7 @@
 			id="service-search"
 			placeholder="Search for services"
 			class="p-2"
-			bind:value={serviceState.searchQuery}
+			bind:value={searchQuery}
 		/>
 		<Label class="absolute top-0 right-0 m-1 opacity-75" for="service-search"><Search /></Label>
 	</div>
@@ -73,6 +66,7 @@
 	{:else if servicesQuery.isError}
 		<p class="text-red-500">Failed to load services</p>
 	{:else if filteredServices.length > 0}
+		<!-- TODO : update UI to include new type of app service returned -->
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 			{#each filteredServices as service (service.id)}
 				<div
@@ -98,7 +92,7 @@
 							disabled={deleteServiceMutation.isPending}
 							class="z-20"
 						>
-							{#if deleteServiceMutation.isPending && deletingServiceId === service.id}
+							{#if deleteServiceMutation.isPending}
 								Deleting...
 							{:else}
 								<Trash2 />
@@ -106,9 +100,6 @@
 							{/if}
 						</Button>
 					</div>
-					<p class="text-muted-foreground text-sm line-clamp-2">
-						{service.description || 'No description'}
-					</p>
 				</div>
 			{/each}
 		</div>

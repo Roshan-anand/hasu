@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -68,27 +69,53 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	}
 	url := u.Host + u.Path
 
+	// used as unique container name and code storing path
 	serviceName := fmt.Sprintf("%s-%s", b.Name, lib.GenerateRandomID(6))
-	service, err := q.CreateAppService(h.qCtx, db.CreateAppServiceParams{
-		ID:             lib.NewID(),
-		OrganizationID: b.OrgID,
-		Type:           types.AppServiceType,
-		ServiceID:      "",
-		Name:           b.Name,
-		AppName:        serviceName,
-		GitProvider:    b.GitProvider,
-		GhAppID:        ghApp.AppID,
-		GitRepoID:      b.GitRepoID,
-		GitRepoName:    b.GitRepoName,
-		GitRepoUrl:     url,
-		DefaultBranch:  b.DefaultBranch,
-		BuildPath:      b.BuildPath,
-		WatchPath:      b.WatchPath,
-		Env:            b.Env,
-		BuildArgs:      b.BuildArgs,
-		BuildSecrets:   b.BuildSecrets,
+
+	// start a transaction
+	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create service"})
+	}
+	q = q.WithTx(tx)
+
+	serviceID := lib.NewID()
+	branchID := lib.NewID()
+
+	// create a new branch for the app service
+	err = q.CreateAppServiceBranch(h.qCtx, db.CreateAppServiceBranchParams{
+		ID:           branchID,
+		BranchName:   b.DefaultBranch,
+		FilePath:     serviceName,
+		AppServiceID: serviceID,
 	})
 	if err != nil {
+		tx.Rollback()
+		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create service branch"})
+	}
+
+	// create a new service
+	service, err := q.CreateAppService(h.qCtx, db.CreateAppServiceParams{
+		ID:              serviceID,
+		OrganizationID:  b.OrgID,
+		Type:            types.AppServiceType,
+		ServiceID:       "",
+		Name:            b.Name,
+		AppName:         serviceName,
+		GitProvider:     b.GitProvider,
+		GhAppID:         ghApp.AppID,
+		GhRepoID:        b.GitRepoID,
+		GhRepoName:      b.GitRepoName,
+		GhRepoUrl:       url,
+		DefaultBranchID: branchID,
+		BuildPath:       b.BuildPath,
+		WatchPath:       b.WatchPath,
+		Env:             b.Env,
+		BuildArgs:       b.BuildArgs,
+		BuildSecrets:    b.BuildSecrets,
+	})
+	if err != nil {
+		tx.Rollback()
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create service"})
 	}
 
@@ -97,11 +124,16 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 		ID:        lib.NewID(),
 		Name:      deploymentName,
-		ServiceID: service.ID,
+		ServiceID: serviceID,
 		Status:    types.DeploymentInProgress,
 	})
 	if err != nil {
+		tx.Rollback()
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create deployment"})
+	}
+
+	if err := tx.Commit(); err != nil {
+		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create service"})
 	}
 
 	// get gh token
@@ -117,6 +149,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		Url:          url,
 		Branch:       b.DefaultBranch,
 		BuildPath:    b.BuildPath,
+		StorePath:    "",
 	})
 
 	return c.JSON(http.StatusOK, service)
@@ -162,38 +195,4 @@ func (h *ServiceHandler) DeleteAppService(c *echo.Context) error {
 	go h.Server.BadgerDB.DeleteAllLogsByDeploymentID(dIDs)
 
 	return c.JSON(http.StatusOK, lib.Res{Message: "Successsfully deleted service"})
-}
-
-// route: POST /api/service/app/update
-func (h *ServiceHandler) UpdateAppService(c *echo.Context) error {
-	b := new(UpdateAppServiceReq)
-	q := h.Server.DB.Queries
-
-	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
-		return c.JSON(http.StatusBadRequest, Res)
-	}
-
-	ghApp, err := q.GetGhAppByAppId(h.qCtx, b.GhAppID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusBadRequest, lib.Res{Message: "invalid github app"})
-		}
-		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "failed to verify github app"})
-	}
-
-	if err := q.UpdateAppServiceDetails(h.qCtx, db.UpdateAppServiceDetailsParams{
-		GitProvider:   b.GitProvider,
-		GhAppID:       ghApp.AppID,
-		GitRepoID:     b.GitRepoID,
-		GitRepoName:   b.GitRepoName,
-		GitRepoUrl:    b.GitRepoURL,
-		DefaultBranch: b.DefaultBranch,
-		BuildPath:     b.BuildPath,
-		WatchPath:     b.WatchPath,
-		ID:            b.ServiceID,
-	}); err != nil {
-		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "failed to update app service"})
-	}
-
-	return c.JSON(http.StatusOK, lib.Res{Message: "app service updated successfully"})
 }

@@ -1,21 +1,27 @@
-import type { ServiceType } from '@/types';
+import type { AppServiceName, PsqlServiceName, ServiceType } from '@/types';
 
 export type CreateServiceResponse = {
 	id: string;
 	type: ServiceType;
 };
 
-export type ServiceRow = {
+type ServiceListBase = {
 	id: string;
-	type: ServiceType;
 	name: string;
-	description: string;
 	created_at: string;
 };
 
-export type ServiceListResponse = {
-	services: ServiceRow[];
-};
+export type ServiceListResponse =
+	| (ServiceListBase & {
+			type: PsqlServiceName;
+	  })
+	| (ServiceListBase & {
+			type: AppServiceName;
+			gh_repo_name: string;
+			gh_repo_url: string;
+			git_provider: string;
+			branch_name: string;
+	  });
 
 export type DeleteServicePayload = {
 	service_id: string;
@@ -56,18 +62,6 @@ export type GetRepoResult = {
 	repos: GithubRepo[];
 	message: string;
 	provider: GitProviderKey;
-};
-
-export type UpdateAppServiceBody = {
-	service_id: string;
-	git_provider: GitProviderKey;
-	gh_app_id: number;
-	git_repo_id: string;
-	git_repo_name: string;
-	git_repo_url: string;
-	default_branch: string;
-	build_path: string;
-	watch_path: string;
 };
 
 export type CreateAppServiceBody = {

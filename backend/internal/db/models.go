@@ -13,25 +13,32 @@ import (
 )
 
 type AppService struct {
-	ID             uuid.UUID         `json:"id"`
-	OrganizationID uuid.UUID         `json:"organization_id"`
-	Type           types.ServiceType `json:"type"`
-	ServiceID      string            `json:"service_id"`
-	Name           string            `json:"name"`
-	AppName        string            `json:"app_name"`
-	Description    string            `json:"description"`
-	GitProvider    string            `json:"git_provider"`
-	GhAppID        int64             `json:"gh_app_id"`
-	GitRepoID      string            `json:"git_repo_id"`
-	GitRepoName    string            `json:"git_repo_name"`
-	GitRepoUrl     string            `json:"git_repo_url"`
-	DefaultBranch  string            `json:"default_branch"`
-	BuildPath      string            `json:"build_path"`
-	WatchPath      string            `json:"watch_path"`
-	Env            string            `json:"env"`
-	BuildArgs      string            `json:"build_args"`
-	BuildSecrets   string            `json:"build_secrets"`
-	CreatedAt      time.Time         `json:"created_at"`
+	ID              uuid.UUID         `json:"id"`
+	OrganizationID  uuid.UUID         `json:"organization_id"`
+	Type            types.ServiceType `json:"type"`
+	ServiceID       string            `json:"service_id"`
+	Name            string            `json:"name"`
+	AppName         string            `json:"app_name"`
+	GitProvider     string            `json:"git_provider"`
+	GhAppID         int64             `json:"gh_app_id"`
+	GhRepoID        string            `json:"gh_repo_id"`
+	GhRepoName      string            `json:"gh_repo_name"`
+	GhRepoUrl       string            `json:"gh_repo_url"`
+	DefaultBranchID uuid.UUID         `json:"default_branch_id"`
+	BuildPath       string            `json:"build_path"`
+	WatchPath       string            `json:"watch_path"`
+	Env             string            `json:"env"`
+	BuildArgs       string            `json:"build_args"`
+	BuildSecrets    string            `json:"build_secrets"`
+	CreatedAt       time.Time         `json:"created_at"`
+}
+
+type AppServiceBranch struct {
+	ID           uuid.UUID `json:"id"`
+	BranchName   string    `json:"branch_name"`
+	FilePath     string    `json:"file_path"`
+	AppServiceID uuid.UUID `json:"app_service_id"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type Deployment struct {
