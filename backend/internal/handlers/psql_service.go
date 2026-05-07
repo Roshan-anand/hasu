@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 
@@ -48,27 +49,35 @@ func InitPsqlServiceHandlers(s *config.Server) *PsqlServiceHandler {
 //
 // route: POST /api/service/psql
 func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
-
+	q := h.Server.DB.Queries
 	b := new(CreatePsqlServiceReq)
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
-	serviceName := fmt.Sprintf("%s-%s", b.Name, lib.GenerateRandomID(6))
+	// check if service name already exists in the organization
+	if exists, err := q.ServiceNameExists(h.qCtx, db.ServiceNameExistsParams{
+		OrgID: b.OrgID,
+		Name:  b.Name,
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to check service name"})
+	} else if exists {
+		return c.JSON(http.StatusConflict, lib.Res{Message: "Service name already exists"})
+	}
+
+	serviceName := fmt.Sprintf("%s-%s", b.Name, b.OrgID)
 
 	service, err := h.Server.DB.Queries.CreatePsqlService(h.qCtx, db.CreatePsqlServiceParams{
-		ID:             lib.NewID(),
-		OrganizationID: b.OrgID,
-		Type:           types.PsqlServiceType,
-		ServiceID:      "",
-		Name:           b.Name,
-		AppName:        serviceName,
-		DbName:         b.DbName,
-		DbUser:         b.DbUser,
-		DbPassword:     b.DbPassword, // TODO : make is hased
-		Image:          b.Image,
-		InternalUrl:    "", // TODO : create internal URl
+		ID:               lib.NewID(),
+		OrganizationID:   b.OrgID,
+		Type:             types.PsqlServiceType,
+		SwarmServiceName: serviceName,
+		Name:             b.Name,
+		DbName:           b.DbName,
+		DbUser:           b.DbUser,
+		DbPassword:       b.DbPassword, // TODO : make is hased
+		InternalUrl:      "",           // TODO : create internal URl
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create service"})
@@ -113,7 +122,7 @@ func (h *ServiceHandler) DeployPsqlService(c *echo.Context) error {
 	}
 
 	// create a volume for the service
-	vlName := service.AppName + "_pgdata"
+	vlName := service.SwarmServiceName + "_pgdata"
 	docker.VolumeCreate(h.qCtx, client.VolumeCreateOptions{
 		Name:   vlName,
 		Driver: "local",
@@ -125,12 +134,12 @@ func (h *ServiceHandler) DeployPsqlService(c *echo.Context) error {
 		Spec: swarm.ServiceSpec{
 
 			Annotations: swarm.Annotations{
-				Name: service.AppName,
+				Name: service.SwarmServiceName,
 			},
 
 			TaskTemplate: swarm.TaskSpec{
 				ContainerSpec: &swarm.ContainerSpec{
-					Image: service.Image,
+					Image: service.ImageID, // TODO validate if image accepts image_id
 
 					Env: []string{
 						"POSTGRES_PASSWORD=" + service.DbPassword,
@@ -167,8 +176,12 @@ func (h *ServiceHandler) DeployPsqlService(c *echo.Context) error {
 	}
 
 	// update the service ID
-	if err := q.SetPsqlServiceId(h.qCtx, db.SetPsqlServiceIdParams{
-		ServiceID: sRes.ID,
+	if err := q.SetPsqlSwarmServiceId(h.qCtx, db.SetPsqlSwarmServiceIdParams{
+		SwarmServiceID: sql.NullString{
+			String: sRes.ID,
+			Valid:  true,
+		},
+		ID: service.ID,
 	}); err != nil {
 		docker.ServiceRemove(h.qCtx, sRes.ID, client.ServiceRemoveOptions{})
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to update service with service id"})
@@ -197,7 +210,7 @@ func (h *ServiceHandler) StopPsqlService(c *echo.Context) error {
 		return c.JSON(http.StatusNotFound, lib.Res{Message: "service not found"})
 	}
 
-	if _, err := docker.ServiceRemove(h.qCtx, service.ServiceID, client.ServiceRemoveOptions{}); err != nil {
+	if _, err := docker.ServiceRemove(h.qCtx, service.SwarmServiceID.String, client.ServiceRemoveOptions{}); err != nil {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "error removing service"})
 	}
 
@@ -223,8 +236,8 @@ func (h *ServiceHandler) DeletePsqlService(c *echo.Context) error {
 	}
 
 	// check and stop the service if it is running
-	if s, _ := docker.ServiceInspect(h.qCtx, service.ServiceID, client.ServiceInspectOptions{}); s.Service.ID != "" {
-		if _, err := docker.ServiceRemove(h.qCtx, service.ServiceID, client.ServiceRemoveOptions{}); err != nil {
+	if s, _ := docker.ServiceInspect(h.qCtx, service.SwarmServiceID.String, client.ServiceInspectOptions{}); s.Service.ID != "" {
+		if _, err := docker.ServiceRemove(h.qCtx, service.SwarmServiceID.String, client.ServiceRemoveOptions{}); err != nil {
 			return c.JSON(http.StatusInternalServerError, lib.Res{Message: fmt.Sprintln("error removing service :", err)})
 		}
 	}

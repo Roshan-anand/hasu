@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS organization (
     id uuid PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
@@ -33,14 +33,14 @@ CREATE TABLE IF NOT EXISTS psql_service (
     id uuid PRIMARY KEY,
     organization_id uuid NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
-    service_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    app_name TEXT NOT NULL UNIQUE,
-    description TEXT NOT NULL,
+    swarm_service_id TEXT,
+    swarm_service_name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'queued',
+    name TEXT NOT NULL UNIQUE,
     db_name TEXT NOT NULL,
     db_user TEXT NOT NULL,
     db_password TEXT NOT NULL,
-    image TEXT NOT NULL,
+    image_id TEXT NOT NULL,
     internal_url TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -49,15 +49,12 @@ CREATE TABLE IF NOT EXISTS app_service (
     id uuid PRIMARY KEY,
     organization_id uuid NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
-    service_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    app_name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL UNIQUE,
     git_provider TEXT NOT NULL,
     gh_app_id INTEGER NOT NULL REFERENCES github_app(app_id) ON DELETE SET NULL,
     gh_repo_id TEXT NOT NULL,
     gh_repo_name TEXT NOT NULL,
     gh_repo_url TEXT NOT NULL,
-    default_branch_id uuid NOT NULL REFERENCES app_service_branch(id) ON DELETE SET NULL,
     build_path TEXT NOT NULL,
     watch_path TEXT NOT NULL,
     env TEXT NOT NULL,
@@ -68,17 +65,20 @@ CREATE TABLE IF NOT EXISTS app_service (
 
 CREATE TABLE IF NOT EXISTS app_service_branch (
     id uuid PRIMARY KEY,
+    is_default_branch BOOLEAN NOT NULL,
     branch_name TEXT NOT NULL,
-    file_path TEXT NOT NULL,
-    app_service_id uuid NOT NULL REFERENCES app_service(id) ON DELETE CASCADE,
+    swarm_service_name TEXT NOT NULL,
+    swarm_service_id TEXT,
+    service_id uuid NOT NULL REFERENCES app_service(id) ON DELETE CASCADE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS deployments (
     id uuid PRIMARY KEY,
-    service_id uuid NOT NULL REFERENCES app_service(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    status TEXT NOT NULL,
+    branch_id uuid NOT NULL REFERENCES app_service_branch(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'queued',
+    commit_msg TEXT NOT NULL,
+    image_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 

@@ -39,6 +39,7 @@
   - [x] update create service api to accept build path, repo nd branch. [easy, api]
   - [x] if no github app connected then show msg and link to connect github app. [easy, ui]
   - [ ] Load ui for select option till it fetch data
+  - [ ] the name input shoudl be dafault to selected repo name.
 - [ ] at [CheckUserExistsInOrg](../../backend/internal/handlers/utils.go) func return org details instead of just bool.
 
 ## Potential bugs
@@ -49,3 +50,4 @@
 - [ ] delete github app only deletes app from the DB and not from the github.
 - [ ] form errors pops up as [object object]
 - [ ] create and list org not working
+- [ ] in create_service_form, if the name input have '/' in the string then this cause bug while creating a file for that code in the name of the service_name. so need to prevent user from entering '/' in the name input field. [easy, ui]

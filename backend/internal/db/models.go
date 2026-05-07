@@ -13,39 +13,39 @@ import (
 )
 
 type AppService struct {
-	ID              uuid.UUID         `json:"id"`
-	OrganizationID  uuid.UUID         `json:"organization_id"`
-	Type            types.ServiceType `json:"type"`
-	ServiceID       string            `json:"service_id"`
-	Name            string            `json:"name"`
-	AppName         string            `json:"app_name"`
-	GitProvider     string            `json:"git_provider"`
-	GhAppID         int64             `json:"gh_app_id"`
-	GhRepoID        string            `json:"gh_repo_id"`
-	GhRepoName      string            `json:"gh_repo_name"`
-	GhRepoUrl       string            `json:"gh_repo_url"`
-	DefaultBranchID uuid.UUID         `json:"default_branch_id"`
-	BuildPath       string            `json:"build_path"`
-	WatchPath       string            `json:"watch_path"`
-	Env             string            `json:"env"`
-	BuildArgs       string            `json:"build_args"`
-	BuildSecrets    string            `json:"build_secrets"`
-	CreatedAt       time.Time         `json:"created_at"`
+	ID             uuid.UUID         `json:"id"`
+	OrganizationID uuid.UUID         `json:"organization_id"`
+	Type           types.ServiceType `json:"type"`
+	Name           string            `json:"name"`
+	GitProvider    string            `json:"git_provider"`
+	GhAppID        int64             `json:"gh_app_id"`
+	GhRepoID       string            `json:"gh_repo_id"`
+	GhRepoName     string            `json:"gh_repo_name"`
+	GhRepoUrl      string            `json:"gh_repo_url"`
+	BuildPath      string            `json:"build_path"`
+	WatchPath      string            `json:"watch_path"`
+	Env            string            `json:"env"`
+	BuildArgs      string            `json:"build_args"`
+	BuildSecrets   string            `json:"build_secrets"`
+	CreatedAt      time.Time         `json:"created_at"`
 }
 
 type AppServiceBranch struct {
-	ID           uuid.UUID `json:"id"`
-	BranchName   string    `json:"branch_name"`
-	FilePath     string    `json:"file_path"`
-	AppServiceID uuid.UUID `json:"app_service_id"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID               uuid.UUID      `json:"id"`
+	IsDefaultBranch  bool           `json:"is_default_branch"`
+	BranchName       string         `json:"branch_name"`
+	SwarmServiceName string         `json:"swarm_service_name"`
+	SwarmServiceID   sql.NullString `json:"swarm_service_id"`
+	ServiceID        uuid.UUID      `json:"service_id"`
+	CreatedAt        time.Time      `json:"created_at"`
 }
 
 type Deployment struct {
 	ID        uuid.UUID              `json:"id"`
-	ServiceID uuid.UUID              `json:"service_id"`
-	Name      string                 `json:"name"`
+	BranchID  uuid.UUID              `json:"branch_id"`
 	Status    types.DeploymentStatus `json:"status"`
+	CommitMsg string                 `json:"commit_msg"`
+	ImageID   sql.NullString         `json:"image_id"`
 	CreatedAt time.Time              `json:"created_at"`
 }
 
@@ -68,19 +68,19 @@ type Organization struct {
 }
 
 type PsqlService struct {
-	ID             uuid.UUID         `json:"id"`
-	OrganizationID uuid.UUID         `json:"organization_id"`
-	Type           types.ServiceType `json:"type"`
-	ServiceID      string            `json:"service_id"`
-	Name           string            `json:"name"`
-	AppName        string            `json:"app_name"`
-	Description    string            `json:"description"`
-	DbName         string            `json:"db_name"`
-	DbUser         string            `json:"db_user"`
-	DbPassword     string            `json:"db_password"`
-	Image          string            `json:"image"`
-	InternalUrl    string            `json:"internal_url"`
-	CreatedAt      time.Time         `json:"created_at"`
+	ID               uuid.UUID              `json:"id"`
+	OrganizationID   uuid.UUID              `json:"organization_id"`
+	Type             types.ServiceType      `json:"type"`
+	SwarmServiceID   sql.NullString         `json:"swarm_service_id"`
+	SwarmServiceName string                 `json:"swarm_service_name"`
+	Status           types.DeploymentStatus `json:"status"`
+	Name             string                 `json:"name"`
+	DbName           string                 `json:"db_name"`
+	DbUser           string                 `json:"db_user"`
+	DbPassword       string                 `json:"db_password"`
+	ImageID          string                 `json:"image_id"`
+	InternalUrl      string                 `json:"internal_url"`
+	CreatedAt        time.Time              `json:"created_at"`
 }
 
 type RedirectSession struct {

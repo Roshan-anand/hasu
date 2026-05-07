@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"strings"
+	"path"
 
+	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
@@ -21,14 +22,21 @@ func (w *worker) PullWorker(ctx context.Context, data chan *deploymentqueue.Pull
 				return
 			}
 
+			// update the deployment status to building
+			if err := w.Server.DB.Queries.UpdateDeploymentStatus(w.qCtx, db.UpdateDeploymentStatusParams{
+				Status: types.DeploymentBuilding,
+				ID:     d.DeploymentID,
+			}); err != nil {
+				fmt.Printf("PullWorker: error updating deployment status: %v\n", err)
+			}
+
 			fmt.Println("PullWorker: started working ...", d.Url)
 			l := w.Server.LogBrokerQ
 
-			folderName := strings.ReplaceAll(d.Url, "/", "-")
+			outputPath := path.Join(w.Server.Config.CodeStoreDir, d.StorePath)
 			repoUrl := fmt.Sprintf("https://oauth2:%s@%s", d.Token, d.Url)
-			outputPath := fmt.Sprintf("/etc/godploy/code/[%s-%s]", folderName, d.Branch)
-
 			cmd := exec.Command("git", "clone", "--branch", d.Branch, "--depth", "1", repoUrl, outputPath)
+
 			if err := runWorkerCmd(l, d.DeploymentID, cmd); err != nil {
 				fmt.Printf("PullWorker: error running command: %v\n", err)
 				l.PublishLog(&logbrokerqueue.PubData{
@@ -38,12 +46,14 @@ func (w *worker) PullWorker(ctx context.Context, data chan *deploymentqueue.Pull
 
 				l.EndLogs(&logbrokerqueue.EndLogData{
 					DeploymentID: d.DeploymentID,
-					Status:       types.DeploymentFailed,
+					Status:       types.DeploymentError,
 				})
 
 			} else {
 				w.Server.DeploymentQ.EnqueueBuildJob(&deploymentqueue.BuildJobData{
 					DeploymentID: d.DeploymentID,
+					BuildPath:    d.BuildPath,
+					StorePath:    d.StorePath,
 				})
 			}
 

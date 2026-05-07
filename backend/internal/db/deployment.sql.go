@@ -7,31 +7,27 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"time"
 
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/google/uuid"
 )
 
 const createDeployment = `-- name: CreateDeployment :one
-INSERT INTO deployments (id, service_id, name, status)
-VALUES (?, ?, ?, ?)
+INSERT INTO deployments (id, branch_id, commit_msg)
+VALUES (?, ?, ?)
 RETURNING id
 `
 
 type CreateDeploymentParams struct {
-	ID        uuid.UUID              `json:"id"`
-	ServiceID uuid.UUID              `json:"service_id"`
-	Name      string                 `json:"name"`
-	Status    types.DeploymentStatus `json:"status"`
+	ID        uuid.UUID `json:"id"`
+	BranchID  uuid.UUID `json:"branch_id"`
+	CommitMsg string    `json:"commit_msg"`
 }
 
 func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error) {
-	row := q.db.QueryRowContext(ctx, createDeployment,
-		arg.ID,
-		arg.ServiceID,
-		arg.Name,
-		arg.Status,
-	)
+	row := q.db.QueryRowContext(ctx, createDeployment, arg.ID, arg.BranchID, arg.CommitMsg)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
@@ -48,9 +44,10 @@ func (q *Queries) DeleteDeploymentByID(ctx context.Context, id uuid.UUID) error 
 }
 
 const getAllDeploymentIdsByServiceID = `-- name: GetAllDeploymentIdsByServiceID :many
-SELECT id
-FROM deployments
-WHERE service_id = ?
+SELECT d.id
+FROM deployments d
+JOIN app_service_branch b ON d.branch_id = b.id
+WHERE b.service_id = ?
 `
 
 func (q *Queries) GetAllDeploymentIdsByServiceID(ctx context.Context, serviceID uuid.UUID) ([]uuid.UUID, error) {
@@ -76,25 +73,6 @@ func (q *Queries) GetAllDeploymentIdsByServiceID(ctx context.Context, serviceID 
 	return items, nil
 }
 
-const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, service_id, name, status, created_at
-FROM deployments
-WHERE id = ?
-`
-
-func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
-	row := q.db.QueryRowContext(ctx, getDeploymentByID, id)
-	var i Deployment
-	err := row.Scan(
-		&i.ID,
-		&i.ServiceID,
-		&i.Name,
-		&i.Status,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
 const getDeploymentStatus = `-- name: GetDeploymentStatus :one
 SELECT status
 FROM deployments
@@ -109,26 +87,35 @@ func (q *Queries) GetDeploymentStatus(ctx context.Context, id uuid.UUID) (types.
 }
 
 const getDeploymentsByServiceID = `-- name: GetDeploymentsByServiceID :many
-SELECT id, service_id, name, status, created_at
-FROM deployments
-WHERE service_id = ?
+SELECT d.id, d.status, d.commit_msg, b.branch_name, d.created_at
+FROM deployments d
+JOIN app_service_branch b ON d.branch_id = b.id
+WHERE b.service_id = ?
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetDeploymentsByServiceID(ctx context.Context, serviceID uuid.UUID) ([]Deployment, error) {
+type GetDeploymentsByServiceIDRow struct {
+	ID         uuid.UUID              `json:"id"`
+	Status     types.DeploymentStatus `json:"status"`
+	CommitMsg  string                 `json:"commit_msg"`
+	BranchName string                 `json:"branch_name"`
+	CreatedAt  time.Time              `json:"created_at"`
+}
+
+func (q *Queries) GetDeploymentsByServiceID(ctx context.Context, serviceID uuid.UUID) ([]GetDeploymentsByServiceIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, getDeploymentsByServiceID, serviceID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Deployment
+	var items []GetDeploymentsByServiceIDRow
 	for rows.Next() {
-		var i Deployment
+		var i GetDeploymentsByServiceIDRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.ServiceID,
-			&i.Name,
 			&i.Status,
+			&i.CommitMsg,
+			&i.BranchName,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -142,6 +129,22 @@ func (q *Queries) GetDeploymentsByServiceID(ctx context.Context, serviceID uuid.
 		return nil, err
 	}
 	return items, nil
+}
+
+const setDeploymentImageID = `-- name: SetDeploymentImageID :exec
+UPDATE deployments
+SET image_id = ?
+WHERE id = ?
+`
+
+type SetDeploymentImageIDParams struct {
+	ImageID sql.NullString `json:"image_id"`
+	ID      uuid.UUID      `json:"id"`
+}
+
+func (q *Queries) SetDeploymentImageID(ctx context.Context, arg SetDeploymentImageIDParams) error {
+	_, err := q.db.ExecContext(ctx, setDeploymentImageID, arg.ImageID, arg.ID)
+	return err
 }
 
 const updateDeploymentStatus = `-- name: UpdateDeploymentStatus :exec

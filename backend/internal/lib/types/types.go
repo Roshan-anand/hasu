@@ -24,7 +24,10 @@ const (
 type DeploymentStatus string
 
 const (
-	DeploymentInProgress DeploymentStatus = "in_progress"
-	DeploymentSuccess    DeploymentStatus = "success"
-	DeploymentFailed     DeploymentStatus = "failed"
+	DeploymentBuilding DeploymentStatus = "building"
+	DeploymentReady    DeploymentStatus = "ready"
+	DeploymentError    DeploymentStatus = "error"
+	DeploymentQueued   DeploymentStatus = "queued"
+	DeploymentInactive DeploymentStatus = "inactive" // service is not using this image (can be rollbacked)
+	DeploymentPruned   DeploymentStatus = "pruned"   // image is not available
 )

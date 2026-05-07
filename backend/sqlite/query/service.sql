@@ -8,9 +8,22 @@ FROM app_service aps
 JOIN app_service_branch b ON aps.default_branch_id = b.id
 WHERE aps.organization_id = @org_id;
 
+-- name: ServiceNameExists :one
+SELECT CAST(
+    (SELECT EXISTS (
+        SELECT 1
+        FROM psql_service ps
+        WHERE ps.organization_id = @org_id AND ps.name = @name
+        UNION ALL
+        SELECT 1
+        FROM app_service aps
+        WHERE aps.organization_id = @org_id AND aps.name = @name
+    )) 
+AS BOOLEAN);
+
 -- name: CreatePsqlService :one
-INSERT INTO psql_service (id, organization_id, type, service_id, name, app_name, description, db_name, db_user, db_password, image, internal_url)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO psql_service (id, organization_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, type;
 
 -- name: GetPsqlServiceById :one
@@ -18,9 +31,9 @@ SELECT *
 FROM psql_service
 WHERE id = ?;
 
--- name: SetPsqlServiceId :exec
+-- name: SetPsqlSwarmServiceId :exec
 UPDATE psql_service
-SET service_id = ?
+SET swarm_service_id = ?
 WHERE id = ?;
 
 -- name: DeletePsqlService :exec
@@ -28,26 +41,28 @@ DELETE FROM psql_service
 WHERE id = ?;
 
 -- name: CreateAppService :one
-INSERT INTO app_service (id, organization_id, type, service_id, name, app_name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, default_branch_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO app_service (id, organization_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, type;
 
--- name: CreateAppServiceBranch :exec
-INSERT INTO app_service_branch (id, branch_name, file_path, app_service_id)
-VALUES (?, ?, ?, ?);
+-- name: DeleteAppService :exec
+DELETE FROM app_service
+WHERE id = ?;
 
 -- name: GetAppServiceById :one
 SELECT
     a.id, a.type, a.name, a.gh_repo_name, a.gh_repo_url, b.branch_name
 FROM app_service a
-JOIN app_service_branch b ON app.default_branch_id = branch.id
+JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch = 1
 WHERE a.id = ?;
 
--- name: SetAppServiceId :exec
-UPDATE app_service
-SET service_id = ?
+-- name: CreateAppServiceBranch :one
+INSERT INTO app_service_branch (id, is_default_branch, branch_name, swarm_service_name, service_id)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id;
+
+-- name: SetAppSwarmServiceId :exec
+UPDATE app_service_branch
+SET swarm_service_id = ?
 WHERE id = ?;
 
--- name: DeleteAppService :exec
-DELETE FROM app_service
-WHERE id = ?;

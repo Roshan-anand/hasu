@@ -124,7 +124,7 @@ func (h *ServiceHandler) SubscribeServiceDeploymentLogs(c *echo.Context) error {
 	userID := lib.NewID()
 
 	// if deployment is successful or failed, then stream logs from badgerDB
-	if status != types.DeploymentInProgress {
+	if status == types.DeploymentReady || status == types.DeploymentError {
 		if err := h.Server.BadgerDB.StreamAllLogsByDeploymentID(dID, sse); err != nil {
 			return c.JSON(http.StatusInternalServerError, lib.Res{Message: "failed to stream logs"})
 		}

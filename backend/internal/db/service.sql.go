@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/Roshan-anand/godploy/internal/lib/types"
@@ -14,29 +15,26 @@ import (
 )
 
 const createAppService = `-- name: CreateAppService :one
-INSERT INTO app_service (id, organization_id, type, service_id, name, app_name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, default_branch_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO app_service (id, organization_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, type
 `
 
 type CreateAppServiceParams struct {
-	ID              uuid.UUID         `json:"id"`
-	OrganizationID  uuid.UUID         `json:"organization_id"`
-	Type            types.ServiceType `json:"type"`
-	ServiceID       string            `json:"service_id"`
-	Name            string            `json:"name"`
-	AppName         string            `json:"app_name"`
-	GitProvider     string            `json:"git_provider"`
-	GhAppID         int64             `json:"gh_app_id"`
-	GhRepoID        string            `json:"gh_repo_id"`
-	GhRepoName      string            `json:"gh_repo_name"`
-	GhRepoUrl       string            `json:"gh_repo_url"`
-	BuildPath       string            `json:"build_path"`
-	WatchPath       string            `json:"watch_path"`
-	Env             string            `json:"env"`
-	BuildArgs       string            `json:"build_args"`
-	BuildSecrets    string            `json:"build_secrets"`
-	DefaultBranchID uuid.UUID         `json:"default_branch_id"`
+	ID             uuid.UUID         `json:"id"`
+	OrganizationID uuid.UUID         `json:"organization_id"`
+	Type           types.ServiceType `json:"type"`
+	Name           string            `json:"name"`
+	GitProvider    string            `json:"git_provider"`
+	GhAppID        int64             `json:"gh_app_id"`
+	GhRepoID       string            `json:"gh_repo_id"`
+	GhRepoName     string            `json:"gh_repo_name"`
+	GhRepoUrl      string            `json:"gh_repo_url"`
+	BuildPath      string            `json:"build_path"`
+	WatchPath      string            `json:"watch_path"`
+	Env            string            `json:"env"`
+	BuildArgs      string            `json:"build_args"`
+	BuildSecrets   string            `json:"build_secrets"`
 }
 
 type CreateAppServiceRow struct {
@@ -49,9 +47,7 @@ func (q *Queries) CreateAppService(ctx context.Context, arg CreateAppServicePara
 		arg.ID,
 		arg.OrganizationID,
 		arg.Type,
-		arg.ServiceID,
 		arg.Name,
-		arg.AppName,
 		arg.GitProvider,
 		arg.GhAppID,
 		arg.GhRepoID,
@@ -62,54 +58,55 @@ func (q *Queries) CreateAppService(ctx context.Context, arg CreateAppServicePara
 		arg.Env,
 		arg.BuildArgs,
 		arg.BuildSecrets,
-		arg.DefaultBranchID,
 	)
 	var i CreateAppServiceRow
 	err := row.Scan(&i.ID, &i.Type)
 	return i, err
 }
 
-const createAppServiceBranch = `-- name: CreateAppServiceBranch :exec
-INSERT INTO app_service_branch (id, branch_name, file_path, app_service_id)
-VALUES (?, ?, ?, ?)
+const createAppServiceBranch = `-- name: CreateAppServiceBranch :one
+INSERT INTO app_service_branch (id, is_default_branch, branch_name, swarm_service_name, service_id)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id
 `
 
 type CreateAppServiceBranchParams struct {
-	ID           uuid.UUID `json:"id"`
-	BranchName   string    `json:"branch_name"`
-	FilePath     string    `json:"file_path"`
-	AppServiceID uuid.UUID `json:"app_service_id"`
+	ID               uuid.UUID `json:"id"`
+	IsDefaultBranch  bool      `json:"is_default_branch"`
+	BranchName       string    `json:"branch_name"`
+	SwarmServiceName string    `json:"swarm_service_name"`
+	ServiceID        uuid.UUID `json:"service_id"`
 }
 
-func (q *Queries) CreateAppServiceBranch(ctx context.Context, arg CreateAppServiceBranchParams) error {
-	_, err := q.db.ExecContext(ctx, createAppServiceBranch,
+func (q *Queries) CreateAppServiceBranch(ctx context.Context, arg CreateAppServiceBranchParams) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, createAppServiceBranch,
 		arg.ID,
+		arg.IsDefaultBranch,
 		arg.BranchName,
-		arg.FilePath,
-		arg.AppServiceID,
+		arg.SwarmServiceName,
+		arg.ServiceID,
 	)
-	return err
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const createPsqlService = `-- name: CreatePsqlService :one
-INSERT INTO psql_service (id, organization_id, type, service_id, name, app_name, description, db_name, db_user, db_password, image, internal_url)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO psql_service (id, organization_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, type
 `
 
 type CreatePsqlServiceParams struct {
-	ID             uuid.UUID         `json:"id"`
-	OrganizationID uuid.UUID         `json:"organization_id"`
-	Type           types.ServiceType `json:"type"`
-	ServiceID      string            `json:"service_id"`
-	Name           string            `json:"name"`
-	AppName        string            `json:"app_name"`
-	Description    string            `json:"description"`
-	DbName         string            `json:"db_name"`
-	DbUser         string            `json:"db_user"`
-	DbPassword     string            `json:"db_password"`
-	Image          string            `json:"image"`
-	InternalUrl    string            `json:"internal_url"`
+	ID               uuid.UUID         `json:"id"`
+	OrganizationID   uuid.UUID         `json:"organization_id"`
+	Type             types.ServiceType `json:"type"`
+	SwarmServiceName string            `json:"swarm_service_name"`
+	Name             string            `json:"name"`
+	DbName           string            `json:"db_name"`
+	DbUser           string            `json:"db_user"`
+	DbPassword       string            `json:"db_password"`
+	InternalUrl      string            `json:"internal_url"`
 }
 
 type CreatePsqlServiceRow struct {
@@ -122,14 +119,11 @@ func (q *Queries) CreatePsqlService(ctx context.Context, arg CreatePsqlServicePa
 		arg.ID,
 		arg.OrganizationID,
 		arg.Type,
-		arg.ServiceID,
+		arg.SwarmServiceName,
 		arg.Name,
-		arg.AppName,
-		arg.Description,
 		arg.DbName,
 		arg.DbUser,
 		arg.DbPassword,
-		arg.Image,
 		arg.InternalUrl,
 	)
 	var i CreatePsqlServiceRow
@@ -215,7 +209,7 @@ const getAppServiceById = `-- name: GetAppServiceById :one
 SELECT
     a.id, a.type, a.name, a.gh_repo_name, a.gh_repo_url, b.branch_name
 FROM app_service a
-JOIN app_service_branch b ON app.default_branch_id = branch.id
+JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch = 1
 WHERE a.id = ?
 `
 
@@ -243,7 +237,7 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppSe
 }
 
 const getPsqlServiceById = `-- name: GetPsqlServiceById :one
-SELECT id, organization_id, type, service_id, name, app_name, description, db_name, db_user, db_password, image, internal_url, created_at
+SELECT id, organization_id, type, swarm_service_id, swarm_service_name, status, name, db_name, db_user, db_password, image_id, internal_url, created_at
 FROM psql_service
 WHERE id = ?
 `
@@ -255,48 +249,74 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, id uuid.UUID) (PsqlSer
 		&i.ID,
 		&i.OrganizationID,
 		&i.Type,
-		&i.ServiceID,
+		&i.SwarmServiceID,
+		&i.SwarmServiceName,
+		&i.Status,
 		&i.Name,
-		&i.AppName,
-		&i.Description,
 		&i.DbName,
 		&i.DbUser,
 		&i.DbPassword,
-		&i.Image,
+		&i.ImageID,
 		&i.InternalUrl,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
-const setAppServiceId = `-- name: SetAppServiceId :exec
-UPDATE app_service
-SET service_id = ?
+const serviceNameExists = `-- name: ServiceNameExists :one
+SELECT CAST(
+    (SELECT EXISTS (
+        SELECT 1
+        FROM psql_service ps
+        WHERE ps.organization_id = ?1 AND ps.name = ?2
+        UNION ALL
+        SELECT 1
+        FROM app_service aps
+        WHERE aps.organization_id = ?1 AND aps.name = ?2
+    )) 
+AS BOOLEAN)
+`
+
+type ServiceNameExistsParams struct {
+	OrgID uuid.UUID `json:"org_id"`
+	Name  string    `json:"name"`
+}
+
+func (q *Queries) ServiceNameExists(ctx context.Context, arg ServiceNameExistsParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, serviceNameExists, arg.OrgID, arg.Name)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const setAppSwarmServiceId = `-- name: SetAppSwarmServiceId :exec
+UPDATE app_service_branch
+SET swarm_service_id = ?
 WHERE id = ?
 `
 
-type SetAppServiceIdParams struct {
-	ServiceID string    `json:"service_id"`
-	ID        uuid.UUID `json:"id"`
+type SetAppSwarmServiceIdParams struct {
+	SwarmServiceID sql.NullString `json:"swarm_service_id"`
+	ID             uuid.UUID      `json:"id"`
 }
 
-func (q *Queries) SetAppServiceId(ctx context.Context, arg SetAppServiceIdParams) error {
-	_, err := q.db.ExecContext(ctx, setAppServiceId, arg.ServiceID, arg.ID)
+func (q *Queries) SetAppSwarmServiceId(ctx context.Context, arg SetAppSwarmServiceIdParams) error {
+	_, err := q.db.ExecContext(ctx, setAppSwarmServiceId, arg.SwarmServiceID, arg.ID)
 	return err
 }
 
-const setPsqlServiceId = `-- name: SetPsqlServiceId :exec
+const setPsqlSwarmServiceId = `-- name: SetPsqlSwarmServiceId :exec
 UPDATE psql_service
-SET service_id = ?
+SET swarm_service_id = ?
 WHERE id = ?
 `
 
-type SetPsqlServiceIdParams struct {
-	ServiceID string    `json:"service_id"`
-	ID        uuid.UUID `json:"id"`
+type SetPsqlSwarmServiceIdParams struct {
+	SwarmServiceID sql.NullString `json:"swarm_service_id"`
+	ID             uuid.UUID      `json:"id"`
 }
 
-func (q *Queries) SetPsqlServiceId(ctx context.Context, arg SetPsqlServiceIdParams) error {
-	_, err := q.db.ExecContext(ctx, setPsqlServiceId, arg.ServiceID, arg.ID)
+func (q *Queries) SetPsqlSwarmServiceId(ctx context.Context, arg SetPsqlSwarmServiceIdParams) error {
+	_, err := q.db.ExecContext(ctx, setPsqlSwarmServiceId, arg.SwarmServiceID, arg.ID)
 	return err
 }

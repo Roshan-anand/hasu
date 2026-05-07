@@ -31,6 +31,7 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 
 			w.Server.DeploymentQ.EnqueueDeployJob(&deploymentqueue.DeployJobData{
 				DeploymentID: d.DeploymentID,
+				StorePath:    d.StorePath,
 			})
 		case <-ctx.Done():
 			fmt.Println("BuildWorker: context cancelled, exiting")

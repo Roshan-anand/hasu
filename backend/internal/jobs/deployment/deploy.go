@@ -33,7 +33,7 @@ func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.De
 			// end the logs
 			w.Server.LogBrokerQ.EndLogs(&logbrokerqueue.EndLogData{
 				DeploymentID: d.DeploymentID,
-				Status:       types.DeploymentSuccess,
+				Status:       types.DeploymentReady,
 			})
 
 			fmt.Printf("DeployWorker: finished working ...")

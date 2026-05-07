@@ -54,6 +54,17 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
+	// check if service name already exists in the organization
+	if exists, err := q.ServiceNameExists(h.qCtx, db.ServiceNameExistsParams{
+		OrgID: b.OrgID,
+		Name:  b.Name,
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to check service name"})
+	} else if exists {
+		return c.JSON(http.StatusConflict, lib.Res{Message: "Service name already exists"})
+	}
+
+	// get the github app details
 	ghApp, err := q.GetGhAppByAppId(h.qCtx, b.GhAppID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -70,62 +81,56 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	url := u.Host + u.Path
 
 	// used as unique container name and code storing path
-	serviceName := fmt.Sprintf("%s-%s", b.Name, lib.GenerateRandomID(6))
+	serviceName := fmt.Sprintf("%s-%s-%s", b.Name, b.DefaultBranch, b.OrgID)
 
-	// start a transaction
+	// start a new db transaction
 	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create service"})
 	}
 	q = q.WithTx(tx)
 
-	serviceID := lib.NewID()
-	branchID := lib.NewID()
-
-	// create a new branch for the app service
-	err = q.CreateAppServiceBranch(h.qCtx, db.CreateAppServiceBranchParams{
-		ID:           branchID,
-		BranchName:   b.DefaultBranch,
-		FilePath:     serviceName,
-		AppServiceID: serviceID,
-	})
-	if err != nil {
-		tx.Rollback()
-		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create service branch"})
-	}
-
 	// create a new service
 	service, err := q.CreateAppService(h.qCtx, db.CreateAppServiceParams{
-		ID:              serviceID,
-		OrganizationID:  b.OrgID,
-		Type:            types.AppServiceType,
-		ServiceID:       "",
-		Name:            b.Name,
-		AppName:         serviceName,
-		GitProvider:     b.GitProvider,
-		GhAppID:         ghApp.AppID,
-		GhRepoID:        b.GitRepoID,
-		GhRepoName:      b.GitRepoName,
-		GhRepoUrl:       url,
-		DefaultBranchID: branchID,
-		BuildPath:       b.BuildPath,
-		WatchPath:       b.WatchPath,
-		Env:             b.Env,
-		BuildArgs:       b.BuildArgs,
-		BuildSecrets:    b.BuildSecrets,
+		ID:             lib.NewID(),
+		OrganizationID: b.OrgID,
+		Type:           types.AppServiceType,
+		Name:           b.Name,
+		GitProvider:    b.GitProvider,
+		GhAppID:        ghApp.AppID,
+		GhRepoID:       b.GitRepoID,
+		GhRepoName:     b.GitRepoName,
+		GhRepoUrl:      url,
+		BuildPath:      b.BuildPath,
+		WatchPath:      b.WatchPath,
+		Env:            b.Env,
+		BuildArgs:      b.BuildArgs,
+		BuildSecrets:   b.BuildSecrets,
 	})
 	if err != nil {
 		tx.Rollback()
 		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create service"})
 	}
 
+	// create a new branch for the app service
+	branchID, err := q.CreateAppServiceBranch(h.qCtx, db.CreateAppServiceBranchParams{
+		ID:               lib.NewID(),
+		IsDefaultBranch:  true,
+		BranchName:       b.DefaultBranch,
+		SwarmServiceName: serviceName,
+		ServiceID:        service.ID,
+	})
+	if err != nil {
+		tx.Rollback()
+		return c.JSON(http.StatusInternalServerError, lib.Res{Message: "Failed to create service branch"})
+	}
+
+	// TODO : get commit msg from client side
 	// create a new deployment for the app service
-	deploymentName := fmt.Sprintf("%s-%s", serviceName, lib.GenerateRandomID(6))
 	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 		ID:        lib.NewID(),
-		Name:      deploymentName,
-		ServiceID: serviceID,
-		Status:    types.DeploymentInProgress,
+		BranchID:  branchID,
+		CommitMsg: "s",
 	})
 	if err != nil {
 		tx.Rollback()
@@ -149,7 +154,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		Url:          url,
 		Branch:       b.DefaultBranch,
 		BuildPath:    b.BuildPath,
-		StorePath:    "",
+		StorePath:    serviceName,
 	})
 
 	return c.JSON(http.StatusOK, service)

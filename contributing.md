@@ -23,7 +23,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 - run `make cloud-tunnel` to start cloudflared tunnel for local https support
   - copy the `https://<custom_generated>.trycloudflare.com` url
   - paste it in `.env` file in the root folder in `SERVER_PUBLIC_URL` var
-- run `make setup` to setup traefik
+- run `make setup` to setup traefik and build needed docker images
 - run `make dev-start` to start dev services
 - you can access services at
   - Traefik dashboard : `https://traefik.godploy.localhost` (to access the dashboard username : `godploy`, password : `godploy`)

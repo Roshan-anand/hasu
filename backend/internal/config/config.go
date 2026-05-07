@@ -13,10 +13,11 @@ type Config struct {
 	EchoCtxUserKey   string
 	JwtSecret        string
 	WebUrl           string
-	ServerUrl        string
 	SqliteDir        string
 	BadgerDir        string
 	AppEnv           types.AppEnv
+	ServerUrl        string
+	CodeStoreDir     string
 }
 
 func LoadConfig() (*Config, error) {
@@ -37,5 +38,6 @@ func LoadConfig() (*Config, error) {
 		BadgerDir:        "data/badger",
 		AppEnv:           types.AppEnv(appEnv),
 		ServerUrl:        srvUrl,
+		CodeStoreDir:     "/etc/godploy/code",
 	}, nil
 }

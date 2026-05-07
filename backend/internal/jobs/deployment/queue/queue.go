@@ -2,9 +2,6 @@ package deploymentqueue
 
 import "github.com/google/uuid"
 
-//	!IMP : this is just a placeholder
-//
-// TODO : fill struct with actual data required for the job
 type PullJobData struct {
 	DeploymentID uuid.UUID
 	Token        string
@@ -17,10 +14,12 @@ type PullJobData struct {
 type BuildJobData struct {
 	DeploymentID uuid.UUID
 	BuildPath    string
+	StorePath    string
 }
 
 type DeployJobData struct {
 	DeploymentID uuid.UUID
+	StorePath    string
 }
 
 type JobQueue struct {
