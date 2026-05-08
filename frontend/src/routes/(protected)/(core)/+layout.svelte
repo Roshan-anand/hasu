@@ -2,16 +2,8 @@
 	import AppSidebar from '@/components/app-sidebar.svelte';
 	import * as Sidebar from '@/components/ui/sidebar/index.js';
 	import ModeToggle from '@/components/mode-toggle.svelte';
-	import { getUserState } from '@/features/global/store.svelte';
-	import { GetAuthUserData } from './query';
 
 	let { children } = $props();
-
-	const userData = GetAuthUserData();
-	if (userData) {
-		const { setUser } = getUserState();
-		setUser(userData);
-	}
 </script>
 
 <Sidebar.Provider>

@@ -11,11 +11,14 @@
 	import { createMutation, createQuery } from '@tanstack/svelte-query';
 	import { Check, ChevronsUpDown } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import CreateBtn from './CreateBtn.svelte';
 	import { getUserState } from '@/features/global/store.svelte';
 	import type { Organization } from '@/features/auth/type';
+	import CreateBtn from './CreateBtn.svelte';
+	import { GetUserData, setUserCurrentOrg } from '@/features/global/query';
 
-	const { email, setCurrentOrg, pushOrg, setOrg, currentOrg, orgs } = getUserState();
+	const { pushOrg, setOrg, orgs } = getUserState();
+	const { email, org_id, org_name } = GetUserData();
+
 	let orgMenuOpen = $state(false);
 	let createDialogOpen = $state(false);
 	let orgName = $state('');
@@ -41,7 +44,10 @@
 		mutationFn: (payload: SwitchOrgPayload) =>
 			api.post<Organization>('/org/switch', payload).then((res) => res.data),
 		onSuccess: (org) => {
-			setCurrentOrg(org);
+			setUserCurrentOrg({
+				org_id: org.id,
+				org_name: org.name
+			});
 			orgMenuOpen = false;
 			toast.success('Organization switched successfully');
 		},
@@ -87,7 +93,7 @@
 	}
 
 	function switchOrg(orgId: string) {
-		if (!orgId || orgId === currentOrg.id || switchOrgMutation.isPending) return;
+		if (!orgId || orgId === org_id || switchOrgMutation.isPending) return;
 
 		switchOrgMutation.mutate({ org_id: orgId });
 	}
@@ -114,11 +120,11 @@
 <div class="flex w-full flex-col gap-2">
 	<div class="flex w-full items-center gap-2">
 		<Avatar>
-			<AvatarFallback>{getAvatarText(currentOrg.name)}</AvatarFallback>
+			<AvatarFallback>{getAvatarText(org_name)}</AvatarFallback>
 		</Avatar>
 
 		<div class="min-w-0 flex-1">
-			<p class="truncate font-medium">{currentOrg.name || 'No organization selected'}</p>
+			<p class="truncate font-medium">{org_name || 'No organization selected'}</p>
 		</div>
 
 		<DropdownMenu.Root bind:open={orgMenuOpen}>
@@ -143,7 +149,7 @@
 								disabled={switchOrgMutation.isPending}
 							>
 								<span class="truncate">{org.name}</span>
-								{#if org.id === currentOrg.id}
+								{#if org.id === org_id}
 									<Check class="ml-auto" />
 								{/if}
 							</DropdownMenu.Item>
@@ -181,7 +187,7 @@
 				}}
 			>
 				<div class="space-y-1.5">
-					<Label class="my-3" for="create-org-name">Name</Label>
+					<Label class="my-1" for="create-org-name">Name</Label>
 					<Input
 						id="create-org-name"
 						placeholder="Organization name"

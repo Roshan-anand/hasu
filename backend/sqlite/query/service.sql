@@ -24,7 +24,7 @@ AS BOOLEAN);
 -- name: CreatePsqlService :one
 INSERT INTO psql_service (id, organization_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, type;
+RETURNING id;
 
 -- name: GetPsqlServiceById :one
 SELECT *
@@ -65,4 +65,3 @@ RETURNING id;
 UPDATE app_service_branch
 SET swarm_service_id = ?
 WHERE id = ?;
-

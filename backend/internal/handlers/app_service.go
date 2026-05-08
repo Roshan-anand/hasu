@@ -169,7 +169,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		ImgName:           imgName,
 	})
 
-	return c.JSON(http.StatusOK, service)
+	return c.JSON(http.StatusOK, service.ID)
 }
 
 // get app service details by id

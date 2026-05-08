@@ -68,9 +68,9 @@ export type CreateAppServiceBody = {
 	name: string;
 	git_provider: GitProviderKey;
 	gh_app_id: string;
-	git_repo_id: string;
-	git_repo_name: string;
-	git_repo_url: string;
+	gh_repo_id: string;
+	gh_repo_name: string;
+	gh_repo_url: string;
 	default_branch: string;
 	build_path: string;
 	watch_path: string;
@@ -84,6 +84,12 @@ export type CreateAppServiceBody = {
 	};
 };
 
+export type CreateAppServiceForm = CreateAppServiceBody;
+
+export type CreateServicePayload = CreateAppServiceBody & {
+	org_id: string;
+};
+
 export type CreatePsqlServiceBody = {
 	name: string;
 	db_name: string;
@@ -91,28 +97,3 @@ export type CreatePsqlServiceBody = {
 	db_password: string;
 	image: string;
 };
-
-export type CreateServicePayload =
-	| {
-			type: 'app';
-			body: CreateAppServiceBody & {
-				org_id: string;
-			};
-	  }
-	| {
-			type: 'psql';
-			body: CreatePsqlServiceBody & {
-				org_id: string;
-			};
-	  };
-
-export type CreateServiceForm =
-	| (Omit<CreateAppServiceBody, 'docker_build'> & {
-			type: 'app';
-			docker_file_path: string;
-			docker_context_path: string;
-			docker_build_stage: string;
-			build_args: string;
-			build_secrets: string;
-	  })
-	| (CreatePsqlServiceBody & { type: 'psql' });

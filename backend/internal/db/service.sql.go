@@ -94,7 +94,7 @@ func (q *Queries) CreateAppServiceBranch(ctx context.Context, arg CreateAppServi
 const createPsqlService = `-- name: CreatePsqlService :one
 INSERT INTO psql_service (id, organization_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, type
+RETURNING id
 `
 
 type CreatePsqlServiceParams struct {
@@ -109,12 +109,7 @@ type CreatePsqlServiceParams struct {
 	InternalUrl      string            `json:"internal_url"`
 }
 
-type CreatePsqlServiceRow struct {
-	ID   uuid.UUID         `json:"id"`
-	Type types.ServiceType `json:"type"`
-}
-
-func (q *Queries) CreatePsqlService(ctx context.Context, arg CreatePsqlServiceParams) (CreatePsqlServiceRow, error) {
+func (q *Queries) CreatePsqlService(ctx context.Context, arg CreatePsqlServiceParams) (uuid.UUID, error) {
 	row := q.db.QueryRowContext(ctx, createPsqlService,
 		arg.ID,
 		arg.OrganizationID,
@@ -126,9 +121,9 @@ func (q *Queries) CreatePsqlService(ctx context.Context, arg CreatePsqlServicePa
 		arg.DbPassword,
 		arg.InternalUrl,
 	)
-	var i CreatePsqlServiceRow
-	err := row.Scan(&i.ID, &i.Type)
-	return i, err
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const deleteAppService = `-- name: DeleteAppService :exec

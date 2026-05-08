@@ -5,7 +5,6 @@ import { toast } from 'svelte-sonner';
 import type {
 	ApiMessageRes,
 	CreateServicePayload,
-	CreateServiceResponse,
 	DeleteServicePayload,
 	GetRepoResult,
 	GithubRepo,
@@ -16,7 +15,8 @@ import { getServiceState } from './store.svelte';
 import { getOrgServicesQueryKey } from './query.svelte';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import { getUserState } from '../global/store.svelte';
+import type { ServiceType } from '@/types';
+import { GetUserData } from '../global/query';
 
 export function useGetReposMutation() {
 	const featureState = getServiceState();
@@ -56,15 +56,13 @@ export function useGetReposMutation() {
 
 export function useCreateServiceMutation() {
 	return createMutation(() => ({
-		mutationFn: async (payload: CreateServicePayload) => {
-			const url = payload.type === 'app' ? '/service/app' : '/service/psql';
-			return api.post<CreateServiceResponse>(url, payload.body).then((res) => res.data);
-		},
-		onSuccess: ({ type, id }) => {
+		mutationFn: async (payload: CreateServicePayload) =>
+			api.post<string>('/service/app', payload).then((res) => res.data),
+		onSuccess: (id) => {
 			toast.success('Service created successfully');
 			goto(
-				resolve('/(core)/[service_type]/[service_id]?tab=deployment', {
-					service_type: type,
+				resolve('/(protected)/(core)/[service_type]/[service_id]?tab=deployment', {
+					service_type: 'app' as ServiceType,
 					service_id: id
 				})
 			);
@@ -77,7 +75,7 @@ export function useCreateServiceMutation() {
 }
 
 export function useDeleteServiceMutation() {
-	const { currentOrg } = getUserState();
+	const { org_id } = GetUserData();
 
 	return createMutation(() => ({
 		mutationFn: async ({ service_id, type }: DeleteServicePayload) => {
@@ -87,7 +85,7 @@ export function useDeleteServiceMutation() {
 
 		onSuccess: (response, payload) => {
 			queryClient.setQueryData(
-				getOrgServicesQueryKey(currentOrg.id),
+				getOrgServicesQueryKey(org_id),
 				(cachedRows: ServiceListResponse[] | undefined) => {
 					if (!cachedRows) return [];
 					return cachedRows.filter((row) => row.id !== payload.service_id);

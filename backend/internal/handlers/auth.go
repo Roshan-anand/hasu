@@ -38,7 +38,6 @@ type LoginReq struct {
 }
 
 type AuthRes struct {
-	Message string    `json:"message"`
 	Name    string    `json:"name"`
 	Email   string    `json:"email"`
 	OrgId   uuid.UUID `json:"org_id"`
@@ -78,7 +77,6 @@ func (h *AuthHandler) AuthUser(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, AuthRes{
-		Message: "User Authenticated",
 		Name:    u.Name,
 		Email:   u.Email,
 		OrgId:   org.ID,
@@ -148,7 +146,6 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 	lib.SetJwtCookie(h.Server, c, lib.AuthUser{Email: b.Email, Name: b.Name, Role: types.AdminRole})
 
 	r := AuthRes{
-		Message: "Registration Successful",
 		Name:    b.Name,
 		Email:   b.Email,
 		OrgId:   org.ID,
@@ -183,7 +180,6 @@ func (h *AuthHandler) AppLogin(c *echo.Context) error {
 	lib.SetJwtCookie(h.Server, c, lib.AuthUser{Email: u.Email, Name: u.Name, Role: u.Role})
 
 	r := AuthRes{
-		Message: "Login Successful",
 		Name:    u.Name,
 		Email:   u.Email,
 		OrgId:   u.OrgID,

@@ -1,20 +1,17 @@
 <script lang="ts">
-	import CreateBtn from '@/components/CreateBtn.svelte';
 	import { Button } from '@/components/ui/button';
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { getUserState } from '@/features/global/store.svelte';
 	import { useDeleteServiceMutation } from '@/features/services/mutation.svelte';
-	import { setServiceState } from '@/features/services/store.svelte';
 	import type { ServiceType } from '@/types';
 	import { Search, Trash2 } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import { useGetServicesQuery } from '@/features/services/query.svelte';
-	import CreateServiceDialog from '@/components/services/CreateServiceDialog.svelte';
+	import { goto } from '$app/navigation';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import { ChevronDown } from '@lucide/svelte';
 
-	const { currentOrg } = getUserState();
-	const serviceState = setServiceState();
 	let searchQuery = $state('');
 
 	const servicesQuery = useGetServicesQuery();
@@ -36,9 +33,14 @@
 	});
 
 	const tempItem = Array.from({ length: 6 });
+
+	const createOptions = [
+		{ name: 'Application', link: resolve('/new/app') },
+		{ name: 'DB', link: '' }
+	];
 </script>
 
-<nav class="flex gap-2">
+<nav class="flex gap-4">
 	<div class="flex-1 flex relative">
 		<Input
 			id="service-search"
@@ -48,10 +50,31 @@
 		/>
 		<Label class="absolute top-0 right-0 m-1 opacity-75" for="service-search"><Search /></Label>
 	</div>
-	<CreateBtn onclick={serviceState.openCreateDialog} disabled={currentOrg.id === ''} />
+	<DropdownMenu.Root>
+		<DropdownMenu.Trigger>
+			{#snippet child({ props })}
+				<Button {...props}>
+					<span>create</span>
+					<ChevronDown class="size-4" />
+				</Button>
+			{/snippet}
+		</DropdownMenu.Trigger>
+		<DropdownMenu.Content align="end" class="w-40">
+			{#each createOptions as option (option.name)}
+				<DropdownMenu.Item
+					disabled={option.link === ''}
+					onSelect={() => {
+						if (option.link === '') return;
+						/* eslint-disable svelte/no-navigation-without-resolve */
+						void goto(option.link);
+					}}
+				>
+					{option.name}
+				</DropdownMenu.Item>
+			{/each}
+		</DropdownMenu.Content>
+	</DropdownMenu.Root>
 </nav>
-
-<CreateServiceDialog />
 
 <section class="flex-1 p-2">
 	{#if servicesQuery.isPending}
@@ -73,7 +96,7 @@
 					class="rounded-lg border bg-card text-card-foreground shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer relative"
 				>
 					<a
-						href={resolve('/(core)/[service_type]/[service_id]', {
+						href={resolve('/(protected)/(core)/[service_type]/[service_id]', {
 							service_type: service.type,
 							service_id: service.id
 						})}
@@ -105,8 +128,7 @@
 		</div>
 	{:else}
 		<h3 class="text-muted-foreground size-full flex flex-col items-center justify-center gap-2">
-			<span>No services found</span>
-			<CreateBtn onclick={serviceState.openCreateDialog} disabled={currentOrg.id === ''} />
+			No services found
 		</h3>
 	{/if}
 </section>

@@ -32,19 +32,19 @@
 			<SidebarGroupContent>
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<SidebarMenuButton onclick={() => goto(resolve('/'))}>
+						<SidebarMenuButton onclick={() => goto(resolve('/(protected)/(core)'))}>
 							<Blocks />
 							<span>Projects</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 					<SidebarMenuItem>
-						<SidebarMenuButton onclick={() => goto(resolve('/members'))}>
+						<SidebarMenuButton onclick={() => goto(resolve('/(protected)/(core)/members'))}>
 							<Users />
 							<span>Members</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 					<SidebarMenuItem>
-						<SidebarMenuButton onclick={() => goto(resolve('/git'))}>
+						<SidebarMenuButton onclick={() => goto(resolve('/(protected)/(core)/git'))}>
 							<GitBranch />
 							<span>Git</span>
 						</SidebarMenuButton>

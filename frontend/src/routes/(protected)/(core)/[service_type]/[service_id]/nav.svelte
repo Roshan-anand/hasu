@@ -32,7 +32,7 @@
 		{#each navItems as item (item.label)}
 			<NavigationMenu.Item>
 				<NavigationMenu.Link
-					href={resolve(`/(core)/[service_type]/[service_id]?tab=${item.tab}`, {
+					href={resolve(`/(protected)/(core)/[service_type]/[service_id]?tab=${item.tab}`, {
 						service_type: serviceType,
 						service_id: serviceId
 					})}

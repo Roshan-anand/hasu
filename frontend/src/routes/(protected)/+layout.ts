@@ -1,11 +1,12 @@
 import { resolve } from '$app/paths';
-import { fetchAuthUserQuery } from './query';
+import { fetchUserQuery, GetUserData } from '@/features/global/query';
 import { redirect } from '@sveltejs/kit';
 import axios from 'axios';
 
 export async function load() {
 	try {
-		await fetchAuthUserQuery();
+		const { email } = GetUserData();
+		if (!email) await fetchUserQuery();
 	} catch (err) {
 		if (axios.isAxiosError(err) && err.response?.status === 403)
 			redirect(302, resolve('/register'));

@@ -1,20 +1,20 @@
 import { api, axiosErr } from '@/axios';
 import { queryClient } from '@/query';
-import { getUserState } from '@/features/global/store.svelte';
 import { createMutation } from '@tanstack/svelte-query';
 import { toast } from 'svelte-sonner';
 import { getGithubAppsQueryKey } from './query.svelte';
 import type { DeleteGithubAppPayload, GithubApp } from './type';
+import { GetUserData } from '../global/query';
 
 export function useDeleteGithubAppMutation() {
-	const { currentOrg } = getUserState();
+	const { org_id } = GetUserData();
 
 	return createMutation(() => ({
 		mutationFn: (payload: DeleteGithubAppPayload) =>
 			api.delete('/provider/github/app', { data: payload }).then((res) => res.data),
 		onSuccess: (_response, payload) => {
 			queryClient.setQueryData(
-				getGithubAppsQueryKey(currentOrg.id),
+				getGithubAppsQueryKey(org_id),
 				(cachedApps: GithubApp[] | null | undefined) => {
 					if (!cachedApps) return null;
 

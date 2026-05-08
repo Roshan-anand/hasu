@@ -80,7 +80,7 @@ Data: SQLite for metadata, BadgerDB for log buffering, Docker socket for contain
 ### `frontend/` — SvelteKit 5 SPA (adapter-static)
 
 - `src/routes/(auth)/` — login, register
-- `src/routes/(core)/` — authed app ( service, git, members, layout)
+- `src/routes/(protected)/(core)/` — authed app ( service, git, members, layout)
 - `src/lib/components/ui/` — shadcn-svelte primitives (bits-ui under the hood)
 - `src/lib/components/services/` — service detail views (`app`, `psql`) + list
 - `src/lib/features/<domain>/` — per-domain `query.ts`, `mutation.ts`, `store.svelte.ts`, `type.ts` (`auth`, `projects`, `services`, `deployments`, `git`, `global`)

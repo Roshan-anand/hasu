@@ -55,7 +55,7 @@
 					>
 						{#snippet children(field)}
 							<div class="grid gap-2">
-								<Label class="my-3" for={field.name}>Email</Label>
+								<Label class="my-1" for={field.name}>Email</Label>
 								<Input
 									id={field.name}
 									name={field.name}
@@ -79,7 +79,7 @@
 						{#snippet children(field)}
 							<div class="grid gap-2">
 								<div class="flex items-center">
-									<Label class="my-3" for={field.name}>Password</Label>
+									<Label class="my-1" for={field.name}>Password</Label>
 								</div>
 								<Input
 									id={field.name}

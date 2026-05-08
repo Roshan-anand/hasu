@@ -2,10 +2,10 @@
 	import { Button } from '@/components/ui/button';
 	import { useDeleteGithubAppMutation } from '@/features/git/mutation.svelte';
 	import { gitProviders, useGithubAppsQuery } from '@/features/git/query.svelte';
-	import { getUserState } from '@/features/global/store.svelte';
+	import { GetUserData } from '@/features/global/query';
 	import Icon from '@iconify/svelte';
 
-	const { currentOrg } = getUserState();
+	const { org_id } = GetUserData();
 
 	const getGithubAppsQuery = useGithubAppsQuery();
 	const deleteGithubAppMutation = useDeleteGithubAppMutation();
@@ -41,7 +41,7 @@
 <hr class="my-3" />
 
 <section class="flex-1">
-	{#if getGithubAppsQuery.isPending && currentOrg.id !== ''}
+	{#if getGithubAppsQuery.isPending && org_id !== ''}
 		<p class="text-muted-foreground">Loading provider details...</p>
 	{:else if getGithubAppsQuery.isError}
 		<p class="text-destructive">Failed to load provider details.</p>

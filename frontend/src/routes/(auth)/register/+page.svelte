@@ -65,7 +65,7 @@
 					>
 						{#snippet children(field)}
 							<div class="grid gap-2">
-								<Label class="my-3" for={field.name}>Name</Label>
+								<Label class="my-1" for={field.name}>Name</Label>
 								<Input
 									id={field.name}
 									name={field.name}
@@ -88,7 +88,7 @@
 					>
 						{#snippet children(field)}
 							<div class="grid gap-2">
-								<Label class="my-3" for={field.name}>Email</Label>
+								<Label class="my-1" for={field.name}>Email</Label>
 								<Input
 									id={field.name}
 									name={field.name}
@@ -115,7 +115,7 @@
 					>
 						{#snippet children(field)}
 							<div class="grid gap-2">
-								<Label class="my-3" for={field.name}>Password</Label>
+								<Label class="my-1" for={field.name}>Password</Label>
 								<Input
 									id={field.name}
 									name={field.name}
@@ -137,7 +137,7 @@
 					>
 						{#snippet children(field)}
 							<div class="grid gap-2">
-								<Label class="my-3" for={field.name}>Organisation</Label>
+								<Label class="my-1" for={field.name}>Organisation</Label>
 								<Input
 									id={field.name}
 									name={field.name}

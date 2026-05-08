@@ -16,7 +16,6 @@ export type Organization = {
 };
 
 export type AuthResponse = {
-	message: string;
 	name: string;
 	email: string;
 	org_id: string;

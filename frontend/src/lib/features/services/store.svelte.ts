@@ -4,23 +4,13 @@ import type { GithubApp, GithubRepo } from './type';
 export interface ServiceStore {
 	githubApps: GithubApp[];
 	githubRepos: GithubRepo[];
-	createDialogOpen: boolean;
-	openCreateDialog: () => void;
-	closeCreateDialog: () => void;
 	setGithubApps: (apps: GithubApp[]) => void;
 }
 
 class ServiceStoreClass implements ServiceStore {
 	githubApps = $state<GithubApp[]>([]);
 	githubRepos = $state<GithubRepo[]>([]);
-	createDialogOpen = $state(false);
 	setGithubApps = (apps: GithubApp[]) => (this.githubApps = apps);
-	openCreateDialog = () => {
-		this.createDialogOpen = true;
-	};
-	closeCreateDialog = () => {
-		this.createDialogOpen = false;
-	};
 }
 
 const DEFAULT_KEY = 'services:feature:state';
