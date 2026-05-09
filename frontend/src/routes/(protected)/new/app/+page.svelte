@@ -72,7 +72,6 @@
 				return;
 			}
 
-			console.log('gh app id ', value.gh_app_id);
 			const buildPath = normalizePathValue(value.build_path);
 			const watchPath = normalizePathValue(value.watch_path);
 
@@ -155,7 +154,7 @@
 				<Label class="my-1">Import from a git provider</Label>
 				<GitProviderField
 					value={field.state.value}
-					disabled={org_id === '' || getReposMutation.isPending || createServiceMutation.isPending}
+					disabled={org_id === ''}
 					onSelect={(key) => {
 						field.handleChange(key);
 						fetchGitProvider(key);

@@ -62,6 +62,7 @@ services:
       - ../.env:/app/backend/.env:rw
       - godploy-dev-data:/app/backend/data/sqlite
       - godploy-dev-logs:/app/backend/data/badger
+      - godploy-dev-codebase:/etc/godploy/code
     environment:
       - JWT_SECRET=red_balloon
       - APP_ENV=dev
@@ -82,3 +83,5 @@ volumes:
     name: godploy-dev-data
   godploy-dev-logs:
     name: godploy-dev-logs
+  godploy-dev-codebase:
+    name: godploy-dev-codebase

@@ -14,6 +14,7 @@ type PubData struct {
 type EndLogData struct {
 	DeploymentID uuid.UUID
 	Status       types.DeploymentStatus
+	Message      string
 }
 
 type Subscriber struct {

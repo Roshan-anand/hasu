@@ -34,7 +34,6 @@ func (job *LogsBroker) LogsBrokerJob(ctx context.Context, pub chan *logbrokerque
 				fmt.Println("Publisher channel closed, exiting logBroker")
 				return
 			}
-			println("log broker recived message : ", p.Msg)
 
 			// check for subscribers
 			for _, sub := range job.Server.LogBrokerQ.Subscribers {
@@ -80,7 +79,10 @@ func (job *LogsBroker) LogsBrokerJob(ctx context.Context, pub chan *logbrokerque
 			// remove subscribers of the deployment
 			for userID, sub := range job.Server.LogBrokerQ.Subscribers {
 				if sub.DeploymentID == dID {
-					sub.SSE.SendSSE("logs", []byte("something went wrong !!"))
+					if e.Message == "" {
+						e.Message = "something went wrong !!"
+					}
+					sub.SSE.SendSSE("log", []byte(e.Message))
 					job.Server.LogBrokerQ.UnsubscribeLogs(userID)
 				}
 			}

@@ -18,9 +18,11 @@ import (
 	"github.com/moby/moby/client"
 )
 
-func streamImgBuildOutput(res io.ReadCloser, l *logbrokerqueue.LogBrokerQueue, dID uuid.UUID) {
+func streamImgBuildOutput(res io.ReadCloser, l *logbrokerqueue.LogBrokerQueue, dID uuid.UUID) error {
 
 	decoder := json.NewDecoder(res)
+
+	prevLog := ""
 
 	for {
 		var msg jsonstream.Message
@@ -35,11 +37,12 @@ func streamImgBuildOutput(res io.ReadCloser, l *logbrokerqueue.LogBrokerQueue, d
 		}
 
 		// Normal log output
-		if msg.Stream != "" {
+		if msg.Stream != "" && msg.Stream != prevLog {
 			l.PublishLog(&logbrokerqueue.PubData{
 				ID:  dID,
 				Msg: msg.Stream,
 			})
+			prevLog = msg.Stream
 		}
 
 		// BuildKit status lines
@@ -50,6 +53,8 @@ func streamImgBuildOutput(res io.ReadCloser, l *logbrokerqueue.LogBrokerQueue, d
 				msg.Status,
 			)
 
+			fmt.Println("status output", status)
+
 			l.PublishLog(&logbrokerqueue.PubData{
 				ID:  dID,
 				Msg: status,
@@ -58,12 +63,10 @@ func streamImgBuildOutput(res io.ReadCloser, l *logbrokerqueue.LogBrokerQueue, d
 
 		// Errors
 		if msg.Error != nil {
-			l.PublishLog(&logbrokerqueue.PubData{
-				ID:  dID,
-				Msg: msg.Error.Message,
-			})
+			return msg.Error
 		}
 	}
+	return nil
 }
 
 // responsible for pulling code and storing it local
@@ -103,13 +106,21 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 				l.EndLogs(&logbrokerqueue.EndLogData{
 					DeploymentID: d.DeploymentID,
 					Status:       types.DeploymentError,
+					Message:      err.Error(),
 				})
 				continue
 			}
 			defer buildRes.Body.Close()
 
 			// stream the build output to log broker
-			streamImgBuildOutput(buildRes.Body, l, d.DeploymentID)
+			if err := streamImgBuildOutput(buildRes.Body, l, d.DeploymentID); err != nil {
+				l.EndLogs(&logbrokerqueue.EndLogData{
+					DeploymentID: d.DeploymentID,
+					Status:       types.DeploymentError,
+					Message:      err.Error(),
+				})
+				continue
+			}
 
 			// update the deployment with the built image name
 			if err := w.Server.DB.Queries.SetDeploymentImageName(w.qCtx, db.SetDeploymentImageNameParams{
