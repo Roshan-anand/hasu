@@ -302,7 +302,6 @@ func (h *GitHandler) DeleteGithubApp(c *echo.Context) error {
 	_, err = client.Apps.DeleteInstallation(h.qCtx, ghApp.AppID)
 	if err != nil {
 		fmt.Println("Error deleting github app installation:", err)
-		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to delete github app"})
 	}
 
 	if err := q.DeleteGithubApp(h.qCtx, b.AppID); err != nil {

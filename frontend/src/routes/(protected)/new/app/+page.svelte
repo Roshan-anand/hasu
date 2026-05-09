@@ -75,6 +75,7 @@
 			const buildPath = normalizePathValue(value.build_path);
 			const watchPath = normalizePathValue(value.watch_path);
 
+			console.log('name :', value.name);
 			createServiceMutation.mutate({
 				org_id: org_id,
 				name: value.name.trim(),
@@ -131,6 +132,7 @@
 
 		form.setFieldValue('gh_repo_id', repoId);
 		const repoName = getReposMutation.data?.find((repo) => repo.id.toString() == repoId)?.name;
+		console.log('Selected repo name:', repoName);
 		form.setFieldValue('name', repoName || '');
 	};
 
@@ -270,28 +272,28 @@
 						</div>
 					{/snippet}
 				</form.Field>
-
-				<form.Field
-					name="name"
-					validators={{ onChange: z.string().min(3, 'Service name must be at least 3 characters') }}
-				>
-					{#snippet children(field)}
-						<div class="space-y-1.5">
-							<Label class="my-1" for={field.name}>Service Name</Label>
-							<Input
-								id={field.name}
-								placeholder="Payments API"
-								value={field.state.value}
-								onblur={field.handleBlur}
-								oninput={(e) => field.handleChange(e.currentTarget.value)}
-								disabled={createServiceMutation.isPending}
-							/>
-							<FormError errors={field.state.meta.errors} />
-						</div>
-					{/snippet}
-				</form.Field>
 			{/snippet}
 		</form.Subscribe>
+
+		<form.Field
+			name="name"
+			validators={{ onChange: z.string().min(3, 'Service name must be at least 3 characters') }}
+		>
+			{#snippet children(field)}
+				<div class="space-y-1.5">
+					<Label class="my-1" for={field.name}>Service Name</Label>
+					<Input
+						id={field.name}
+						placeholder="Payments API"
+						value={field.state.value}
+						onblur={field.handleBlur}
+						oninput={(e) => field.handleChange(e.currentTarget.value)}
+						disabled={createServiceMutation.isPending}
+					/>
+					<FormError errors={field.state.meta.errors} />
+				</div>
+			{/snippet}
+		</form.Field>
 
 		<form.Field
 			name="build_path"

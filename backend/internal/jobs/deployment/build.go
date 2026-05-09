@@ -32,8 +32,7 @@ func streamImgBuildOutput(res io.ReadCloser, l *logbrokerqueue.LogBrokerQueue, d
 			if err == io.EOF {
 				break
 			}
-
-			panic(err)
+			return fmt.Errorf("error decoding build output: %v", err)
 		}
 
 		// Normal log output
@@ -82,8 +81,8 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 			fmt.Println("BuildWorker: started working ...")
 			l := w.Server.LogBrokerQ
 
-			dockerCtxPath := path.Join(d.StorePath + d.DockerContextPath)
 			// create a tar achive of the code folder
+			dockerCtxPath := path.Join(d.StorePath + d.DockerContextPath)
 			buildCtx, err := archive.TarWithOptions(dockerCtxPath, &archive.TarOptions{})
 			if err != nil {
 				fmt.Printf("BuildWorker: error creating tar context: %v\n", err)
@@ -114,6 +113,7 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 
 			// stream the build output to log broker
 			if err := streamImgBuildOutput(buildRes.Body, l, d.DeploymentID); err != nil {
+				fmt.Printf("BuildWorker: error streaming build output: %v\n", err)
 				l.EndLogs(&logbrokerqueue.EndLogData{
 					DeploymentID: d.DeploymentID,
 					Status:       types.DeploymentError,

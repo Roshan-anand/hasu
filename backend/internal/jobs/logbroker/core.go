@@ -8,6 +8,7 @@ import (
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/google/uuid"
 )
 
@@ -79,10 +80,12 @@ func (job *LogsBroker) LogsBrokerJob(ctx context.Context, pub chan *logbrokerque
 			// remove subscribers of the deployment
 			for userID, sub := range job.Server.LogBrokerQ.Subscribers {
 				if sub.DeploymentID == dID {
-					if e.Message == "" {
-						e.Message = "something went wrong !!"
+					if e.Status == types.DeploymentError {
+						if e.Message == "" {
+							e.Message = "something went wrong !!"
+						}
+						sub.SSE.SendSSE("log", []byte(e.Message))
 					}
-					sub.SSE.SendSSE("log", []byte(e.Message))
 					job.Server.LogBrokerQ.UnsubscribeLogs(userID)
 				}
 			}

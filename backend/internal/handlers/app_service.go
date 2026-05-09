@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
@@ -25,7 +26,7 @@ type DockerBuildReq struct {
 
 type CreateAppServiceReq struct {
 	OrgID         uuid.UUID       `json:"org_id" validate:"required"`
-	Name          string          `json:"name" validate:"required"`
+	Name          string          `json:"name" validate:"required,min=3,max=50"`
 	GitProvider   string          `json:"git_provider" validate:"required"`
 	GhAppID       int64           `json:"gh_app_id" validate:"required"`
 	GhRepoID      string          `json:"gh_repo_id" validate:"required"`
@@ -89,7 +90,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 
 	// used as unique container name and code storing path
 	serviceName := fmt.Sprintf("%s-%s-%s", b.Name, b.DefaultBranch, lib.GenerateRandomID(6))
-	imgName := fmt.Sprintf("%s-%s-DYP%s", b.Name, b.DefaultBranch, lib.GenerateRandomID(6))
+	imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", b.Name, b.DefaultBranch, lib.GenerateRandomID(6)))
 
 	// start a new db transaction
 	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
