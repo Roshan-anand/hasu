@@ -8,9 +8,9 @@
   - open SSE connection.
   - subscribe to logsbroker.
 - [x] UI to stream deployment logs.
-- [ ] Worker pool to execute pull & store code.
-- [ ] Worker pool to execute build & create image.
-- [ ] Worker pool to execute deploy using docker stack.
+- [x] Worker pool to execute pull & store code.
+- [x] Worker pool to execute build & create image.
+- [x] Worker pool to execute deploy using docker stack.
 - [x] setup BadgerDB.
 - [x] logbroker to publish logs.
   - [x] setup buffer to store logs in memory.

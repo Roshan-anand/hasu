@@ -258,6 +258,42 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, id uuid.UUID) (PsqlSer
 	return i, err
 }
 
+const getSwarmServiceAndImagesByAppServiceId = `-- name: GetSwarmServiceAndImagesByAppServiceId :many
+SELECT b.swarm_service_name, d.id AS deployment_id, d.image_name
+FROM app_service_branch b
+JOIN deployments d ON d.branch_id = b.id
+WHERE b.service_id = ?
+`
+
+type GetSwarmServiceAndImagesByAppServiceIdRow struct {
+	SwarmServiceName string         `json:"swarm_service_name"`
+	DeploymentID     uuid.UUID      `json:"deployment_id"`
+	ImageName        sql.NullString `json:"image_name"`
+}
+
+func (q *Queries) GetSwarmServiceAndImagesByAppServiceId(ctx context.Context, serviceID uuid.UUID) ([]GetSwarmServiceAndImagesByAppServiceIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getSwarmServiceAndImagesByAppServiceId, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetSwarmServiceAndImagesByAppServiceIdRow
+	for rows.Next() {
+		var i GetSwarmServiceAndImagesByAppServiceIdRow
+		if err := rows.Scan(&i.SwarmServiceName, &i.DeploymentID, &i.ImageName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const serviceNameExists = `-- name: ServiceNameExists :one
 SELECT CAST(
     (SELECT EXISTS (

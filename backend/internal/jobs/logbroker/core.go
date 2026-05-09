@@ -84,8 +84,8 @@ func (job *LogsBroker) LogsBrokerJob(ctx context.Context, pub chan *logbrokerque
 						if e.Message == "" {
 							e.Message = "something went wrong !!"
 						}
-						sub.SSE.SendSSE("log", []byte(e.Message))
 					}
+					sub.SSE.SendSSE("log", []byte(e.Message))
 					job.Server.LogBrokerQ.UnsubscribeLogs(userID)
 				}
 			}

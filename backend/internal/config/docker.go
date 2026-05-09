@@ -52,7 +52,6 @@ func (d *DockerClient) CloseClient() error {
 
 // helper function to remove multiple image
 func (d *DockerClient) RemoveImages(imgs []string) {
-	fmt.Printf("removing images: %v\n", imgs)
 	for _, img := range imgs {
 		_, err := d.Client.ImageRemove(context.Background(), img, client.ImageRemoveOptions{
 			Force:         true,
@@ -60,8 +59,15 @@ func (d *DockerClient) RemoveImages(imgs []string) {
 		})
 		if err != nil {
 			fmt.Printf("failed to remove image %s : %v\n", img, err)
-		} else {
-			fmt.Printf("removed image %s\n", img)
+		}
+	}
+}
+
+// helper function to remove multiple services
+func (d *DockerClient) RemoveServices(swarmServiceNames map[string]struct{}) {
+	for s := range swarmServiceNames {
+		if _, err := d.Client.ServiceRemove(context.Background(), s, client.ServiceRemoveOptions{}); err != nil {
+			fmt.Printf("failed to remove service %s : %v\n", s, err)
 		}
 	}
 }

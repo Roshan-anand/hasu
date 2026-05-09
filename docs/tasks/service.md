@@ -14,13 +14,13 @@
 
 ## Application service
 
-- [ ] API to Create Application service.
+- [x] API to Create Application service.
 - [x] API to show repo list.
 - [x] API to trigger pull/build/deploy for selected repo.
-- [ ] API to stop Application service.
+- [x] API to stop Application service.
 - [ ] API to rebuild service.
 - [x] SSE for build logs.
-- [ ] API to get deployed service list.
+- [x] API to get deployed service list.
 - [x] API to get all the deployment list.
 - [ ] SSE for service logs.
 - [ ] API to update env.

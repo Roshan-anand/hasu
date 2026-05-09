@@ -65,3 +65,9 @@ RETURNING id;
 UPDATE app_service_branch
 SET swarm_service_id = ?
 WHERE id = ?;
+
+-- name: GetSwarmServiceAndImagesByAppServiceId :many
+SELECT b.swarm_service_name, d.id AS deployment_id, d.image_name
+FROM app_service_branch b
+JOIN deployments d ON d.branch_id = b.id
+WHERE b.service_id = ?;

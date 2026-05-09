@@ -201,23 +201,28 @@ func (h *ServiceHandler) DeleteAppService(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
-	dyp, err := q.GetAllDeploymentImgByServiceID(h.qCtx, b.ServiceId)
+	serviceInfo, err := q.GetSwarmServiceAndImagesByAppServiceId(h.qCtx, b.ServiceId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get deployments"})
 	}
 
 	// arrange all ids and imgs sepratly for easy access
-	dIDs := make([]uuid.UUID, len(dyp))
-	imgs := make([]string, len(dyp))
-	for i, d := range dyp {
-		dIDs[i] = d.ID
-		imgs[i] = d.ImageName.String
+	dIDs := make([]uuid.UUID, len(serviceInfo))
+	imgs := make([]string, len(serviceInfo))
+	swarmServiceNames := make(map[string]struct{})
+	for i, s := range serviceInfo {
+		dIDs[i] = s.DeploymentID
+		if s.ImageName.Valid {
+			imgs[i] = s.ImageName.String
+		}
+		swarmServiceNames[s.SwarmServiceName] = struct{}{}
 	}
 
-	// TODO : stop all the services running
-
-	// remove all images related to the service deployments
-	go h.Server.Docker.RemoveImages(imgs)
+	// stop all the services running and remove all the images
+	go func() {
+		h.Server.Docker.RemoveServices(swarmServiceNames)
+		h.Server.Docker.RemoveImages(imgs)
+	}()
 
 	// delete all logs related to the service deployments
 	go h.Server.BadgerDB.DeleteAllLogsByDeploymentID(dIDs)
