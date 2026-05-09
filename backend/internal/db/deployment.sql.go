@@ -43,26 +43,31 @@ func (q *Queries) DeleteDeploymentByID(ctx context.Context, id uuid.UUID) error 
 	return err
 }
 
-const getAllDeploymentIdsByServiceID = `-- name: GetAllDeploymentIdsByServiceID :many
-SELECT d.id
+const getAllDeploymentImgByServiceID = `-- name: GetAllDeploymentImgByServiceID :many
+SELECT d.id, d.image_name
 FROM deployments d
 JOIN app_service_branch b ON d.branch_id = b.id
 WHERE b.service_id = ?
 `
 
-func (q *Queries) GetAllDeploymentIdsByServiceID(ctx context.Context, serviceID uuid.UUID) ([]uuid.UUID, error) {
-	rows, err := q.db.QueryContext(ctx, getAllDeploymentIdsByServiceID, serviceID)
+type GetAllDeploymentImgByServiceIDRow struct {
+	ID        uuid.UUID      `json:"id"`
+	ImageName sql.NullString `json:"image_name"`
+}
+
+func (q *Queries) GetAllDeploymentImgByServiceID(ctx context.Context, serviceID uuid.UUID) ([]GetAllDeploymentImgByServiceIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllDeploymentImgByServiceID, serviceID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []uuid.UUID
+	var items []GetAllDeploymentImgByServiceIDRow
 	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
+		var i GetAllDeploymentImgByServiceIDRow
+		if err := rows.Scan(&i.ID, &i.ImageName); err != nil {
 			return nil, err
 		}
-		items = append(items, id)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -71,6 +76,24 @@ func (q *Queries) GetAllDeploymentIdsByServiceID(ctx context.Context, serviceID 
 		return nil, err
 	}
 	return items, nil
+}
+
+const getDeploymentImgByID = `-- name: GetDeploymentImgByID :one
+SELECT d.id, d.image_name
+FROM deployments d
+WHERE d.id = ?
+`
+
+type GetDeploymentImgByIDRow struct {
+	ID        uuid.UUID      `json:"id"`
+	ImageName sql.NullString `json:"image_name"`
+}
+
+func (q *Queries) GetDeploymentImgByID(ctx context.Context, id uuid.UUID) (GetDeploymentImgByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getDeploymentImgByID, id)
+	var i GetDeploymentImgByIDRow
+	err := row.Scan(&i.ID, &i.ImageName)
+	return i, err
 }
 
 const getDeploymentStatus = `-- name: GetDeploymentStatus :one

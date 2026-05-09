@@ -49,3 +49,19 @@ func (d *DockerClient) CloseClient() error {
 	fmt.Println("closing docker client connection")
 	return d.Client.Close()
 }
+
+// helper function to remove multiple image
+func (d *DockerClient) RemoveImages(imgs []string) {
+	fmt.Printf("removing images: %v\n", imgs)
+	for _, img := range imgs {
+		_, err := d.Client.ImageRemove(context.Background(), img, client.ImageRemoveOptions{
+			Force:         true,
+			PruneChildren: true,
+		})
+		if err != nil {
+			fmt.Printf("failed to remove image %s : %v\n", img, err)
+		} else {
+			fmt.Printf("removed image %s\n", img)
+		}
+	}
+}

@@ -88,14 +88,17 @@ func (h *ServiceHandler) DeleteServiceDeployment(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
+	dyp, err := q.GetDeploymentImgByID(h.qCtx, b.DeploymentID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get deployment"})
+	}
+
 	if err := q.DeleteDeploymentByID(h.qCtx, b.DeploymentID); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "failed to delete deployment"})
 	}
 
-	// TODO : also delete all logs of the deployment.
-	if err := h.Server.BadgerDB.DeleteAllLogsByDeploymentID([]uuid.UUID{b.DeploymentID}); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res{Message: "failed to delete deployment logs"})
-	}
+	h.Server.Docker.RemoveImages([]string{dyp.ImageName.String})
+	h.Server.BadgerDB.DeleteAllLogsByDeploymentID([]uuid.UUID{b.DeploymentID})
 
 	return c.JSON(http.StatusOK, types.Res{Message: "deployment deleted successfully"})
 }

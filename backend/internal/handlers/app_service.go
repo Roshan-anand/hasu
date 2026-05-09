@@ -201,16 +201,31 @@ func (h *ServiceHandler) DeleteAppService(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
-	dIDs, err := q.GetAllDeploymentIdsByServiceID(h.qCtx, b.ServiceId)
+	dyp, err := q.GetAllDeploymentImgByServiceID(h.qCtx, b.ServiceId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get deployments"})
 	}
 
+	// arrange all ids and imgs sepratly for easy access
+	dIDs := make([]uuid.UUID, len(dyp))
+	imgs := make([]string, len(dyp))
+	for i, d := range dyp {
+		dIDs[i] = d.ID
+		imgs[i] = d.ImageName.String
+	}
+
+	// TODO : stop all the services running
+
+	// remove all images related to the service deployments
+	go h.Server.Docker.RemoveImages(imgs)
+
+	// delete all logs related to the service deployments
+	go h.Server.BadgerDB.DeleteAllLogsByDeploymentID(dIDs)
+
+	// delete the app service
 	if err := h.Server.DB.Queries.DeleteAppService(h.qCtx, b.ServiceId); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to delete service"})
 	}
-
-	go h.Server.BadgerDB.DeleteAllLogsByDeploymentID(dIDs)
 
 	return c.JSON(http.StatusOK, types.Res{Message: "Successsfully deleted service"})
 }

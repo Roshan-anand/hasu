@@ -10,11 +10,16 @@ JOIN app_service_branch b ON d.branch_id = b.id
 WHERE b.service_id = ?
 ORDER BY d.created_at DESC;
 
--- name: GetAllDeploymentIdsByServiceID :many
-SELECT d.id
+-- name: GetAllDeploymentImgByServiceID :many
+SELECT d.id, d.image_name
 FROM deployments d
 JOIN app_service_branch b ON d.branch_id = b.id
 WHERE b.service_id = ?;
+
+-- name: GetDeploymentImgByID :one
+SELECT d.id, d.image_name
+FROM deployments d
+WHERE d.id = ?;
 
 -- name: GetDeploymentStatus :one
 SELECT status
