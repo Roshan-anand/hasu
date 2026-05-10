@@ -20,7 +20,7 @@ export function useGetReposMutation() {
 	return createMutation(() => ({
 		mutationFn: async ({ provider, appId }: GetReposPayload) =>
 			api
-				.get<GithubRepo[]>(provider.api, {
+				.get<GithubRepo[]>(provider.listApi, {
 					params: { app_id: appId }
 				})
 				.then((res) => res.data),

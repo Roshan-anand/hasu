@@ -30,7 +30,7 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 
 	// public routes
 	public.GET("/health", h.Health.HealthCheck)
-	public.POST("/url", h.Health.SetUrl)
+	public.POST("/sample", h.Health.SetGhApp)
 
 	// initialize auth api routes
 	auth := public.Group("/auth")
@@ -51,6 +51,7 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	service.GET("/deployment", h.Service.GetServiceDeployments)
 	service.DELETE("/deployment", h.Service.DeleteServiceDeployment)
 	service.GET("/deployment/logs", h.Service.SubscribeServiceDeploymentLogs)
+	service.GET("/logs", h.Service.GetServiceLogs)
 
 	psql := service.Group("/psql")
 	psql.GET("/:id", h.Service.GetPsqlServiceById)

@@ -1,6 +1,5 @@
+import type { ServiceTab } from '@/features/services/type';
 import type { ServiceType } from '@/types.js';
-
-export type ServiceTab = '' | 'deployment' | 'logs' | 'env';
 
 export function load({ params, url }) {
 	const queryString = url.hash.split('?')[1];

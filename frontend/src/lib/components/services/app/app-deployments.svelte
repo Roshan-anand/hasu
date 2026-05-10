@@ -3,11 +3,9 @@
 	import { Skeleton } from '@/components/ui/skeleton';
 	import { useDeleteDeploymentMutation } from '@/features/deployments/mutation.svelte';
 	import { useServiceDeploymentsQuery } from '@/features/deployments/query.svelte';
-	import { getDeploymentsFeatureState } from '@/features/deployments/store.svelte';
-	import DeploymentLogs from './deployement_logs.svelte';
+	import DeployementLogs from './deployement_logs.svelte';
 
 	let { serviceId }: { serviceId: string } = $props();
-	const featureState = getDeploymentsFeatureState();
 
 	// so the list updates immediately without waiting for a refetch.
 	const deploymentsQuery = useServiceDeploymentsQuery(() => serviceId);
@@ -55,18 +53,14 @@
 					<p>{new Date(deployment.created_at).toLocaleString()}</p>
 
 					<div class="flex items-center justify-end gap-2">
-						<DeploymentLogs deploymentId={deployment.id} deploymentName={deployment.id} />
+						<DeployementLogs deploymentId={deployment.id} deploymentName={deployment.id} />
 						<Button
 							variant="destructive"
 							size="sm"
 							disabled={deleteDeploymentMutation.isPending}
 							onclick={() => deleteDeployment(deployment.id)}
 						>
-							{#if deleteDeploymentMutation.isPending && featureState.deletingDeploymentId === deployment.id}
-								Deleting...
-							{:else}
-								Delete
-							{/if}
+							Delete
 						</Button>
 					</div>
 				</div>

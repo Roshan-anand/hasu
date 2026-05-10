@@ -1,6 +1,6 @@
 -- name: CreateDeployment :one
-INSERT INTO deployments (id, branch_id, commit_msg)
-VALUES (?, ?, ?)
+INSERT INTO deployments (id, branch_id, commit_msg, is_latest)
+VALUES (?, ?, ?, ?)
 RETURNING id;
 
 -- name: GetDeploymentsByServiceID :many

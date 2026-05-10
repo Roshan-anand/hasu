@@ -2,12 +2,16 @@ package handlers
 
 import (
 	"context"
-	"fmt"
+	"database/sql"
 	"net/http"
+	"strconv"
 
 	"github.com/Roshan-anand/godploy/internal/config"
+	"github.com/Roshan-anand/godploy/internal/db"
+	"github.com/Roshan-anand/godploy/internal/lib"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 )
 
@@ -45,15 +49,56 @@ func (h *HealthHandler) HealthCheck(c *echo.Context) error {
 	return c.JSON(200, types.Res{Message: "ok"})
 }
 
-func (h *HealthHandler) SetUrl(c *echo.Context) error {
-	b := new(UrlReq)
+// TODO : remove this router for production
+type ghAppReq struct {
+	Name           string    `json:"name" validate:"required"`
+	OrgID          uuid.UUID `json:"organization_id" validate:"required"`
+	AppID          string    `json:"app_id" validate:"required"`
+	InstallationID string    `json:"installation_id" validate:"required"`
+	PemKey         string    `json:"pem_key" validate:"required"`
+	WebhookSecret  string    `json:"webhook_secret" validate:"required"`
+}
+
+func (h *HealthHandler) SetGhApp(c *echo.Context) error {
+	b := new(ghAppReq)
+	q := h.Server.DB.Queries
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
-	fmt.Println("public url :", b.Url)
-	h.Server.Config.ServerUrl = b.Url
+	// parse string to int for app id
+	appId, err := strconv.ParseInt(b.AppID, 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid app id"})
+	}
 
-	return c.JSON(http.StatusOK, nil)
+	insId, err := strconv.ParseInt(b.InstallationID, 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid installation id"})
+	}
+
+	ghAppId, err := q.CreateGithubApp(h.qCtx, db.CreateGithubAppParams{
+		ID:             lib.GeneratePrimaryKey(),
+		Name:           b.Name,
+		OrganizationID: b.OrgID,
+		AppID:          appId,
+		PemKey:         b.PemKey,
+		WebhookSecret:  b.WebhookSecret,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "failed to create github app"})
+	}
+
+	if err := q.InsertInstallationID(h.qCtx, db.InsertInstallationIDParams{
+		AppID: ghAppId,
+		InstallationID: sql.NullInt64{
+			Valid: true,
+			Int64: insId,
+		},
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "failed to insert installation id"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res{Message: "github app created successfully"})
 }

@@ -3,13 +3,10 @@ import { queryClient } from '@/query';
 import { createMutation } from '@tanstack/svelte-query';
 import { toast } from 'svelte-sonner';
 import { getDeploymentsQueryKey } from './query.svelte';
-import { getDeploymentsFeatureState } from './store.svelte';
 import type { DeleteDeploymentPayload, DeleteDeploymentResponse } from './type';
 import type { ServiceDeployment } from '@/types';
 
 export function useDeleteDeploymentMutation(getServiceId: () => string) {
-	const { setDeletingDeploymentId } = getDeploymentsFeatureState();
-
 	return createMutation(() => ({
 		mutationFn: async ({ deployment_id }: DeleteDeploymentPayload) => {
 			return api
@@ -18,7 +15,6 @@ export function useDeleteDeploymentMutation(getServiceId: () => string) {
 				})
 				.then((res) => res.data);
 		},
-		onMutate: (payload) => setDeletingDeploymentId(payload.deployment_id),
 		onSuccess: (response, payload) => {
 			queryClient.setQueryData(
 				getDeploymentsQueryKey(getServiceId()),
@@ -29,7 +25,6 @@ export function useDeleteDeploymentMutation(getServiceId: () => string) {
 			);
 			toast.success(response.message || 'Deployment deleted successfully');
 		},
-		onError: (error) => axiosErr(error as Error, 'Failed to delete deployment'),
-		onSettled: () => setDeletingDeploymentId('')
+		onError: (error) => axiosErr(error as Error, 'Failed to delete deployment')
 	}));
 }

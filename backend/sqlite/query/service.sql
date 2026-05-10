@@ -51,9 +51,12 @@ WHERE id = ?;
 
 -- name: GetAppServiceById :one
 SELECT
-    a.id, a.type, a.name, a.gh_repo_name, a.gh_repo_url, b.branch_name
+    a.id, a.name, a.gh_repo_name, a.gh_repo_url, 
+    d.status, d.commit_msg,
+    b.id AS branch_id, b.branch_name, a.created_at
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch = 1
+JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
 WHERE a.id = ?;
 
 -- name: CreateAppServiceBranch :one
@@ -66,7 +69,12 @@ UPDATE app_service_branch
 SET swarm_service_id = ?
 WHERE id = ?;
 
--- name: GetSwarmServiceAndImagesByAppServiceId :many
+-- name: GetSwarmServiceByBranchId :one
+SELECT swarm_service_name
+FROM app_service_branch
+WHERE id = @branch_id;
+
+-- name: GetAllSwarmServiceAndImagesByAppServiceId :many
 SELECT b.swarm_service_name, d.id AS deployment_id, d.image_name
 FROM app_service_branch b
 JOIN deployments d ON d.branch_id = b.id

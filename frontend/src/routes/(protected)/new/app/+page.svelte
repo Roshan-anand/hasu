@@ -4,7 +4,6 @@
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import * as Select from '@/components/ui/select';
-	import { gitProviders } from '@/features/services/const';
 	import { normalizePathValue } from '@/utils';
 	import {
 		useCreateServiceMutation,
@@ -22,6 +21,7 @@
 	import { createForm } from '@tanstack/svelte-form';
 	import { GetUserData } from '@/features/global/query';
 	import Icon from '@iconify/svelte';
+	import { GitProvidersList } from '@/features/services/const';
 
 	let environmentOpen = $state(false);
 	let buildSettingOpen = $state(false);
@@ -75,7 +75,6 @@
 			const buildPath = normalizePathValue(value.build_path);
 			const watchPath = normalizePathValue(value.watch_path);
 
-			console.log('name :', value.name);
 			createServiceMutation.mutate({
 				org_id: org_id,
 				name: value.name.trim(),
@@ -105,7 +104,7 @@
 		if (!app) return;
 		if (org_id === '' || createServiceMutation.isPending || getReposMutation.isPending) return;
 
-		const githubProvider = gitProviders.get('github');
+		const githubProvider = GitProvidersList.get('github');
 		if (!githubProvider) return;
 
 		getReposMutation.mutate({
@@ -117,7 +116,7 @@
 	// reset and refetch app list of the selected git provider
 	const fetchGitProvider = (key: GitProviderKey) => {
 		if (org_id === '' || createServiceMutation.isPending) return;
-		const provider = gitProviders.get(key);
+		const provider = GitProvidersList.get(key);
 		if (!provider) return;
 
 		form.setFieldValue('gh_app_id', 0);
@@ -132,7 +131,6 @@
 
 		form.setFieldValue('gh_repo_id', repoId);
 		const repoName = getReposMutation.data?.find((repo) => repo.id.toString() == repoId)?.name;
-		console.log('Selected repo name:', repoName);
 		form.setFieldValue('name', repoName || '');
 	};
 
@@ -229,7 +227,7 @@
 									{#if getReposMutation.data}
 										<div class="flex items-center gap-3 p-2 py-4">
 											<Icon
-												icon={gitProviders.get(gitProvider)?.icon || 'icon-park-outline:dot'}
+												icon={GitProvidersList.get(gitProvider)?.icon || 'icon-park-outline:dot'}
 												width="20"
 												height="20"
 												class="size-4"

@@ -67,7 +67,7 @@ func (db *BadgerDB) StreamAllLogsByDeploymentID(dID uuid.UUID, sse *sse.SSE) err
 			item := it.Item()
 			// k := item.Key()
 			if err := item.Value(func(val []byte) error {
-				sse.SendSSE("log", val)
+				sse.SendEvent("log", val)
 				return nil
 			}); err != nil {
 				return err

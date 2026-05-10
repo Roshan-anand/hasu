@@ -1,4 +1,5 @@
 import type { AppServiceName, PsqlServiceName, ServiceType } from '@/types';
+import type { DeploymentStatus } from '../deployments/type';
 
 export type CreateServiceResponse = {
 	id: string;
@@ -34,7 +35,8 @@ export type GitProviderOption = {
 	// key: GitProviderKey;
 	name: string;
 	icon: string;
-	api: string;
+	listApi: string;
+	createApi: string;
 };
 
 export type ApiMessageRes = {
@@ -91,4 +93,23 @@ export type CreatePsqlServiceBody = {
 	db_user: string;
 	db_password: string;
 	image: string;
+};
+
+export type AppServiceDetails = {
+	id: string;
+	name: string;
+	gh_repo_name: string;
+	gh_repo_url: string;
+	status: DeploymentStatus;
+	commit_msg: string;
+	branch_id: string;
+	branch_name: string;
+	created_at: string;
+};
+
+export type ServiceTab = '' | 'deployment' | 'env';
+
+export type NavItem = {
+	label: string;
+	tab: ServiceTab;
 };

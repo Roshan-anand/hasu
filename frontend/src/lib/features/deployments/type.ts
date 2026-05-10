@@ -5,3 +5,5 @@ export type DeleteDeploymentPayload = {
 export type DeleteDeploymentResponse = {
 	message: string;
 };
+
+export type DeploymentStatus = 'building' | 'ready' | 'error' | 'queued' | 'inactive' | 'pruned';

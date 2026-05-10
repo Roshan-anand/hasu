@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -29,7 +30,7 @@ func streamImgBuildOutput(res io.ReadCloser, l *logbrokerqueue.LogBrokerQueue, d
 
 		err := decoder.Decode(&msg)
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return fmt.Errorf("error decoding build output: %v", err)

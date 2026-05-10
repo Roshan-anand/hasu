@@ -25,8 +25,6 @@ export type AppService = {
 	branch_name: string;
 };
 
-export type ServiceDetails = ServiceBase & (PsqlService | AppService);
-
 export type ServiceDeployment = {
 	id: string;
 	status: string;

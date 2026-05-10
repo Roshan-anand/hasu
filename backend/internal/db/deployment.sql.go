@@ -15,8 +15,8 @@ import (
 )
 
 const createDeployment = `-- name: CreateDeployment :one
-INSERT INTO deployments (id, branch_id, commit_msg)
-VALUES (?, ?, ?)
+INSERT INTO deployments (id, branch_id, commit_msg, is_latest)
+VALUES (?, ?, ?, ?)
 RETURNING id
 `
 
@@ -24,10 +24,16 @@ type CreateDeploymentParams struct {
 	ID        uuid.UUID `json:"id"`
 	BranchID  uuid.UUID `json:"branch_id"`
 	CommitMsg string    `json:"commit_msg"`
+	IsLatest  bool      `json:"is_latest"`
 }
 
 func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error) {
-	row := q.db.QueryRowContext(ctx, createDeployment, arg.ID, arg.BranchID, arg.CommitMsg)
+	row := q.db.QueryRowContext(ctx, createDeployment,
+		arg.ID,
+		arg.BranchID,
+		arg.CommitMsg,
+		arg.IsLatest,
+	)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err

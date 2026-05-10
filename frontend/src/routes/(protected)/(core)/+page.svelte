@@ -7,14 +7,14 @@
 	import type { ServiceType } from '@/types';
 	import { Search, Trash2 } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
-	import { useGetServicesQuery } from '@/features/services/query.svelte';
 	import { goto } from '$app/navigation';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { ChevronDown } from '@lucide/svelte';
+	import { useGetAllServicesQuery } from '@/features/services/query.svelte';
 
 	let searchQuery = $state('');
 
-	const servicesQuery = useGetServicesQuery();
+	const servicesQuery = useGetAllServicesQuery();
 	const deleteServiceMutation = useDeleteServiceMutation();
 
 	const deleteService = (serviceId: string, type: ServiceType) => {

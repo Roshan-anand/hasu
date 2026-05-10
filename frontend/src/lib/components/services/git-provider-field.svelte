@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '@/components/ui/button';
-	import { gitProviders } from '@/features/services/const';
+	import { GitProvidersList } from '@/features/services/const';
 	import type { GitProviderKey } from '@/features/services/type';
 	import { cn } from '@/utils';
 	import Icon from '@iconify/svelte';
@@ -17,11 +17,11 @@
 </script>
 
 <div class="flex items-center gap-3 w-full">
-	{#each gitProviders as [key, provider] (key)}
+	{#each GitProvidersList as [key, provider] (key)}
 		<Button
 			type="button"
 			variant="outline"
-			disabled={disabled || provider.api === ''}
+			disabled={disabled || provider.listApi === ''}
 			onclick={() => onSelect(key)}
 			class={cn('flex text-2xl p-4', `${value === key ? 'border-primary' : ''}`)}
 		>

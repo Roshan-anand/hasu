@@ -87,7 +87,7 @@ func (ev *event) marshalTo(w io.Writer) error {
 }
 
 // sends a Server-Sent Event to the client
-func (sse *SSE) SendSSE(eventName string, data []byte) error {
+func (sse *SSE) SendEvent(eventName string, data []byte) error {
 
 	// build event
 	e := &event{

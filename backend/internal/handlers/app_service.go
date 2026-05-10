@@ -140,6 +140,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		ID:        lib.GeneratePrimaryKey(),
 		BranchID:  branchID,
 		CommitMsg: "s",
+		IsLatest:  true,
 	})
 	if err != nil {
 		tx.Rollback()
@@ -201,7 +202,7 @@ func (h *ServiceHandler) DeleteAppService(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
-	serviceInfo, err := q.GetSwarmServiceAndImagesByAppServiceId(h.qCtx, b.ServiceId)
+	serviceInfo, err := q.GetAllSwarmServiceAndImagesByAppServiceId(h.qCtx, b.ServiceId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get deployments"})
 	}

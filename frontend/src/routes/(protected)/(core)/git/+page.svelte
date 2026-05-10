@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { Button } from '@/components/ui/button';
 	import { useDeleteGithubAppMutation } from '@/features/git/mutation.svelte';
-	import { gitProviders, useGithubAppsQuery } from '@/features/git/query.svelte';
+	import { useGithubAppsQuery } from '@/features/git/query.svelte';
 	import { GetUserData } from '@/features/global/query';
+	import { GitProvidersList } from '@/features/services/const';
 	import Icon from '@iconify/svelte';
 
 	const { org_id } = GetUserData();
@@ -23,12 +24,12 @@
 	<h1 class="my-2">Connect any git provider</h1>
 
 	<section class="flex items-center gap-4 w-full">
-		{#each gitProviders as p (p)}
+		{#each Array.from(GitProvidersList) as [key, p] (key)}
 			<Button
 				id={p.name}
 				variant="outline"
-				disabled={p.redirect == ''}
-				onclick={() => providerRedirect(p.redirect)}
+				disabled={p.createApi == ''}
+				onclick={() => providerRedirect(p.createApi)}
 				class="flex-1"
 			>
 				<Icon icon={p.icon} width="24" height="24" />

@@ -200,21 +200,63 @@ func (q *Queries) GetAllService(ctx context.Context, orgID uuid.UUID) ([]GetAllS
 	return items, nil
 }
 
+const getAllSwarmServiceAndImagesByAppServiceId = `-- name: GetAllSwarmServiceAndImagesByAppServiceId :many
+SELECT b.swarm_service_name, d.id AS deployment_id, d.image_name
+FROM app_service_branch b
+JOIN deployments d ON d.branch_id = b.id
+WHERE b.service_id = ?
+`
+
+type GetAllSwarmServiceAndImagesByAppServiceIdRow struct {
+	SwarmServiceName string         `json:"swarm_service_name"`
+	DeploymentID     uuid.UUID      `json:"deployment_id"`
+	ImageName        sql.NullString `json:"image_name"`
+}
+
+func (q *Queries) GetAllSwarmServiceAndImagesByAppServiceId(ctx context.Context, serviceID uuid.UUID) ([]GetAllSwarmServiceAndImagesByAppServiceIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllSwarmServiceAndImagesByAppServiceId, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllSwarmServiceAndImagesByAppServiceIdRow
+	for rows.Next() {
+		var i GetAllSwarmServiceAndImagesByAppServiceIdRow
+		if err := rows.Scan(&i.SwarmServiceName, &i.DeploymentID, &i.ImageName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAppServiceById = `-- name: GetAppServiceById :one
 SELECT
-    a.id, a.type, a.name, a.gh_repo_name, a.gh_repo_url, b.branch_name
+    a.id, a.name, a.gh_repo_name, a.gh_repo_url, 
+    d.status, d.commit_msg,
+    b.id AS branch_id, b.branch_name, a.created_at
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch = 1
+JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
 WHERE a.id = ?
 `
 
 type GetAppServiceByIdRow struct {
-	ID         uuid.UUID         `json:"id"`
-	Type       types.ServiceType `json:"type"`
-	Name       string            `json:"name"`
-	GhRepoName string            `json:"gh_repo_name"`
-	GhRepoUrl  string            `json:"gh_repo_url"`
-	BranchName string            `json:"branch_name"`
+	ID         uuid.UUID              `json:"id"`
+	Name       string                 `json:"name"`
+	GhRepoName string                 `json:"gh_repo_name"`
+	GhRepoUrl  string                 `json:"gh_repo_url"`
+	Status     types.DeploymentStatus `json:"status"`
+	CommitMsg  string                 `json:"commit_msg"`
+	BranchID   uuid.UUID              `json:"branch_id"`
+	BranchName string                 `json:"branch_name"`
+	CreatedAt  time.Time              `json:"created_at"`
 }
 
 func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppServiceByIdRow, error) {
@@ -222,11 +264,14 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppSe
 	var i GetAppServiceByIdRow
 	err := row.Scan(
 		&i.ID,
-		&i.Type,
 		&i.Name,
 		&i.GhRepoName,
 		&i.GhRepoUrl,
+		&i.Status,
+		&i.CommitMsg,
+		&i.BranchID,
 		&i.BranchName,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -258,40 +303,17 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, id uuid.UUID) (PsqlSer
 	return i, err
 }
 
-const getSwarmServiceAndImagesByAppServiceId = `-- name: GetSwarmServiceAndImagesByAppServiceId :many
-SELECT b.swarm_service_name, d.id AS deployment_id, d.image_name
-FROM app_service_branch b
-JOIN deployments d ON d.branch_id = b.id
-WHERE b.service_id = ?
+const getSwarmServiceByBranchId = `-- name: GetSwarmServiceByBranchId :one
+SELECT swarm_service_name
+FROM app_service_branch
+WHERE id = ?1
 `
 
-type GetSwarmServiceAndImagesByAppServiceIdRow struct {
-	SwarmServiceName string         `json:"swarm_service_name"`
-	DeploymentID     uuid.UUID      `json:"deployment_id"`
-	ImageName        sql.NullString `json:"image_name"`
-}
-
-func (q *Queries) GetSwarmServiceAndImagesByAppServiceId(ctx context.Context, serviceID uuid.UUID) ([]GetSwarmServiceAndImagesByAppServiceIdRow, error) {
-	rows, err := q.db.QueryContext(ctx, getSwarmServiceAndImagesByAppServiceId, serviceID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetSwarmServiceAndImagesByAppServiceIdRow
-	for rows.Next() {
-		var i GetSwarmServiceAndImagesByAppServiceIdRow
-		if err := rows.Scan(&i.SwarmServiceName, &i.DeploymentID, &i.ImageName); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) GetSwarmServiceByBranchId(ctx context.Context, branchID uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, getSwarmServiceByBranchId, branchID)
+	var swarm_service_name string
+	err := row.Scan(&swarm_service_name)
+	return swarm_service_name, err
 }
 
 const serviceNameExists = `-- name: ServiceNameExists :one

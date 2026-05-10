@@ -47,11 +47,11 @@ func (job *LogsBroker) LogsBrokerJob(ctx context.Context, pub chan *logbrokerque
 							fmt.Println("Error marshalling logs to JSON:", err)
 							continue
 						}
-						sub.SSE.SendSSE("logs", logsB)
+						sub.SSE.SendEvent("logs", logsB)
 						sub.IsNew = false
 					}
 
-					sub.SSE.SendSSE("log", []byte(p.Msg))
+					sub.SSE.SendEvent("log", []byte(p.Msg))
 				}
 			}
 
@@ -85,7 +85,7 @@ func (job *LogsBroker) LogsBrokerJob(ctx context.Context, pub chan *logbrokerque
 							e.Message = "something went wrong !!"
 						}
 					}
-					sub.SSE.SendSSE("log", []byte(e.Message))
+					sub.SSE.SendEvent("log", []byte(e.Message))
 					job.Server.LogBrokerQ.UnsubscribeLogs(userID)
 				}
 			}

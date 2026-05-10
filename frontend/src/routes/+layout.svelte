@@ -10,16 +10,6 @@
 	let { children } = $props();
 
 	setUserState();
-
-	// if (import.meta.env.VITE_APP_ENV === 'production') {
-	// 	axios
-	// 		.post('/api/url', {
-	// 			url: `${window.location.protocol}//${window.location.host}`
-	// 		})
-	// 		.catch((err) => {
-	// 			console.error('Error sending URL to backend:', err);
-	// 		});
-	// }
 </script>
 
 <svelte:head>
