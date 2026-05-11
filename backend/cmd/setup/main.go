@@ -28,7 +28,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "setup":
-		if err := runCommand("docker", "stack", "deploy", "-c", "../dynamic/compose.yaml", "godploy"); err != nil {
+		if err := runCommand("docker", "stack", "deploy", "-c", "../docker/compose.traefik-dev.yaml", "godploy"); err != nil {
 			fmt.Println("failed to setup traefik stack :", err)
 			return
 		}

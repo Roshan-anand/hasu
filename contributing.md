@@ -2,18 +2,8 @@
 
 - `docker` v29.x
 - `docker-compose`
-- `openssl`
 
 ## setting up local env
-
-- create certs for local https support
-
-```
-mkdir -p ./dynamic/certs
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout ./dynamic/certs/local.key -out ./dynamic/certs/local.crt \
-  -subj "/CN=*.godploy.localhost"
-```
 
 - add `127.0.0.1  *.godploy.localhost` in new line to your `/etc/hosts` file
 

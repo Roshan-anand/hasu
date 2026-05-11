@@ -6,23 +6,26 @@ services:
       - traefik_proxy
 
     ports:
-      - target: 80 
-        published: 80 
+      - target: 80
+        published: 80
         protocol: tcp
         # Use Swarm routing mesh in local dev to avoid host-port bind conflicts.
         mode: ingress
-      - target: 443 
-        published: 443 
+      - target: 443
+        published: 443
         protocol: tcp
         mode: ingress
 
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro 
-      - ./certs:/certs:ro
-      - ./:/dynamic:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
 
     # Traefik Static configuration via command-line arguments
     command:
+      # Enable Traefik logs
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+      
       # HTTP EntryPoint
       - "--entrypoints.web.address=:80"
 
@@ -34,11 +37,6 @@ services:
       # HTTPS EntryPoint
       - "--entrypoints.websecure.address=:443"
       - "--entrypoints.websecure.http.tls=true"
-
-      # Attach dynamic TLS file
-      - "--providers.file.filename=/dynamic/tls.yaml"
-
-      # Providers
 
       # Enable the Docker Swarm provider (instead of Docker provider)
       - "--providers.swarm.endpoint=unix:///var/run/docker.sock"
@@ -56,10 +54,11 @@ services:
       - "--api.dashboard=true" # Enable the dashboard
       - "--api.insecure=false" # Explicitly disable insecure API mod
 
-      # Observability
-      - "--log.level=INFO" # Set the Log Level e.g INFO, DEBUG
-      - "--accesslog=true" # Enable Access Logs
-      - "--metrics.prometheus=true" # Enable Prometheus
+      # TODO : change the email to host user email
+      # Let's Encrypt configuration
+      - "--certificatesresolvers.le.acme.email=roshananand2005@gmail.com" # replace with your actual email
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
 
     deploy:
       mode: replicated
@@ -93,3 +92,7 @@ networks:
   traefik_proxy:
     driver: overlay
     attachable: true
+
+volumes:
+  letsencrypt:
+    driver: local
