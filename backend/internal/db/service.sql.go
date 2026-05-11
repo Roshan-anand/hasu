@@ -65,8 +65,8 @@ func (q *Queries) CreateAppService(ctx context.Context, arg CreateAppServicePara
 }
 
 const createAppServiceBranch = `-- name: CreateAppServiceBranch :one
-INSERT INTO app_service_branch (id, is_default_branch, branch_name, swarm_service_name, service_id)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO app_service_branch (id, is_default_branch, branch_name, swarm_service_name, service_id, port)
+VALUES (?, ?, ?, ?, ?, 80)
 RETURNING id
 `
 
@@ -238,9 +238,10 @@ func (q *Queries) GetAllSwarmServiceAndImagesByAppServiceId(ctx context.Context,
 
 const getAppServiceById = `-- name: GetAppServiceById :one
 SELECT
-    a.id, a.name, a.gh_repo_name, a.gh_repo_url, 
+    a.id, a.name, a.gh_repo_name, a.gh_repo_url,
     d.status, d.commit_msg,
-    b.id AS branch_id, b.branch_name, a.created_at
+    b.id AS branch_id, b.branch_name, b.domain,
+    a.created_at
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch = 1
 JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
@@ -256,6 +257,7 @@ type GetAppServiceByIdRow struct {
 	CommitMsg  string                 `json:"commit_msg"`
 	BranchID   uuid.UUID              `json:"branch_id"`
 	BranchName string                 `json:"branch_name"`
+	Domain     string                 `json:"domain"`
 	CreatedAt  time.Time              `json:"created_at"`
 }
 
@@ -271,9 +273,51 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppSe
 		&i.CommitMsg,
 		&i.BranchID,
 		&i.BranchName,
+		&i.Domain,
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getBranchesDomainByServiceId = `-- name: GetBranchesDomainByServiceId :many
+SELECT b.id, b.branch_name, b.domain, b.port
+FROM app_service_branch b
+WHERE b.service_id = ?
+`
+
+type GetBranchesDomainByServiceIdRow struct {
+	ID         uuid.UUID `json:"id"`
+	BranchName string    `json:"branch_name"`
+	Domain     string    `json:"domain"`
+	Port       int32     `json:"port"`
+}
+
+func (q *Queries) GetBranchesDomainByServiceId(ctx context.Context, serviceID uuid.UUID) ([]GetBranchesDomainByServiceIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getBranchesDomainByServiceId, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetBranchesDomainByServiceIdRow
+	for rows.Next() {
+		var i GetBranchesDomainByServiceIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.BranchName,
+			&i.Domain,
+			&i.Port,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getPsqlServiceById = `-- name: GetPsqlServiceById :one
@@ -326,7 +370,7 @@ SELECT CAST(
         SELECT 1
         FROM app_service aps
         WHERE aps.organization_id = ?1 AND aps.name = ?2
-    )) 
+    ))
 AS BOOLEAN)
 `
 
@@ -342,19 +386,20 @@ func (q *Queries) ServiceNameExists(ctx context.Context, arg ServiceNameExistsPa
 	return column_1, err
 }
 
-const setAppSwarmServiceId = `-- name: SetAppSwarmServiceId :exec
+const setDomianAndPortForBranch = `-- name: SetDomianAndPortForBranch :exec
 UPDATE app_service_branch
-SET swarm_service_id = ?
+SET domain = ?, port = ?
 WHERE id = ?
 `
 
-type SetAppSwarmServiceIdParams struct {
-	SwarmServiceID sql.NullString `json:"swarm_service_id"`
-	ID             uuid.UUID      `json:"id"`
+type SetDomianAndPortForBranchParams struct {
+	Domain string    `json:"domain"`
+	Port   int32     `json:"port"`
+	ID     uuid.UUID `json:"id"`
 }
 
-func (q *Queries) SetAppSwarmServiceId(ctx context.Context, arg SetAppSwarmServiceIdParams) error {
-	_, err := q.db.ExecContext(ctx, setAppSwarmServiceId, arg.SwarmServiceID, arg.ID)
+func (q *Queries) SetDomianAndPortForBranch(ctx context.Context, arg SetDomianAndPortForBranchParams) error {
+	_, err := q.db.ExecContext(ctx, setDomianAndPortForBranch, arg.Domain, arg.Port, arg.ID)
 	return err
 }
 

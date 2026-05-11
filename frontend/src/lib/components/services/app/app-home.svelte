@@ -22,7 +22,7 @@
 {:else if serviceQuery.isError}
 	<p class="text-red-500">Failed to load service details</p>
 {:else if serviceQuery.data}
-	{@const { name, branch_name, gh_repo_name, created_at, commit_msg, status, branch_id } =
+	{@const { name, branch_name, gh_repo_name, created_at, commit_msg, status, branch_id, domain } =
 		serviceQuery.data}
 	<Card class="flex-1 mb-5">
 		<CardContent>
@@ -38,13 +38,19 @@
 					<Icon icon="mingcute:git-branch-line" />
 					<span>{gh_repo_name}</span>
 					<span>{branch_name}</span>
-					<a
-						href="http://portfolio.godploy.localhost"
-						class="flex items-center gap-1 underline underline-offset-2 hover:text-primary"
-					>
-						<span>portfolio</span>
-						<Icon icon="lucide:external-link" class="w-4 h-4" />
-					</a>
+					{#if domain === ''}
+						<span>No domain specified</span>
+					{:else}
+						<!--  eslint-disable svelte/no-navigation-without-resolve  -->
+						<a
+							href={domain.includes('https://') ? domain : `https://${domain}`}
+							target="_blank"
+							class="flex items-center gap-1 underline underline-offset-2 hover:text-primary"
+						>
+							<span>{domain}</span>
+							<Icon icon="lucide:external-link" class="w-4 h-4" />
+						</a>
+					{/if}
 				</p>
 				<p>{commit_msg}</p>
 				<section class="flex items-center gap-4">

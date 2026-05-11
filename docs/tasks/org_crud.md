@@ -1,4 +1,4 @@
-## Organisation operations
+## organization operations
 
 - [x] API to Create new Org
 - [x] API to Remove Org

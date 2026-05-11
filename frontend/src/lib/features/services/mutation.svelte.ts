@@ -1,9 +1,9 @@
 import { api, axiosErr } from '@/axios';
-import { queryClient } from '@/query';
 import { createMutation } from '@tanstack/svelte-query';
 import { toast } from 'svelte-sonner';
 import type {
 	ApiMessageRes,
+	BranchDomainPayload,
 	CreateServicePayload,
 	DeleteServicePayload,
 	GetReposPayload,
@@ -15,6 +15,7 @@ import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import type { ServiceType } from '@/types';
 import { GetUserData } from '../global/query';
+import { queryClient } from '@/query';
 
 export function useGetReposMutation() {
 	return createMutation(() => ({
@@ -65,5 +66,19 @@ export function useDeleteServiceMutation() {
 			toast.success(response.message || 'Service deleted successfully');
 		},
 		onError: (error) => axiosErr(error as Error, 'Failed to delete service')
+	}));
+}
+
+export function useUpdateBranchDomainMutation(getServiceId: () => string) {
+	return createMutation(() => ({
+		mutationFn: async (payload: BranchDomainPayload) =>
+			api.put<ApiMessageRes>('/service/app/domain', payload).then((res) => res.data),
+		onSuccess: (response) => {
+			queryClient.invalidateQueries({
+				queryKey: ['branch-domain', getServiceId()]
+			});
+			toast.success(response.message || 'Domain updated successfully');
+		},
+		onError: (error) => axiosErr(error as Error, 'Failed to update domain')
 	}));
 }

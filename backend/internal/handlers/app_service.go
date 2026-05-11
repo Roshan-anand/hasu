@@ -14,6 +14,7 @@ import (
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
+	"github.com/moby/moby/client"
 )
 
 type DockerBuildReq struct {
@@ -39,16 +40,10 @@ type CreateAppServiceReq struct {
 	DockerBuild   *DockerBuildReq `json:"docker_build"`
 }
 
-type UpdateAppServiceReq struct {
-	ServiceID     uuid.UUID `json:"service_id" validate:"required"`
-	GitProvider   string    `json:"git_provider" validate:"required"`
-	GhAppID       int64     `json:"gh_app_id" validate:"required"`
-	GitRepoID     string    `json:"git_repo_id" validate:"required"`
-	GitRepoName   string    `json:"git_repo_name" validate:"required"`
-	GitRepoURL    string    `json:"git_repo_url" validate:"required"`
-	DefaultBranch string    `json:"default_branch" validate:"required"`
-	BuildPath     string    `json:"build_path" validate:"required"`
-	WatchPath     string    `json:"watch_path" validate:"required"`
+type UpdateDomainReq struct {
+	BranchID uuid.UUID `json:"branch_id" validate:"required"`
+	Domain   string    `json:"domain" validate:"required"`
+	Port     int32     `json:"port" validate:"required"`
 }
 
 // create a new app service
@@ -234,4 +229,79 @@ func (h *ServiceHandler) DeleteAppService(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, types.Res{Message: "Successsfully deleted service"})
+}
+
+// update domain and port
+//
+// route: PUT /api/service/app/domain
+func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
+	b := new(UpdateDomainReq)
+	q := h.Server.DB.Queries
+	docker := h.Server.Docker.Client
+
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	// check if url is valid
+	if _, err := url.Parse(b.Domain); err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid domain"})
+	}
+
+	swarmService, err := q.GetSwarmServiceByBranchId(h.qCtx, b.BranchID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get swarm service"})
+	}
+
+	// get service spec to update the labels
+	inspectRes, err := docker.ServiceInspect(context.Background(), swarmService, client.ServiceInspectOptions{})
+	if err != nil {
+		fmt.Printf("Failed to inspect swarm service: %v\n", err)
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to inspect swarm service"})
+	}
+	serviceV := inspectRes.Service.Meta.Version
+	spec := inspectRes.Service.Spec
+
+	// add domain specfic labels
+	spec.Annotations.Labels[fmt.Sprintf("traefik.http.routers.%s.rule", swarmService)] = fmt.Sprintf("Host(`%s`)", b.Domain)
+	spec.Annotations.Labels[fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", swarmService)] = fmt.Sprintf("%d", b.Port)
+
+	// update the swarm service
+	if _, err := docker.ServiceUpdate(context.Background(), swarmService, client.ServiceUpdateOptions{
+		Version: serviceV,
+		Spec:    spec,
+	}); err != nil {
+		fmt.Printf("Failed to update swarm service: %v\n", err)
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to update swarm service"})
+	}
+
+	// update the branch table
+	if err := q.SetDomianAndPortForBranch(h.qCtx, db.SetDomianAndPortForBranchParams{
+		Domain: b.Domain,
+		Port:   b.Port,
+		ID:     b.BranchID,
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to update domain and port"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res{Message: "Successfully updated domain and port"})
+}
+
+// get branch domain and port by service id
+//
+// route: GET /api/service/app/domain?service_id
+func (h *ServiceHandler) GetBranchDomain(c *echo.Context) error {
+	q := h.Server.DB.Queries
+
+	serviceID, err := uuid.Parse(c.QueryParam("service_id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid service_id"})
+	}
+
+	branches, err := q.GetBranchesDomainByServiceId(h.qCtx, serviceID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get branch domain"})
+	}
+
+	return c.JSON(http.StatusOK, branches)
 }

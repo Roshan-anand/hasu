@@ -64,6 +64,8 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	app.GET("/:id", h.Service.GetAppServiceById)
 	app.POST("", h.Service.CreateAppService)
 	app.DELETE("", h.Service.DeleteAppService)
+	app.GET("/domain", h.Service.GetBranchDomain)
+	app.PUT("/domain", h.Service.UpdateAppServiceDomain)
 
 	gh := protected.Group("/provider/github")
 	gh.GET("/app/create", h.Git.CreateGithubApp)

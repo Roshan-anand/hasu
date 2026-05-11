@@ -25,5 +25,6 @@ export const GitProvidersList: Map<GitProviderKey, GitProviderOption> = new Map(
 export const NavItems: NavItem[] = [
 	{ label: 'General', tab: '' },
 	{ label: 'Deployment', tab: 'deployment' },
-	{ label: 'Environment', tab: 'env' }
+	{ label: 'Environment', tab: 'env' },
+	{ label: 'Domains', tab: 'domains' }
 ];

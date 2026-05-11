@@ -65,17 +65,18 @@ CREATE TABLE IF NOT EXISTS app_service (
 
 CREATE TABLE IF NOT EXISTS app_service_branch (
     id uuid PRIMARY KEY,
+    service_id uuid NOT NULL REFERENCES app_service(id) ON DELETE CASCADE,
     is_default_branch BOOLEAN NOT NULL,
     branch_name TEXT NOT NULL,
     swarm_service_name TEXT NOT NULL,
-    swarm_service_id TEXT,
-    service_id uuid NOT NULL REFERENCES app_service(id) ON DELETE CASCADE,
+    domain TEXT NOT NULL DEFAULT '',
+    port INTEGER NOT NULL DEFAULT 80,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS deployments (
     id uuid PRIMARY KEY,
-    is_latest BOOLEAN NOT NULL, 
+    is_latest BOOLEAN NOT NULL,
     branch_id uuid NOT NULL REFERENCES app_service_branch(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'queued',
     commit_msg TEXT NOT NULL,

@@ -14,7 +14,7 @@
 		SidebarRail
 	} from '@/components/ui/sidebar';
 	import { Blocks, Users, GitBranch } from '@lucide/svelte';
-	import Organisation from './Organisation.svelte';
+	import Organization from './Organization.svelte';
 </script>
 
 <Sidebar>
@@ -22,7 +22,7 @@
 		<SidebarMenu>
 			<SidebarMenuItem>
 				<SidebarMenuButton size="lg">
-					<Organisation />
+					<Organization />
 				</SidebarMenuButton>
 			</SidebarMenuItem>
 		</SidebarMenu>

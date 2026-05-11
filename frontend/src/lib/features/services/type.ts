@@ -104,10 +104,24 @@ export type AppServiceDetails = {
 	commit_msg: string;
 	branch_id: string;
 	branch_name: string;
+	domain: string;
 	created_at: string;
 };
 
-export type ServiceTab = '' | 'deployment' | 'env';
+export type BranchDomainDetails = {
+	id: string;
+	branch_name: string;
+	domain: string;
+	port: number;
+};
+
+export type BranchDomainPayload = {
+	branch_id: string;
+	domain: string;
+	port: number;
+};
+
+export type ServiceTab = '' | 'deployment' | 'env' | 'domains';
 
 export type NavItem = {
 	label: string;

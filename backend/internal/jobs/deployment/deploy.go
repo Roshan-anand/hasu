@@ -31,7 +31,6 @@ func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.De
 						Name: d.SwarmServiceName,
 						Labels: map[string]string{
 							"traefik.enable": "true",
-							fmt.Sprintf("traefik.http.routers.%s.rule", d.SwarmServiceName):                      "Host(`portfolio.godploy.localhost`)",
 							fmt.Sprintf("traefik.http.routers.%s.entrypoints", d.SwarmServiceName):               "websecure",
 							fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", d.SwarmServiceName): "80",
 							fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", d.SwarmServiceName):          "le",

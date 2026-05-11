@@ -18,7 +18,7 @@
 			name: '',
 			email: '',
 			password: '',
-			organisation: '',
+			organization: '',
 			rememberMe: false
 		},
 		onSubmit: async ({ value }) => {
@@ -26,7 +26,7 @@
 				name: value.name,
 				email: value.email,
 				password: value.password,
-				org_name: value.organisation
+				org_name: value.organization
 			});
 		}
 	}));
@@ -130,14 +130,14 @@
 					</form.Field>
 
 					<form.Field
-						name="organisation"
+						name="organization"
 						validators={{
-							onChange: z.string().min(3, 'Organisation must be at least 3 characters')
+							onChange: z.string().min(3, 'organization must be at least 3 characters')
 						}}
 					>
 						{#snippet children(field)}
 							<div class="grid gap-2">
-								<Label class="my-1" for={field.name}>Organisation</Label>
+								<Label class="my-1" for={field.name}>organization</Label>
 								<Input
 									id={field.name}
 									name={field.name}

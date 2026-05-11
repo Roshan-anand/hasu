@@ -18,7 +18,7 @@ SELECT CAST(
         SELECT 1
         FROM app_service aps
         WHERE aps.organization_id = @org_id AND aps.name = @name
-    )) 
+    ))
 AS BOOLEAN);
 
 -- name: CreatePsqlService :one
@@ -51,23 +51,19 @@ WHERE id = ?;
 
 -- name: GetAppServiceById :one
 SELECT
-    a.id, a.name, a.gh_repo_name, a.gh_repo_url, 
+    a.id, a.name, a.gh_repo_name, a.gh_repo_url,
     d.status, d.commit_msg,
-    b.id AS branch_id, b.branch_name, a.created_at
+    b.id AS branch_id, b.branch_name, b.domain,
+    a.created_at
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch = 1
 JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
 WHERE a.id = ?;
 
 -- name: CreateAppServiceBranch :one
-INSERT INTO app_service_branch (id, is_default_branch, branch_name, swarm_service_name, service_id)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO app_service_branch (id, is_default_branch, branch_name, swarm_service_name, service_id, port)
+VALUES (?, ?, ?, ?, ?, 80)
 RETURNING id;
-
--- name: SetAppSwarmServiceId :exec
-UPDATE app_service_branch
-SET swarm_service_id = ?
-WHERE id = ?;
 
 -- name: GetSwarmServiceByBranchId :one
 SELECT swarm_service_name
@@ -78,4 +74,14 @@ WHERE id = @branch_id;
 SELECT b.swarm_service_name, d.id AS deployment_id, d.image_name
 FROM app_service_branch b
 JOIN deployments d ON d.branch_id = b.id
+WHERE b.service_id = ?;
+
+-- name: SetDomianAndPortForBranch :exec
+UPDATE app_service_branch
+SET domain = ?, port = ?
+WHERE id = ?;
+
+-- name: GetBranchesDomainByServiceId :many
+SELECT b.id, b.branch_name, b.domain, b.port
+FROM app_service_branch b
 WHERE b.service_id = ?;

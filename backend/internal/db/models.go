@@ -31,13 +31,14 @@ type AppService struct {
 }
 
 type AppServiceBranch struct {
-	ID               uuid.UUID      `json:"id"`
-	IsDefaultBranch  bool           `json:"is_default_branch"`
-	BranchName       string         `json:"branch_name"`
-	SwarmServiceName string         `json:"swarm_service_name"`
-	SwarmServiceID   sql.NullString `json:"swarm_service_id"`
-	ServiceID        uuid.UUID      `json:"service_id"`
-	CreatedAt        time.Time      `json:"created_at"`
+	ID               uuid.UUID `json:"id"`
+	ServiceID        uuid.UUID `json:"service_id"`
+	IsDefaultBranch  bool      `json:"is_default_branch"`
+	BranchName       string    `json:"branch_name"`
+	SwarmServiceName string    `json:"swarm_service_name"`
+	Domain           string    `json:"domain"`
+	Port             int32     `json:"port"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 type Deployment struct {
