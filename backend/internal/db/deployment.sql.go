@@ -176,6 +176,17 @@ func (q *Queries) SetDeploymentImageName(ctx context.Context, arg SetDeploymentI
 	return err
 }
 
+const setDeploymentNotLatest = `-- name: SetDeploymentNotLatest :exec
+UPDATE deployments
+SET is_latest = 0
+WHERE id = ?1
+`
+
+func (q *Queries) SetDeploymentNotLatest(ctx context.Context, deploymentID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, setDeploymentNotLatest, deploymentID)
+	return err
+}
+
 const updateDeploymentStatus = `-- name: UpdateDeploymentStatus :exec
 UPDATE deployments
 SET status = ?

@@ -8,7 +8,7 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
-	"github.com/Roshan-anand/godploy/internal/lib"
+	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -69,7 +69,7 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 	serviceName := fmt.Sprintf("%s-%s", b.Name, b.OrgID)
 
 	service, err := h.Server.DB.Queries.CreatePsqlService(h.qCtx, db.CreatePsqlServiceParams{
-		ID:               lib.GeneratePrimaryKey(),
+		ID:               security.GeneratePrimaryKey(),
 		OrganizationID:   b.OrgID,
 		Type:             types.PsqlServiceType,
 		SwarmServiceName: serviceName,

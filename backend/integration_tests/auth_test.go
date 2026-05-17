@@ -1,6 +1,5 @@
 package testing
-
-import (
+ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"

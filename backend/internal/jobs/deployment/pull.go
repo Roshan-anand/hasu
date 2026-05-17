@@ -35,17 +35,17 @@ func scanAndPublish(l *logbrokerqueue.LogBrokerQueue, dID uuid.UUID, r io.Reader
 	}
 }
 
-func runWorkerCmd(l *logbrokerqueue.LogBrokerQueue, dID uuid.UUID, cmd *exec.Cmd) error {
+func runWorkerCmd(l *logbrokerqueue.LogBrokerQueue, dID uuid.UUID, cmd *exec.Cmd, worker string) error {
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
-		return fmt.Errorf("pull:err:pty:start: %v", err)
+		return fmt.Errorf("%s:err:pty:start: %v", worker, err)
 	}
 	defer ptmx.Close()
 
 	go scanAndPublish(l, dID, ptmx)
 
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("pull:err:cmd:wait: %v\n", err)
+		return fmt.Errorf("%s:err:cmd:wait: %v\n", worker, err)
 	}
 	return nil
 }
@@ -68,34 +68,35 @@ func (w *worker) PullWorker(ctx context.Context, data chan *deploymentqueue.Pull
 				fmt.Printf("PullWorker: error updating deployment status: %v\n", err)
 			}
 
-			fmt.Println("PullWorker: started working ...", d.Url)
 			l := w.Server.LogBrokerQ
 
 			outputPath := path.Join(w.Server.Config.CodeStoreDir, d.SwarmServiceName)
 			repoUrl := fmt.Sprintf("https://oauth2:%s@%s", d.Token, d.Url)
 			cmd := exec.Command("git", "clone", "--branch", d.Branch, "--depth", "1", repoUrl, outputPath)
 
-			if err := runWorkerCmd(l, d.DeploymentID, cmd); err != nil {
+			if err := runWorkerCmd(l, d.DeploymentID, cmd, "pull"); err != nil {
 				fmt.Printf("PullWorker: error running command: %v\n", err)
 				l.EndLogs(&logbrokerqueue.EndLogData{
 					DeploymentID: d.DeploymentID,
 					Status:       types.DeploymentError,
 				})
-			} else {
-				w.Server.DeploymentQ.EnqueueBuildJob(&deploymentqueue.BuildJobData{
-					DeploymentID:      d.DeploymentID,
-					BuildPath:         d.BuildPath,
-					SwarmServiceName:  d.SwarmServiceName,
-					StorePath:         outputPath,
-					DockerFilePath:    d.DockerFilePath,
-					DockerContextPath: d.DockerContextPath,
-					DockerBuildStage:  d.DockerBuildStage,
-					ImgName:           d.ImgName,
-					Env:               d.Env,
-					BuildArgs:         d.BuildArgs,
-					BuildSecrets:      d.BuildSecrets,
-				})
+				continue
 			}
+
+			w.Server.DeploymentQ.EnqueueBuildJob(&deploymentqueue.BuildJobData{
+				Type:              d.Type,
+				DeploymentID:      d.DeploymentID,
+				BuildPath:         d.BuildPath,
+				SwarmServiceName:  d.SwarmServiceName,
+				StorePath:         outputPath,
+				DockerFilePath:    d.DockerFilePath,
+				DockerContextPath: d.DockerContextPath,
+				DockerBuildStage:  d.DockerBuildStage,
+				ImgName:           d.ImgName,
+				Env:               d.Env,
+				BuildArgs:         d.BuildArgs,
+				BuildSecrets:      d.BuildSecrets,
+			})
 
 		case <-ctx.Done():
 			fmt.Println("PullWorker: context cancelled, exiting")

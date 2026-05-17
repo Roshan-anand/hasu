@@ -1,16 +1,17 @@
-package lib
+package gh
 
 import (
 	"context"
 	"net/http"
 
+	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v84/github"
 )
 
 // creates a new ghinstallation transport.
 func GetNewTransport(appID int64, installationID int64, hashPem string) (*ghinstallation.Transport, error) {
-	pemKey, err := DecryptPEM(hashPem)
+	pemKey, err := security.DecryptPEM(hashPem)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +62,7 @@ func CreateGithubClient(ctx context.Context, appID int64, installationID int64, 
 // Required for app-level API calls like GetInstallation, ListInstallations — these endpoints
 func CreateAppClient(appID int64, hashPem string) (*github.Client, error) {
 
-	pemKey, err := DecryptPEM(hashPem)
+	pemKey, err := security.DecryptPEM(hashPem)
 	if err != nil {
 		return nil, err
 	}

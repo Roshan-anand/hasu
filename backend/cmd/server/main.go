@@ -10,8 +10,8 @@ import (
 	"github.com/Roshan-anand/godploy/internal/config"
 	deploymentjob "github.com/Roshan-anand/godploy/internal/jobs/deployment"
 	"github.com/Roshan-anand/godploy/internal/jobs/logbroker"
-	"github.com/Roshan-anand/godploy/internal/lib"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
+	"github.com/Roshan-anand/godploy/internal/lib/utils"
 	"github.com/Roshan-anand/godploy/internal/routes"
 	"github.com/joho/godotenv"
 )
@@ -26,8 +26,8 @@ func createServer() (*config.Server, error) {
 
 	// validate public ip
 	if cfg.AppEnv == types.ProdMode {
-		cfg.ServerUrl = lib.GetPublicUrl()
-	} else if !lib.ValidatePublicUrl(cfg.ServerUrl) {
+		cfg.ServerUrl = utils.GetPublicUrl()
+	} else if !utils.ValidatePublicUrl(cfg.ServerUrl) {
 		return nil, fmt.Errorf("invalid server url: %s", cfg.ServerUrl)
 	}
 
@@ -51,6 +51,7 @@ func createServer() (*config.Server, error) {
 	go dj.PullWorker(context.Background(), s.DeploymentQ.PullQueue)
 	go dj.BuildWorker(context.Background(), s.DeploymentQ.BuildQueue)
 	go dj.DeployWorker(context.Background(), s.DeploymentQ.DeployQueue)
+	go dj.ReDeployWorker(context.Background(), s.DeploymentQ.RedeployQueue)
 
 	// setup log broker
 	lb := logbroker.InitLogsBroker(s)

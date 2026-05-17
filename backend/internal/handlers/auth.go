@@ -7,7 +7,8 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
-	"github.com/Roshan-anand/godploy/internal/lib"
+	"github.com/Roshan-anand/godploy/internal/lib/auth"
+	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -56,7 +57,7 @@ func InitAuthHandlers(s *config.Server) *AuthHandler {
 //
 // route: GET /api/auth/user
 func (h *AuthHandler) AuthUser(c *echo.Context) error {
-	u, ok := c.Get(h.Server.Config.EchoCtxUserKey).(lib.AuthUser)
+	u, ok := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
 	q := h.Server.DB.Queries
 
 	if !ok {
@@ -104,7 +105,7 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 	}
 
 	// hash password
-	hPass, err := lib.HashPassword(b.Password)
+	hPass, err := security.HashPassword(b.Password)
 	if err != nil {
 		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Internal Server Error"})
@@ -112,7 +113,7 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 
 	// create organization first (user needs orgId at insert time)
 	org, err := q.CreateOrg(h.qCtx, db.CreateOrgParams{
-		ID:   lib.GeneratePrimaryKey(),
+		ID:   security.GeneratePrimaryKey(),
 		Name: b.OrgName,
 	})
 	if err != nil {
@@ -121,7 +122,7 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 
 	// register new admin user
 	uId, err := q.CreateUser(h.qCtx, db.CreateUserParams{
-		ID:           lib.GeneratePrimaryKey(),
+		ID:           security.GeneratePrimaryKey(),
 		Name:         b.Name,
 		Email:        b.Email,
 		HashPass:     hPass,
@@ -142,8 +143,8 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 	}
 
 	// set cookies
-	lib.SetSessionCookies(h.Server, c, uId)
-	lib.SetJwtCookie(h.Server, c, lib.AuthUser{Email: b.Email, Name: b.Name, Role: types.AdminRole})
+	auth.SetSessionCookies(h.Server, c, uId)
+	auth.SetJwtCookie(h.Server, c, auth.AuthUser{Email: b.Email, Name: b.Name, Role: types.AdminRole})
 
 	r := AuthRes{
 		Name:    b.Name,
@@ -171,13 +172,13 @@ func (h *AuthHandler) AppLogin(c *echo.Context) error {
 	}
 
 	// check password
-	if !lib.CheckPasswordHash(b.Password, u.HashPass) {
+	if !security.CheckPasswordHash(b.Password, u.HashPass) {
 		return c.JSON(http.StatusUnauthorized, types.Res{Message: "invalid credentials"})
 	}
 
 	// set cookies
-	lib.SetSessionCookies(h.Server, c, u.ID)
-	lib.SetJwtCookie(h.Server, c, lib.AuthUser{Email: u.Email, Name: u.Name, Role: u.Role})
+	auth.SetSessionCookies(h.Server, c, u.ID)
+	auth.SetJwtCookie(h.Server, c, auth.AuthUser{Email: u.Email, Name: u.Name, Role: u.Role})
 
 	r := AuthRes{
 		Name:    u.Name,

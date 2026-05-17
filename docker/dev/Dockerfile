@@ -24,12 +24,13 @@ FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS backend-dev
 
 ENV SERVER_ENV=development
 
-# Install development tools in a single layer
+# Install development tools and docker CLI + buildx for build jobs.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     git \
-    tzdata && \
+    tzdata \
+    docker-buildx-plugin && \
     rm -rf /var/lib/apt/lists/* && \
     go install github.com/air-verse/air@latest
 

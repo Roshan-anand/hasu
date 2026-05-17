@@ -15,26 +15,29 @@ import (
 )
 
 const createAppService = `-- name: CreateAppService :one
-INSERT INTO app_service (id, organization_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO app_service (id, organization_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, type
 `
 
 type CreateAppServiceParams struct {
-	ID             uuid.UUID         `json:"id"`
-	OrganizationID uuid.UUID         `json:"organization_id"`
-	Type           types.ServiceType `json:"type"`
-	Name           string            `json:"name"`
-	GitProvider    string            `json:"git_provider"`
-	GhAppID        int64             `json:"gh_app_id"`
-	GhRepoID       int64             `json:"gh_repo_id"`
-	GhRepoName     string            `json:"gh_repo_name"`
-	GhRepoUrl      string            `json:"gh_repo_url"`
-	BuildPath      string            `json:"build_path"`
-	WatchPath      string            `json:"watch_path"`
-	Env            []byte            `json:"env"`
-	BuildArgs      []byte            `json:"build_args"`
-	BuildSecrets   []byte            `json:"build_secrets"`
+	ID                uuid.UUID         `json:"id"`
+	OrganizationID    uuid.UUID         `json:"organization_id"`
+	Type              types.ServiceType `json:"type"`
+	Name              string            `json:"name"`
+	GitProvider       string            `json:"git_provider"`
+	GhAppID           int64             `json:"gh_app_id"`
+	GhRepoID          int64             `json:"gh_repo_id"`
+	GhRepoName        string            `json:"gh_repo_name"`
+	GhRepoUrl         string            `json:"gh_repo_url"`
+	BuildPath         string            `json:"build_path"`
+	WatchPath         string            `json:"watch_path"`
+	Env               []byte            `json:"env"`
+	BuildArgs         []byte            `json:"build_args"`
+	BuildSecrets      []byte            `json:"build_secrets"`
+	DockerFilepath    string            `json:"docker_filepath"`
+	DockerContextpath string            `json:"docker_contextpath"`
+	DockerBuildstage  string            `json:"docker_buildstage"`
 }
 
 type CreateAppServiceRow struct {
@@ -58,6 +61,9 @@ func (q *Queries) CreateAppService(ctx context.Context, arg CreateAppServicePara
 		arg.Env,
 		arg.BuildArgs,
 		arg.BuildSecrets,
+		arg.DockerFilepath,
+		arg.DockerContextpath,
+		arg.DockerBuildstage,
 	)
 	var i CreateAppServiceRow
 	err := row.Scan(&i.ID, &i.Type)
@@ -263,6 +269,63 @@ func (q *Queries) GetAllSwarmServiceByAppServiceId(ctx context.Context, serviceI
 		return nil, err
 	}
 	return items, nil
+}
+
+const getAppServiceByBranchId = `-- name: GetAppServiceByBranchId :one
+SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
+    a.build_path, a.env, a.build_args, a.build_secrets,
+    a.docker_filepath, a.docker_contextpath, a.docker_buildstage,
+    b.id AS branch_id, b.branch_name, b.swarm_service_name, b.domain, b.port,
+    d.id AS deployment_id
+FROM app_service a
+JOIN app_service_branch b ON b.service_id = a.id
+JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
+WHERE b.id = ?1
+`
+
+type GetAppServiceByBranchIdRow struct {
+	ServiceID         uuid.UUID `json:"service_id"`
+	Name              string    `json:"name"`
+	GhRepoUrl         string    `json:"gh_repo_url"`
+	GhAppID           int64     `json:"gh_app_id"`
+	BuildPath         string    `json:"build_path"`
+	Env               []byte    `json:"env"`
+	BuildArgs         []byte    `json:"build_args"`
+	BuildSecrets      []byte    `json:"build_secrets"`
+	DockerFilepath    string    `json:"docker_filepath"`
+	DockerContextpath string    `json:"docker_contextpath"`
+	DockerBuildstage  string    `json:"docker_buildstage"`
+	BranchID          uuid.UUID `json:"branch_id"`
+	BranchName        string    `json:"branch_name"`
+	SwarmServiceName  string    `json:"swarm_service_name"`
+	Domain            string    `json:"domain"`
+	Port              int32     `json:"port"`
+	DeploymentID      uuid.UUID `json:"deployment_id"`
+}
+
+func (q *Queries) GetAppServiceByBranchId(ctx context.Context, branchID uuid.UUID) (GetAppServiceByBranchIdRow, error) {
+	row := q.db.QueryRowContext(ctx, getAppServiceByBranchId, branchID)
+	var i GetAppServiceByBranchIdRow
+	err := row.Scan(
+		&i.ServiceID,
+		&i.Name,
+		&i.GhRepoUrl,
+		&i.GhAppID,
+		&i.BuildPath,
+		&i.Env,
+		&i.BuildArgs,
+		&i.BuildSecrets,
+		&i.DockerFilepath,
+		&i.DockerContextpath,
+		&i.DockerBuildstage,
+		&i.BranchID,
+		&i.BranchName,
+		&i.SwarmServiceName,
+		&i.Domain,
+		&i.Port,
+		&i.DeploymentID,
+	)
+	return i, err
 }
 
 const getAppServiceById = `-- name: GetAppServiceById :one

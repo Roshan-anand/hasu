@@ -8,7 +8,7 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
-	"github.com/Roshan-anand/godploy/internal/lib"
+	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -79,7 +79,7 @@ func (h *HealthHandler) SetGhApp(c *echo.Context) error {
 	}
 
 	ghAppId, err := q.CreateGithubApp(h.qCtx, db.CreateGithubAppParams{
-		ID:             lib.GeneratePrimaryKey(),
+		ID:             security.GeneratePrimaryKey(),
 		Name:           b.Name,
 		OrganizationID: b.OrgID,
 		AppID:          appId,

@@ -13,7 +13,9 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
-	"github.com/Roshan-anand/godploy/internal/lib"
+	"github.com/Roshan-anand/godploy/internal/lib/auth"
+	"github.com/Roshan-anand/godploy/internal/lib/gh"
+	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/go-github/v84/github"
@@ -74,9 +76,9 @@ func InitGitHandlers(s *config.Server) *GitHandler {
 // route: GET /api/provider/github/app/create
 func (h *GitHandler) CreateGithubApp(c *echo.Context) error {
 	q := h.Server.DB.Queries
-	u := c.Get(h.Server.Config.EchoCtxUserKey).(lib.AuthUser)
+	u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
 
-	state, err := lib.GenerateCSRFToken()
+	state, err := security.GenerateCSRFToken()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to create github app"})
 	}
@@ -124,7 +126,7 @@ func (h *GitHandler) CreateGithubApp(c *echo.Context) error {
 // route: GET /api/provider/github/app/callback
 func (h *GitHandler) CreateGithubAppCallback(c *echo.Context) error {
 	q := h.Server.DB.Queries
-	// u := c.Get(h.Server.Config.EchoCtxUserKey).(lib.AuthUser)
+	// u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
 
 	code := c.QueryParam("code")
 	state := c.QueryParam("state")
@@ -164,14 +166,14 @@ func (h *GitHandler) CreateGithubAppCallback(c *echo.Context) error {
 	}
 
 	// encrypt PEM
-	encryptedPem, err := lib.EncryptPEM(convRes.PEM)
+	encryptedPem, err := security.EncryptPEM(convRes.PEM)
 	if err != nil {
 		return c.Redirect(http.StatusFound, "/?github_error=internal")
 	}
 
 	// store the app credentials in db
 	ghAppId, err := q.CreateGithubApp(h.qCtx, db.CreateGithubAppParams{
-		ID:             lib.GeneratePrimaryKey(),
+		ID:             security.GeneratePrimaryKey(),
 		Name:           convRes.Name,
 		AppID:          convRes.ID,
 		OrganizationID: sData.OrgID,
@@ -226,7 +228,7 @@ func (h *GitHandler) SetupGithubApp(c *echo.Context) error {
 	}
 
 	// get app client
-	appClient, err := lib.CreateAppClient(ghApp.AppID, ghApp.PemKey)
+	appClient, err := gh.CreateAppClient(ghApp.AppID, ghApp.PemKey)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to setup github app"})
 	}
@@ -256,7 +258,7 @@ func (h *GitHandler) SetupGithubApp(c *echo.Context) error {
 //
 // route: GET /api/provider/github/app/list
 func (h *GitHandler) GetAllGithubApps(c *echo.Context) error {
-	u := c.Get(h.Server.Config.EchoCtxUserKey).(lib.AuthUser)
+	u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
 	q := h.Server.DB.Queries
 
 	ghApps, err := q.GetAllGhAppsByEmail(h.qCtx, u.Email)
@@ -275,7 +277,7 @@ func (h *GitHandler) GetAllGithubApps(c *echo.Context) error {
 //
 // route: DELETE /api/provider/github/app
 func (h *GitHandler) DeleteGithubApp(c *echo.Context) error {
-	u := c.Get(h.Server.Config.EchoCtxUserKey).(lib.AuthUser)
+	u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
 	b := new(DeleteGithubAppReq)
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
@@ -294,7 +296,7 @@ func (h *GitHandler) DeleteGithubApp(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to delete github app"})
 	}
 
-	client, err := lib.CreateAppClient(ghApp.AppID, ghApp.PemKey)
+	client, err := gh.CreateAppClient(ghApp.AppID, ghApp.PemKey)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to delete github app"})
 	}
@@ -334,7 +336,7 @@ func (h *GitHandler) GetGithubRepoList(c *echo.Context) error {
 		return c.JSON(http.StatusConflict, types.Res{Message: "No github connected"})
 	}
 
-	ghClient, err := lib.CreateGithubClient(context.Background(), ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
+	ghClient, err := gh.CreateGithubClient(context.Background(), ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get github repos"})
 	}

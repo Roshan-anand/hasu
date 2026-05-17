@@ -59,6 +59,7 @@ services:
           path: ../.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
       - ../.env:/app/backend/.env:rw
       - godploy-dev-data:/app/backend/data/sqlite
       - godploy-dev-logs:/app/backend/data/badger

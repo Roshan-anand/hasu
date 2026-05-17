@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"os/exec"
 	"path"
+	"strings"
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
@@ -23,8 +25,13 @@ func getDockerBuildCmd(d *deploymentqueue.BuildJobData) *exec.Cmd {
 		cmd.Args = append(cmd.Args, "--file", d.DockerFilePath)
 	}
 
+	// Guard against empty build args that break docker buildx parsing.
 	for _, arg := range d.BuildArgs {
-		cmd.Args = append(cmd.Args, "--build-arg", arg)
+		trimmed := strings.TrimSpace(arg)
+		if trimmed == "" || strings.HasPrefix(trimmed, "=") {
+			continue
+		}
+		cmd.Args = append(cmd.Args, "--build-arg", trimmed)
 	}
 
 	// TODO : add build secrets to the cmd
@@ -60,8 +67,8 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 			// generate a new docker build cmd
 			buildCmd := getDockerBuildCmd(d)
 
-			if err := runWorkerCmd(l, d.DeploymentID, buildCmd); err != nil {
-				fmt.Printf("PullWorker: error running command: %v\n", err)
+			if err := runWorkerCmd(l, d.DeploymentID, buildCmd, "build"); err != nil {
+				fmt.Printf("BuildWorker: error running command: %v\n", err)
 				l.EndLogs(&logbrokerqueue.EndLogData{
 					DeploymentID: d.DeploymentID,
 					Status:       types.DeploymentError,
@@ -85,13 +92,29 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 				continue
 			}
 
-			// set a deploy worker
-			w.Server.DeploymentQ.EnqueueDeployJob(&deploymentqueue.DeployJobData{
-				DeploymentID:     d.DeploymentID,
-				SwarmServiceName: d.SwarmServiceName,
-				ImgName:          d.ImgName,
-				Env:              d.Env,
-			})
+			// remove the code folder
+			go os.RemoveAll(d.StorePath)
+
+			switch d.Type {
+			case deploymentqueue.DeployJob:
+				// set a deploy worker
+				w.Server.DeploymentQ.EnqueueDeployJob(&deploymentqueue.DeployJobData{
+					DeploymentID:     d.DeploymentID,
+					SwarmServiceName: d.SwarmServiceName,
+					ImgName:          d.ImgName,
+					Env:              d.Env,
+				})
+
+			case deploymentqueue.RebuildJob:
+				w.Server.DeploymentQ.EnqueueRedeployJob(&deploymentqueue.RedeployJobData{
+					DeploymentID:     d.DeploymentID,
+					SwarmServiceName: d.SwarmServiceName,
+					ImgName:          d.ImgName,
+					Env:              d.Env,
+				})
+			default:
+				fmt.Printf("BuildWorker: unknown job type: %v\n", d.Type)
+			}
 
 		case <-ctx.Done():
 			fmt.Println("BuildWorker: context cancelled, exiting")

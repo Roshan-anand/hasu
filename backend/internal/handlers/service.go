@@ -9,7 +9,8 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
-	"github.com/Roshan-anand/godploy/internal/lib"
+	"github.com/Roshan-anand/godploy/internal/lib/auth"
+	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/sse"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
@@ -40,7 +41,7 @@ func InitServiceHandlers(s *config.Server) *ServiceHandler {
 //
 // route: GET /api/service
 func (h *ServiceHandler) GetAllServices(c *echo.Context) error {
-	u := c.Get(h.Server.Config.EchoCtxUserKey).(lib.AuthUser)
+	u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
 	q := h.Server.DB.Queries
 
 	orgID, err := q.GetUserCurrentOrg(h.qCtx, u.Email)
@@ -127,7 +128,7 @@ func (h *ServiceHandler) SubscribeServiceDeploymentLogs(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "failed to get deployment status"})
 	}
 
-	userID := lib.GeneratePrimaryKey()
+	userID := security.GeneratePrimaryKey()
 
 	// if deployment is successful or failed, then stream logs from badgerDB
 	if status == types.DeploymentReady || status == types.DeploymentError {

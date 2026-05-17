@@ -13,21 +13,24 @@ import (
 )
 
 type AppService struct {
-	ID             uuid.UUID         `json:"id"`
-	OrganizationID uuid.UUID         `json:"organization_id"`
-	Type           types.ServiceType `json:"type"`
-	Name           string            `json:"name"`
-	GitProvider    string            `json:"git_provider"`
-	GhAppID        int64             `json:"gh_app_id"`
-	GhRepoID       int64             `json:"gh_repo_id"`
-	GhRepoName     string            `json:"gh_repo_name"`
-	GhRepoUrl      string            `json:"gh_repo_url"`
-	BuildPath      string            `json:"build_path"`
-	WatchPath      string            `json:"watch_path"`
-	Env            []byte            `json:"env"`
-	BuildArgs      []byte            `json:"build_args"`
-	BuildSecrets   []byte            `json:"build_secrets"`
-	CreatedAt      time.Time         `json:"created_at"`
+	ID                uuid.UUID         `json:"id"`
+	OrganizationID    uuid.UUID         `json:"organization_id"`
+	Type              types.ServiceType `json:"type"`
+	Name              string            `json:"name"`
+	GitProvider       string            `json:"git_provider"`
+	GhAppID           int64             `json:"gh_app_id"`
+	GhRepoID          int64             `json:"gh_repo_id"`
+	GhRepoName        string            `json:"gh_repo_name"`
+	GhRepoUrl         string            `json:"gh_repo_url"`
+	BuildPath         string            `json:"build_path"`
+	WatchPath         string            `json:"watch_path"`
+	DockerFilepath    string            `json:"docker_filepath"`
+	DockerContextpath string            `json:"docker_contextpath"`
+	DockerBuildstage  string            `json:"docker_buildstage"`
+	Env               []byte            `json:"env"`
+	BuildArgs         []byte            `json:"build_args"`
+	BuildSecrets      []byte            `json:"build_secrets"`
+	CreatedAt         time.Time         `json:"created_at"`
 }
 
 type AppServiceBranch struct {

@@ -57,6 +57,11 @@ CREATE TABLE IF NOT EXISTS app_service (
     gh_repo_url TEXT NOT NULL,
     build_path TEXT NOT NULL,
     watch_path TEXT NOT NULL,
+    -- docker realted column
+    docker_filepath TEXT NOT NULL DEFAULT 'Dockerfile',
+    docker_contextpath TEXT NOT NULL DEFAULT '.',
+    docker_buildstage TEXT NOT NULL DEFAULT '',
+    -- environment related column
     env BLOB,
     build_args BLOB,
     build_secrets BLOB,

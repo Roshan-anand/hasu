@@ -32,3 +32,10 @@
   - when to update local store from query cache vs mutation response
 
 - [ ] badger db how query all logs by prefix works
+
+- [ ] why PTY streaming fails in containers
+  - /dev/ptmx not available in minimal containers
+  - prefer stdout/stderr pipes for non-interactive commands
+
+- [ ] docker build args validation
+  - skip empty or "=VALUE" entries before calling buildx

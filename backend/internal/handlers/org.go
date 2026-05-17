@@ -7,7 +7,8 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
-	"github.com/Roshan-anand/godploy/internal/lib"
+	"github.com/Roshan-anand/godploy/internal/lib/auth"
+	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -40,7 +41,7 @@ func InitOrgHandlers(s *config.Server) *OrgHandler {
 //
 // route: GET /api/org
 func (h *OrgHandler) GetAllOrgs(c *echo.Context) error {
-	u := c.Get(h.Server.Config.EchoCtxUserKey).(lib.AuthUser)
+	u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
 
 	orgs, err := h.Server.DB.Queries.GetAllOrg(h.qCtx, u.Email)
 	if err != nil {
@@ -56,7 +57,7 @@ func (h *OrgHandler) GetAllOrgs(c *echo.Context) error {
 //
 // route: POST /api/org
 func (h *OrgHandler) CreateOrg(c *echo.Context) error {
-	u := c.Get(h.Server.Config.EchoCtxUserKey).(lib.AuthUser)
+	u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
 	b := new(CreateOrgReq)
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
@@ -80,7 +81,7 @@ func (h *OrgHandler) CreateOrg(c *echo.Context) error {
 	}
 
 	org, err := q.CreateOrg(h.qCtx, db.CreateOrgParams{
-		ID:   lib.GeneratePrimaryKey(),
+		ID:   security.GeneratePrimaryKey(),
 		Name: b.Name,
 	})
 	if err != nil {
@@ -101,7 +102,7 @@ func (h *OrgHandler) CreateOrg(c *echo.Context) error {
 //
 // route: DELETE /api/org
 func (h *OrgHandler) DeleteOrg(c *echo.Context) error {
-	u := c.Get(h.Server.Config.EchoCtxUserKey).(lib.AuthUser)
+	u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
 	b := new(OrgReq)
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
@@ -133,7 +134,7 @@ func (h *OrgHandler) DeleteOrg(c *echo.Context) error {
 //
 // route: POST /api/org/switch
 func (h *OrgHandler) SwitchOrg(c *echo.Context) error {
-	u := c.Get(h.Server.Config.EchoCtxUserKey).(lib.AuthUser)
+	u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
 	b := new(OrgReq)
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {

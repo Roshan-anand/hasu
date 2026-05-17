@@ -6,11 +6,15 @@
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import AppLogs from './app-logs.svelte';
 	import { ChevronRight, ChevronDown } from '@lucide/svelte';
+	import { Button } from '@/components/ui/button';
+	import { useRebuildServiceMutation } from '@/features/services/mutation.svelte';
 
 	let { serviceId }: { serviceId: string } = $props();
 
 	// query to fetch service details based on service type and id
 	const serviceQuery = useGetServiceDetailsQuery(() => serviceId);
+	const rebuildService = useRebuildServiceMutation();
+
 	let open = $state(false);
 </script>
 
@@ -33,6 +37,15 @@
 						{name}
 					</span>
 					<span class="bg-muted text-muted-foreground px-1 rounded-md">Production</span>
+
+					<Button
+						class="ml-auto"
+						onclick={() =>
+							rebuildService.mutate({
+								branch_id
+							})}
+						disabled={rebuildService.isPending}>Redeploy</Button
+					>
 				</h3>
 				<p class="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
 					<Icon icon="mingcute:git-branch-line" />

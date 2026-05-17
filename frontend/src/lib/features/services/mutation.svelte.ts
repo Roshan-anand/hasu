@@ -34,12 +34,12 @@ export function useCreateServiceMutation() {
 	return createMutation(() => ({
 		mutationFn: async (payload: CreateServicePayload) =>
 			api.post<string>('/service/app', payload).then((res) => res.data),
-		onSuccess: (id) => {
+		onSuccess: (service_id) => {
 			toast.success('Service created successfully');
 			goto(
 				resolve('/(protected)/(core)/[service_type]/[service_id]?tab=deployment', {
 					service_type: 'app' as ServiceType,
-					service_id: id
+					service_id
 				})
 			);
 		},
@@ -95,6 +95,23 @@ export function useUpdateEnvMutation(getServiceId: () => string) {
 			// TODO : show a button to rebuild / restart the service
 			toast.success(response.message || 'Env updated successfully');
 		},
-		onError: (error) => axiosErr(error as Error, 'Failed to update domain')
+		onError: (error) => axiosErr(error as Error, 'Failed to update env')
+	}));
+}
+
+export function useRebuildServiceMutation() {
+	return createMutation(() => ({
+		mutationFn: async (payload: { branch_id: string }) =>
+			api.put<string>('/service/app/rebuild', payload).then((res) => res.data),
+		onSuccess: (service_id) => {
+			toast.success('successfully rebuild the service');
+			goto(
+				resolve('/(protected)/(core)/[service_type]/[service_id]?tab=deployment', {
+					service_type: 'app' as ServiceType,
+					service_id
+				})
+			);
+		},
+		onError: (error) => axiosErr(error as Error, 'Failed to rebuild the service')
 	}));
 }

@@ -11,7 +11,8 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
-	"github.com/Roshan-anand/godploy/internal/lib"
+	"github.com/Roshan-anand/godploy/internal/lib/gh"
+	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -57,6 +58,10 @@ type GetEnvRes struct {
 	BuildSecrets []string `json:"build_secrets" validate:"required"`
 }
 
+type RebuildServiceReq struct {
+	BranchID uuid.UUID `json:"branch_id" validate:"required"`
+}
+
 // create a new app service
 //
 // route: POST /api/service/app
@@ -87,7 +92,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "failed to verify github app"})
 	}
 
-	ghClient, err := lib.CreateGithubClient(context.Background(), ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
+	ghClient, err := gh.CreateGithubClient(context.Background(), ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "failed to create github client"})
 	}
@@ -109,23 +114,17 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	url := u.Host + u.Path
 
 	// used as uniquecontainer name and code storing path
-	serviceName := fmt.Sprintf("%s-%s-%s", b.Name, defaultBranch, lib.GenerateRandomID(6))
-	imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", b.Name, defaultBranch, lib.GenerateRandomID(6)))
+	serviceName := fmt.Sprintf("%s-%s-%s", b.Name, defaultBranch, security.GenerateRandomID(6))
+	imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", b.Name, defaultBranch, security.GenerateRandomID(6)))
 
 	// convert into bytes
-	envByte, err := json.Marshal(b.Env)
+	envByte, err := MarshalServiceEnv(&ServiceEnvArray{
+		Env:          b.Env,
+		BuildArgs:    b.BuildArgs,
+		BuildSecrets: b.BuildSecrets,
+	})
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid env values"})
-	}
-
-	buildArgsByte, err := json.Marshal(b.BuildArgs)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid build args values"})
-	}
-
-	buildSecretsByte, err := json.Marshal(b.BuildSecrets)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid build secrets values"})
 	}
 
 	// start a new db transaction
@@ -137,20 +136,23 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 
 	// create a new service
 	service, err := q.CreateAppService(h.qCtx, db.CreateAppServiceParams{
-		ID:             lib.GeneratePrimaryKey(),
-		OrganizationID: b.OrgID,
-		Type:           types.AppServiceType,
-		Name:           b.Name,
-		GitProvider:    b.GitProvider,
-		GhAppID:        ghApp.AppID,
-		GhRepoID:       b.GhRepoID,
-		GhRepoName:     repoName,
-		GhRepoUrl:      url,
-		BuildPath:      b.BuildPath,
-		WatchPath:      b.WatchPath,
-		Env:            envByte,
-		BuildArgs:      buildArgsByte,
-		BuildSecrets:   buildSecretsByte,
+		ID:                security.GeneratePrimaryKey(),
+		OrganizationID:    b.OrgID,
+		Type:              types.AppServiceType,
+		Name:              b.Name,
+		GitProvider:       b.GitProvider,
+		GhAppID:           ghApp.AppID,
+		GhRepoID:          b.GhRepoID,
+		GhRepoName:        repoName,
+		GhRepoUrl:         url,
+		BuildPath:         b.BuildPath,
+		WatchPath:         b.WatchPath,
+		Env:               envByte.Env,
+		BuildArgs:         envByte.BuildArgs,
+		BuildSecrets:      envByte.BuildSecrets,
+		DockerFilepath:    b.DockerBuild.FilePath,
+		DockerContextpath: b.DockerBuild.ContextPath,
+		DockerBuildstage:  b.DockerBuild.BuildStage,
 	})
 	if err != nil {
 		tx.Rollback()
@@ -159,7 +161,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 
 	// create a new branch for the app service
 	branchID, err := q.CreateAppServiceBranch(h.qCtx, db.CreateAppServiceBranchParams{
-		ID:               lib.GeneratePrimaryKey(),
+		ID:               security.GeneratePrimaryKey(),
 		IsDefaultBranch:  true,
 		BranchName:       defaultBranch,
 		SwarmServiceName: serviceName,
@@ -173,7 +175,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	// TODO : get commit msg from client side
 	// create a new deployment for the app service
 	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
-		ID:        lib.GeneratePrimaryKey(),
+		ID:        security.GeneratePrimaryKey(),
 		BranchID:  branchID,
 		CommitMsg: "s",
 		IsLatest:  true,
@@ -188,13 +190,14 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	}
 
 	// get gh token
-	token, err := lib.GetGhToken(ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
+	token, err := gh.GetGhToken(ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get github token"})
 	}
 
 	// push a new deployment job to the queue
 	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
+		Type:              deploymentqueue.DeployJob,
 		DeploymentID:      dID,
 		Token:             token,
 		Url:               url,
@@ -230,49 +233,55 @@ func (h *ServiceHandler) GetAppServiceById(c *echo.Context) error {
 	return c.JSON(http.StatusOK, service)
 }
 
-// delete app service
+// get branch domain and port by service id
 //
-// route: DELETE /api/service/app
-func (h *ServiceHandler) DeleteAppService(c *echo.Context) error {
-	b := new(ServiceReq)
+// route: GET /api/service/app/domain?service_id
+func (h *ServiceHandler) GetBranchDomain(c *echo.Context) error {
 	q := h.Server.DB.Queries
 
-	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
-		return c.JSON(http.StatusBadRequest, Res)
-	}
-
-	serviceInfo, err := q.GetAllSwarmServiceAndImagesByAppServiceId(h.qCtx, b.ServiceId)
+	serviceID, err := uuid.Parse(c.QueryParam("service_id"))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get deployments"})
+		return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid service_id"})
 	}
 
-	// arrange all ids and imgs sepratly for easy access
-	dIDs := make([]uuid.UUID, len(serviceInfo))
-	imgs := make([]string, len(serviceInfo))
-	swarmServiceNames := make(map[string]struct{})
-	for i, s := range serviceInfo {
-		dIDs[i] = s.DeploymentID
-		if s.ImageName.Valid {
-			imgs[i] = s.ImageName.String
-		}
-		swarmServiceNames[s.SwarmServiceName] = struct{}{}
+	branches, err := q.GetBranchesDomainByServiceId(h.qCtx, serviceID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get branch domain"})
 	}
 
-	// stop all the services running and remove all the images
-	go func() {
-		h.Server.Docker.RemoveServices(swarmServiceNames)
-		h.Server.Docker.RemoveImages(imgs)
-	}()
+	return c.JSON(http.StatusOK, branches)
+}
 
-	// delete all logs related to the service deployments
-	go h.Server.BadgerDB.DeleteAllLogsByDeploymentID(dIDs)
+// get branch domain and port by service id
+//
+// route: GET /api/service/app/env?service_id
+func (h *ServiceHandler) GetServiceEnv(c *echo.Context) error {
+	q := h.Server.DB.Queries
 
-	// delete the app service
-	if err := h.Server.DB.Queries.DeleteAppService(h.qCtx, b.ServiceId); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to delete service"})
+	serviceID, err := uuid.Parse(c.QueryParam("service_id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid service_id"})
 	}
 
-	return c.JSON(http.StatusOK, types.Res{Message: "Successsfully deleted service"})
+	e, err := q.GetServiceEnv(h.qCtx, serviceID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get branch domain"})
+	}
+
+	envString, err := UnmarshalServiceEnv(&ServiceEnvByte{
+		Env:          e.Env,
+		BuildArgs:    e.BuildArgs,
+		BuildSecrets: e.BuildSecrets,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get branch domain"})
+	}
+
+	return c.JSON(http.StatusOK, &GetEnvRes{
+		Env:          envString.Env,
+		BuildArgs:    envString.BuildArgs,
+		BuildSecrets: envString.BuildSecrets,
+	})
 }
 
 // update domain and port
@@ -400,60 +409,143 @@ func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
 	return c.JSON(http.StatusOK, types.Res{Message: "Successfully updated env"})
 }
 
-// get branch domain and port by service id
+// NEXT_PUBLIC_TEST_ARGS
+// create a new app service
 //
-// route: GET /api/service/app/domain?service_id
-func (h *ServiceHandler) GetBranchDomain(c *echo.Context) error {
+// route: POST /api/service/app/rebuild
+func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
+	b := new(RebuildServiceReq)
 	q := h.Server.DB.Queries
 
-	serviceID, err := uuid.Parse(c.QueryParam("service_id"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid service_id"})
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
 	}
 
-	branches, err := q.GetBranchesDomainByServiceId(h.qCtx, serviceID)
+	service, err := q.GetAppServiceByBranchId(h.qCtx, b.BranchID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get branch"})
+	}
+
+	// start a new db transaction
+	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to create service"})
+	}
+	q = q.WithTx(tx)
+
+	// update the previous deployment is_latest to false
+	if err := q.SetDeploymentNotLatest(h.qCtx, service.DeploymentID); err != nil {
+		tx.Rollback()
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to create service"})
+	}
+
+	// TODO : get commit msg from client side
+	// create a new deployment for the app service
+	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
+		ID:        security.GeneratePrimaryKey(),
+		BranchID:  service.BranchID,
+		CommitMsg: "s",
+		IsLatest:  true,
+	})
+	if err != nil {
+		tx.Rollback()
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to create deployment"})
+	}
+
+	// end the db transaction and commit
+	if err := tx.Commit(); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to create service"})
+	}
+
+	// get the github app details
+	ghApp, err := q.GetGhAppByAppId(h.qCtx, service.GhAppID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid github app"})
+		}
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "failed to verify github app"})
+	}
+
+	// get gh token
+	token, err := gh.GetGhToken(ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get github token"})
+	}
+
+	// used as uniquecontainer name and code storing path
+	imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", service.Name, service.BranchName, security.GenerateRandomID(6)))
+
+	envStr, err := UnmarshalServiceEnv(&ServiceEnvByte{
+		Env:          service.Env,
+		BuildArgs:    service.BuildArgs,
+		BuildSecrets: service.BuildSecrets,
+	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get branch domain"})
 	}
 
-	return c.JSON(http.StatusOK, branches)
+	// push a new deployment job to the queue
+	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
+		Type:              deploymentqueue.RebuildJob,
+		DeploymentID:      dID,
+		Token:             token,
+		Url:               service.GhRepoUrl,
+		Branch:            service.BranchName,
+		SwarmServiceName:  service.SwarmServiceName,
+		BuildPath:         service.BuildPath,
+		DockerFilePath:    service.DockerFilepath,
+		DockerContextPath: service.DockerContextpath,
+		DockerBuildStage:  service.DockerBuildstage,
+		ImgName:           imgName,
+		Env:               envStr.Env,
+		BuildArgs:         envStr.BuildArgs,
+		BuildSecrets:      envStr.BuildSecrets,
+	})
+
+	return c.JSON(http.StatusOK, service.ServiceID)
 }
 
-// get branch domain and port by service id
+// delete app service
 //
-// route: GET /api/service/app/env?service_id
-func (h *ServiceHandler) GetServiceEnv(c *echo.Context) error {
+// route: DELETE /api/service/app
+func (h *ServiceHandler) DeleteAppService(c *echo.Context) error {
+	b := new(ServiceReq)
 	q := h.Server.DB.Queries
 
-	serviceID, err := uuid.Parse(c.QueryParam("service_id"))
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	serviceInfo, err := q.GetAllSwarmServiceAndImagesByAppServiceId(h.qCtx, b.ServiceId)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res{Message: "invalid service_id"})
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get deployments"})
 	}
 
-	e, err := q.GetServiceEnv(h.qCtx, serviceID)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to get branch domain"})
+	// arrange all ids and imgs sepratly for easy access
+	dIDs := make([]uuid.UUID, len(serviceInfo))
+	imgs := make([]string, len(serviceInfo))
+	swarmServiceNames := make(map[string]struct{})
+	for i, s := range serviceInfo {
+		dIDs[i] = s.DeploymentID
+		if s.ImageName.Valid {
+			imgs[i] = s.ImageName.String
+		}
+		swarmServiceNames[s.SwarmServiceName] = struct{}{}
 	}
 
-	var env []string
-	var build_args []string
-	var build_secrets []string
+	// stop all the services running and remove all the images
+	go func() {
+		h.Server.Docker.RemoveServices(swarmServiceNames)
+		h.Server.Docker.RemoveImages(imgs)
+	}()
 
-	if err := json.Unmarshal(e.Env, &env); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to unmarshal env"})
+	// delete all logs related to the service deployments
+	go h.Server.BadgerDB.DeleteAllLogsByDeploymentID(dIDs)
+
+	// delete the app service
+	if err := h.Server.DB.Queries.DeleteAppService(h.qCtx, b.ServiceId); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to delete service"})
 	}
 
-	if err := json.Unmarshal(e.BuildArgs, &build_args); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to unmarshal build args"})
-	}
-
-	if err := json.Unmarshal(e.BuildSecrets, &build_secrets); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res{Message: "Failed to unmarshal build secrets"})
-	}
-
-	return c.JSON(http.StatusOK, &GetEnvRes{
-		Env:          env,
-		BuildArgs:    build_args,
-		BuildSecrets: build_secrets,
-	})
+	return c.JSON(http.StatusOK, types.Res{Message: "Successsfully deleted service"})
 }

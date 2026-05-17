@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Roshan-anand/godploy/internal/config"
-	"github.com/Roshan-anand/godploy/internal/lib"
+	"github.com/Roshan-anand/godploy/internal/lib/auth"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
@@ -44,7 +44,7 @@ func (m *Middlewares) GlobalMiddlewareUser(next echo.HandlerFunc) echo.HandlerFu
 		// checks for the JWT
 		jwt, err := c.Cookie(m.Server.Config.SessionDataName)
 		if err == nil {
-			claims, err := lib.VerifyJWT(jwt.Value, secret)
+			claims, err := auth.VerifyJWT(jwt.Value, secret)
 			if err != nil {
 				return c.JSON(http.StatusUnauthorized, unAuthErr)
 			}
@@ -72,18 +72,18 @@ func (m *Middlewares) GlobalMiddlewareUser(next echo.HandlerFunc) echo.HandlerFu
 
 			// if expire date is les then 30% then extend expiry
 			diff := sData.ExpiresAt.Sub(time.Now())
-			if diff < lib.SESSION_DATA_EXPIRY_DAY*30/100 {
-				lib.SetSessionCookies(m.Server, c, sData.ID)
+			if diff < auth.SESSION_DATA_EXPIRY_DAY*30/100 {
+				auth.SetSessionCookies(m.Server, c, sData.ID)
 			}
 
-			u := lib.AuthUser{
+			u := auth.AuthUser{
 				Email: sData.Email,
 				Name:  sData.Name,
 				Role:  sData.Role,
 			}
 
 			// set new jwt cookie
-			lib.SetJwtCookie(m.Server, c, u)
+			auth.SetJwtCookie(m.Server, c, u)
 
 			// set user in context
 			c.Set(m.Server.Config.EchoCtxUserKey, u)
