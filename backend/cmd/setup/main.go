@@ -46,6 +46,11 @@ func main() {
 			fmt.Println("failed to stop godploy stack :", err)
 			return
 		}
+	case "test-backend":
+		if err := runCommand("docker", "compose", "-f", "../docker/compose.dev.yaml", "run", "--rm", "server", "go", "test", "-v", "./..."); err != nil {
+			fmt.Println("failed to stop godploy stack :", err)
+			return
+		}
 	case "server-logs":
 		if err := runCommand("docker", "compose", "-p", "godploy", "-f", "../docker/compose.dev.yaml", "logs", "-f", "server"); err != nil {
 			fmt.Println("failed to fetch godploy backend logs :", err)

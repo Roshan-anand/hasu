@@ -30,8 +30,8 @@ func mockServer() (*echo.Echo, *config.Server, error) {
 	}
 
 	// update config to include testing data
-	cfg.WebUrl = "*"
 	cfg.JwtSecret = "test_secret"
+	cfg.AppEnv = types.TestMode
 
 	sqliteTempPath, badgerTempPath, err := getTempDir()
 	if err != nil {

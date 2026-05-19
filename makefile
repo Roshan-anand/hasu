@@ -70,6 +70,10 @@ dev-stop:
 
 services-rm:
 	docker service rm godploy_traefik
+	
+test-backend:
+	@cd backend && \
+	go run cmd/setup/main.go test-backend
 
 web-logs:
 	@cd backend && \

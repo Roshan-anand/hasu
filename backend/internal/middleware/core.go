@@ -28,7 +28,7 @@ func NewMiddlewares(s *config.Server) *Middlewares {
 func (m *Middlewares) GlobalMiddlewareCors() echo.MiddlewareFunc {
 	cfg := middleware.CORSConfig{
 		AllowOrigins:     []string{m.Server.Config.WebUrl},
-		AllowCredentials: m.Server.Config.AppEnv == types.DevMode,
+		AllowCredentials: true,
 	}
 
 	return middleware.CORSWithConfig(cfg)

@@ -11,7 +11,6 @@ services:
         - action: sync
           path: ../frontend
           target: /app/frontend
-          initial_sync: true
           ignore:
             - node_modules/
             - .svelte-kit/
@@ -43,14 +42,6 @@ services:
     container_name: godploy-backend-dev
     develop:
       watch:
-        - action: sync
-          path: ../backend
-          target: /app/backend
-          initial_sync: true
-          ignore:
-            - bin/
-            - data/
-            - frontend/dist/
         - action: rebuild
           path: ../backend/go.mod
         - action: rebuild
@@ -58,8 +49,8 @@ services:
         - action: rebuild
           path: ../.env
     volumes:
+      - ../backend:/app/backend
       - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker
       - ../.env:/app/backend/.env:rw
       - godploy-dev-data:/app/backend/data/sqlite
       - godploy-dev-logs:/app/backend/data/badger

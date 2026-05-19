@@ -4,6 +4,7 @@ import (
 	"github.com/Roshan-anand/godploy/frontend"
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/handlers"
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/Roshan-anand/godploy/internal/middleware"
 	"github.com/labstack/echo/v5"
 )
@@ -21,7 +22,9 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	}
 	e.StaticFS("/", uiFs)
 
-	e.Use(m.GlobalMiddlewareCors())
+	if srv.Config.AppEnv == types.DevMode {
+		e.Use(m.GlobalMiddlewareCors())
+	}
 
 	api := e.Group("/api")
 	public := api.Group("")

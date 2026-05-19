@@ -5,6 +5,7 @@ type AppEnv string
 const (
 	DevMode  AppEnv = "development"
 	ProdMode AppEnv = "production"
+	TestMode AppEnv = "test"
 )
 
 type UserRole string
