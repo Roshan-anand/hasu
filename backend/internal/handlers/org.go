@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
+	"github.com/mattn/go-sqlite3"
 )
 
 type OrgHandler struct {
@@ -79,20 +81,22 @@ func (h *OrgHandler) CreateOrg(c *echo.Context) error {
 		return c.JSON(http.StatusForbidden, types.Res[struct{}]{Message: "admin access required"})
 	}
 
-	if exists, err := q.CheckOrgExists(h.qCtx, db.CheckOrgExistsParams{
-		UserEmail: u.Email,
-		OrgName:   b.Name,
-	}); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "internal server error"})
-	} else if exists {
-		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Organization with this name already exists"})
+	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to start transaction"})
 	}
+	q = q.WithTx(tx)
 
 	org, err := q.CreateOrg(h.qCtx, db.CreateOrgParams{
 		ID:   security.GeneratePrimaryKey(),
 		Name: b.Name,
 	})
 	if err != nil {
+		tx.Rollback()
+		var sqliteErr sqlite3.Error
+		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Organization with this name already exists"})
+		}
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create organization"})
 	}
 
@@ -100,7 +104,12 @@ func (h *OrgHandler) CreateOrg(c *echo.Context) error {
 		UserEmail:      u.Email,
 		OrganizationID: org.ID,
 	}); err != nil {
+		tx.Rollback()
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to link user to organization"})
+	}
+
+	if err := tx.Commit(); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to commit transaction"})
 	}
 
 	return c.JSON(http.StatusOK, types.Res[db.CreateOrgRow]{Message: "", Data: org})

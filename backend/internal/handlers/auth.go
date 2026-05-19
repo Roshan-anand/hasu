@@ -111,12 +111,20 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Internal Server Error"})
 	}
 
+	// start a db transaction
+	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Internal Server Error"})
+	}
+	q = q.WithTx(tx)
+
 	// create organization first (user needs orgId at insert time)
 	org, err := q.CreateOrg(h.qCtx, db.CreateOrgParams{
 		ID:   security.GeneratePrimaryKey(),
 		Name: b.OrgName,
 	})
 	if err != nil {
+		tx.Rollback()
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Internal Server Error"})
 	}
 
@@ -130,6 +138,7 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 		CurrentOrgID: org.ID,
 	})
 	if err != nil {
+		tx.Rollback()
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Internal Server Error"})
 	}
 
@@ -138,7 +147,11 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 		UserEmail:      b.Email,
 		OrganizationID: org.ID,
 	}); err != nil {
-		fmt.Println("Link User N Org Error:", err)
+		tx.Rollback()
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Internal Server Error"})
+	}
+
+	if err := tx.Commit(); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Internal Server Error"})
 	}
 

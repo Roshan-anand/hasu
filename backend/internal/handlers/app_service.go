@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -393,27 +392,21 @@ func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
 	}
 
 	// convert into bytes
-	envByte, err := json.Marshal(b.Env)
+	envBytes, err := MarshalServiceEnv(&ServiceEnvArray{
+		Env:          b.Env,
+		BuildArgs:    b.BuildArgs,
+		BuildSecrets: b.BuildSecrets,
+	})
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid env values"})
-	}
-
-	buildArgsByte, err := json.Marshal(b.BuildArgs)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid build args values"})
-	}
-
-	buildSecretsByte, err := json.Marshal(b.BuildSecrets)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid build secrets values"})
 	}
 
 	// update the env in the app service table
 	if err := q.UpdateAppServiceEnv(h.qCtx, db.UpdateAppServiceEnvParams{
 		ID:           b.ServiceID,
-		Env:          envByte,
-		BuildArgs:    buildArgsByte,
-		BuildSecrets: buildSecretsByte,
+		Env:          envBytes.Env,
+		BuildArgs:    envBytes.BuildArgs,
+		BuildSecrets: envBytes.BuildSecrets,
 	}); err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Failed to update env"})
 	}
@@ -438,6 +431,12 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch"})
 	}
 
+	// get status of latest deployment of the branch
+	dStatus, err := q.GetDeploymentStatus(h.qCtx, service.DeploymentID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get deployment status"})
+	}
+
 	// start a new db transaction
 	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
 	if err != nil {
@@ -445,19 +444,12 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 	}
 	q = q.WithTx(tx)
 
-	dStatus, err := q.GetDeploymentStatus(h.qCtx, service.DeploymentID)
-	if err != nil {
-		tx.Rollback()
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get deployment status"})
-	}
-
 	var newStatus types.DeploymentStatus
 	if dStatus == types.DeploymentReady {
 		newStatus = types.DeploymentInactive
 	} else {
 		newStatus = types.DeploymentPruned
 	}
-	
 
 	// update the previous deployment is_latest to false
 	if err := q.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
@@ -481,7 +473,6 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
 	}
 
-	fmt.Println("gh app id :", service.GhAppID)
 	// get the github app details
 	ghApp, err := q.GetGhAppByAppId(h.qCtx, service.GhAppID)
 	if err != nil {

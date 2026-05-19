@@ -61,6 +61,24 @@ func TestOrgOperations(t *testing.T) {
 		secOrg = res.Data.ID
 	})
 
+	t.Run("Create a duplicate org", func(t *testing.T) {
+		rec, err := TestEchoHandler(t, h.Org.CreateOrg, createOrgBody, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		var res types.Res[any]
+		if err := readAndUnmarshl(body, &res); err != nil {
+			t.Fatal(err)
+		}
+
+		if rec.Code != http.StatusConflict {
+			t.Fatalf("expected status code %d, got %d \n msg: %s", http.StatusConflict, rec.Code, res.Message)
+		}
+	})
+
 	t.Run("get all orgs", func(t *testing.T) {
 		rec, err := TestEchoHandler(t, h.Org.GetAllOrgs, nil, true)
 		if err != nil {
