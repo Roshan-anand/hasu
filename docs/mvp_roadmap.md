@@ -47,7 +47,8 @@
   - [x] Build Job
   - [x] Deploy Job
   - [x] Service logs streaming.
-  - [ ] Environment variable management.
+  - [x] Environment variable management.
+  - [ ] Build secrets management.
   - [x] SSL certificate management (Let's Encrypt integration).
   - [x] Custom domain management (Traefik integration).
 

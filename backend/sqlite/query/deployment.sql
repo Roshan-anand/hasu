@@ -31,9 +31,9 @@ UPDATE deployments
 SET status = ?
 WHERE id = ?;
 
--- name: SetDeploymentNotLatest :exec
+-- name: DownGradeDeployment :exec
 UPDATE deployments
-SET is_latest = 0
+SET is_latest = 0, status = ?
 WHERE id = @deployment_id;
 
 -- name: SetDeploymentImageName :exec

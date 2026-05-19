@@ -445,8 +445,25 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 	}
 	q = q.WithTx(tx)
 
+	dStatus, err := q.GetDeploymentStatus(h.qCtx, service.DeploymentID)
+	if err != nil {
+		tx.Rollback()
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get deployment status"})
+	}
+
+	var newStatus types.DeploymentStatus
+	if dStatus == types.DeploymentReady {
+		newStatus = types.DeploymentInactive
+	} else {
+		newStatus = types.DeploymentPruned
+	}
+	
+
 	// update the previous deployment is_latest to false
-	if err := q.SetDeploymentNotLatest(h.qCtx, service.DeploymentID); err != nil {
+	if err := q.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
+		DeploymentID: service.DeploymentID,
+		Status:       newStatus,
+	}); err != nil {
 		tx.Rollback()
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
@@ -464,11 +481,7 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
 	}
 
-	// end the db transaction and commit
-	if err := tx.Commit(); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
-	}
-
+	fmt.Println("gh app id :", service.GhAppID)
 	// get the github app details
 	ghApp, err := q.GetGhAppByAppId(h.qCtx, service.GhAppID)
 	if err != nil {
@@ -494,6 +507,11 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch domain"})
+	}
+
+	// end the db transaction and commit
+	if err := tx.Commit(); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
 
 	// push a new deployment job to the queue

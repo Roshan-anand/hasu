@@ -49,6 +49,22 @@ func (q *Queries) DeleteDeploymentByID(ctx context.Context, id uuid.UUID) error 
 	return err
 }
 
+const downGradeDeployment = `-- name: DownGradeDeployment :exec
+UPDATE deployments
+SET is_latest = 0, status = ?
+WHERE id = ?
+`
+
+type DownGradeDeploymentParams struct {
+	Status       types.DeploymentStatus `json:"status"`
+	DeploymentID uuid.UUID              `json:"deployment_id"`
+}
+
+func (q *Queries) DownGradeDeployment(ctx context.Context, arg DownGradeDeploymentParams) error {
+	_, err := q.db.ExecContext(ctx, downGradeDeployment, arg.Status, arg.DeploymentID)
+	return err
+}
+
 const getAllDeploymentImgByServiceID = `-- name: GetAllDeploymentImgByServiceID :many
 SELECT d.id, d.image_name
 FROM deployments d
@@ -173,17 +189,6 @@ type SetDeploymentImageNameParams struct {
 
 func (q *Queries) SetDeploymentImageName(ctx context.Context, arg SetDeploymentImageNameParams) error {
 	_, err := q.db.ExecContext(ctx, setDeploymentImageName, arg.ImageName, arg.ID)
-	return err
-}
-
-const setDeploymentNotLatest = `-- name: SetDeploymentNotLatest :exec
-UPDATE deployments
-SET is_latest = 0
-WHERE id = ?1
-`
-
-func (q *Queries) SetDeploymentNotLatest(ctx context.Context, deploymentID uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, setDeploymentNotLatest, deploymentID)
 	return err
 }
 

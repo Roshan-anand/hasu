@@ -101,7 +101,7 @@ export function useUpdateEnvMutation(getServiceId: () => string) {
 export function useRebuildServiceMutation() {
 	return createMutation(() => ({
 		mutationFn: async (payload: { branch_id: string }) =>
-			api.put<ApiRes<string>>('/service/app/rebuild', payload).then((res) => res.data),
+			api.post<ApiRes<string>>('/service/app/rebuild', payload).then((res) => res.data),
 		onSuccess: (res) => {
 			toast.success('successfully rebuild the service');
 			goto(
