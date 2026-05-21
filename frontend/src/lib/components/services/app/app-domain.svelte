@@ -57,7 +57,8 @@
 									const domain = formData.get(domainId);
 									const port = formData.get(portId);
 
-									if (!domain || !port) return;
+									console.log('btn branch is :', branch.branch_id);
+									if (!domain || !port || !branch.branch_id) return;
 									const portnum = Number(port);
 
 									submitDomain(branch.branch_id, domain as string, portnum);

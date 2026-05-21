@@ -39,7 +39,7 @@
 
 - **Services**
   - [x] CRUD for Services.
-  - [ ] Deploy, Stop, Rebuild service.
+  - [x] Deploy, Stop, Rebuild service.
   - [ ] Predefined service templates (PSQL, MongoDB).
   - [x] Application Service template (for user code deployments).
   - [x] Workers logs streaming.
@@ -60,5 +60,5 @@
 - **Github Integration**
   - [x] installation of GitHub App.
   - [x] Fetch the repositories and branches.
-  - [ ] WebHooks to trigger auto-deploy on push.
+  - [x] WebHooks to trigger auto-deploy on push.
   - [ ] Build context management - Cleaning up old build artifacts.

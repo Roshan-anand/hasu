@@ -431,12 +431,6 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch"})
 	}
 
-	// get status of latest deployment of the branch
-	dStatus, err := q.GetDeploymentStatus(h.qCtx, service.DeploymentID)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get deployment status"})
-	}
-
 	// start a new db transaction
 	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
 	if err != nil {
@@ -445,7 +439,7 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 	q = q.WithTx(tx)
 
 	var newStatus types.DeploymentStatus
-	if dStatus == types.DeploymentReady {
+	if service.DeploymentStatus == types.DeploymentReady {
 		newStatus = types.DeploymentInactive
 	} else {
 		newStatus = types.DeploymentPruned

@@ -45,6 +45,7 @@ func (w *worker) PullWorker(ctx context.Context, data chan *deploymentqueue.Pull
 				continue
 			}
 
+			fmt.Println("finished pulling :", d.Url)
 			w.Server.DeploymentQ.EnqueueBuildJob(&deploymentqueue.BuildJobData{
 				Type:              d.Type,
 				DeploymentID:      d.DeploymentID,

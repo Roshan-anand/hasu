@@ -80,11 +80,22 @@ SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
     a.build_path, a.env, a.build_args, a.build_secrets,
     a.docker_filepath, a.docker_contextpath, a.docker_buildstage,
     b.id AS branch_id, b.branch_name, b.swarm_service_name, b.domain, b.port,
-    d.id AS deployment_id
+    d.id AS deployment_id, d.status AS deployment_status
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id
 JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
 WHERE b.id = @branch_id;
+
+-- name: GetAllAppServicesByRepo :many
+SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
+    a.build_path, a.env, a.build_args, a.build_secrets,
+    a.docker_filepath, a.docker_contextpath, a.docker_buildstage,
+    b.id AS branch_id, b.branch_name, b.swarm_service_name, b.domain, b.port,
+    d.id AS deployment_id, d.status AS deployment_status
+FROM app_service a
+JOIN app_service_branch b ON b.service_id = a.id
+JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
+WHERE a.gh_repo_id = ? AND b.branch_name = ?;
 
 -- name: GetSwarmServiceByBranchId :one
 SELECT swarm_service_name
@@ -108,6 +119,7 @@ SET domain = ?, port = ?
 WHERE id = ?;
 
 -- name: GetBranchesDomainByServiceId :many
-SELECT b.id, b.branch_name, b.domain, b.port
+SELECT b.id AS branch_id, b.branch_name, b.domain, b.port
 FROM app_service_branch b
 WHERE b.service_id = ?;
+

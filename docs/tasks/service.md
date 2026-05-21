@@ -18,7 +18,7 @@
 - [x] API to show repo list.
 - [x] API to trigger pull/build/deploy for selected repo.
 - [x] API to stop Application service.
-- [ ] API to rebuild service.
+- [x] API to rebuild service.
 - [x] SSE for build logs.
 - [x] API to get deployed service list.
 - [x] API to get all the deployment list.

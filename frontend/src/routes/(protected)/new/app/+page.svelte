@@ -76,6 +76,12 @@
 			const build_args = value.build_args.split('\n').filter((line) => line.trim() !== '');
 			const build_secrets = value.build_secrets.split('\n').filter((line) => line.trim() !== '');
 
+			console.log('Submitting form with values:', {
+				env,
+				build_args,
+				build_secrets
+			});
+
 			createServiceMutation.mutate({
 				org_id: org_id,
 				name: value.name.trim(),

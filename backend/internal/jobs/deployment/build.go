@@ -94,6 +94,7 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 			// remove the code folder
 			go os.RemoveAll(d.StorePath)
 
+			fmt.Println("finished building :", d.ImgName)
 			switch d.Type {
 			case deploymentqueue.DeployJob:
 				// set a deploy worker

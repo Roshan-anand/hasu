@@ -81,6 +81,7 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	ghPublic := public.Group("/provider/github")
 	ghPublic.GET("/app/callback", h.Git.CreateGithubAppCallback)
 	ghPublic.GET("/app/setup", h.Git.SetupGithubApp)
+	ghPublic.POST("/webhook", h.Git.GithubWebhook)
 
 	return e, nil
 }

@@ -62,7 +62,7 @@ func getManifestData(url string, state string) (string, error) {
 		"name": appName,
 		"url":  url,
 		"hook_attributes": map[string]string{
-			"url": "https://example.com/github/events", // TODO : replace with webhook endpoint URL
+			"url": url + "/api/github/events",
 		},
 		"redirect_url": url + "/api/provider/github/app/callback",
 		// "callback_urls": []string{"http://localhost:8080/api/provider/github/app/callback"},
@@ -106,6 +106,19 @@ type ServiceEnvByte struct {
 	BuildSecrets []byte
 }
 
+// remove all the empty string from the array and return pointer to new array
+func cleanArray(arr *[]string) *[]string {
+	cleaned := make([]string, 0)
+
+	for _, str := range *arr {
+		if str != "" {
+			cleaned = append(cleaned, str)
+		}
+	}
+
+	return &cleaned
+}
+
 // to unmarshal all the evn into array of string
 func UnmarshalServiceEnv(e *ServiceEnvByte) (*ServiceEnvArray, error) {
 	var env []string
@@ -125,9 +138,9 @@ func UnmarshalServiceEnv(e *ServiceEnvByte) (*ServiceEnvArray, error) {
 	}
 
 	return &ServiceEnvArray{
-		Env:          env,
-		BuildArgs:    build_args,
-		BuildSecrets: build_secrets,
+		Env:          *cleanArray(&env),
+		BuildArgs:    *cleanArray(&build_args),
+		BuildSecrets: *cleanArray(&build_secrets),
 	}, nil
 }
 

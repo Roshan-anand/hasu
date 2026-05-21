@@ -2,10 +2,14 @@ package handlers
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,6 +17,7 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
+	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
 	"github.com/Roshan-anand/godploy/internal/lib/auth"
 	"github.com/Roshan-anand/godploy/internal/lib/gh"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
@@ -392,4 +397,173 @@ func (h *GitHandler) GetGithubRepoList(c *echo.Context) error {
 		Message: "",
 		Data:    repos,
 	})
+}
+
+// github webhook handler
+//
+// route: POST /api/provider/github/webhook
+func (h *GitHandler) GithubWebhook(c *echo.Context) error {
+	q := h.Server.DB.Queries
+	req := c.Request()
+	sign := req.Header.Get("X-Hub-Signature-256")
+	if sign == "" {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Missing signature"})
+	}
+
+	appIDStr := req.Header.Get("X-GitHub-Hook-Installation-Target-ID")
+	if appIDStr == "" {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Missing webhook target id"})
+	}
+
+	appID, err := strconv.ParseInt(appIDStr, 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid webhook target id"})
+	}
+
+	ghApp, err := q.GetGhAppByAppId(h.qCtx, appID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.JSON(http.StatusUnauthorized, types.Res[struct{}]{Message: "Unknown webhook target"})
+		}
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to process webhook"})
+	}
+
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid request body"})
+	}
+
+	// Validate signature using webhook secret from DB and constant-time compare.
+	mac := hmac.New(sha256.New, []byte(ghApp.WebhookSecret))
+	mac.Write(body)
+	expectedSign := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+	if !hmac.Equal([]byte(expectedSign), []byte(sign)) {
+		return c.JSON(http.StatusUnauthorized, types.Res[struct{}]{Message: "Invalid signature"})
+	}
+
+	eventType := req.Header.Get("X-GitHub-Event")
+	if eventType == "" {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Missing event type"})
+	}
+
+	event, err := github.ParseWebHook(eventType, body)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid webhook payload"})
+	}
+
+	if eventType == "push" {
+		pushEvent, ok := event.(*github.PushEvent)
+		if !ok {
+			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid push event payload"})
+		}
+
+		repo := pushEvent.GetRepo()
+		branch := strings.TrimPrefix(pushEvent.GetRef(), "refs/heads/")
+
+		services, err := q.GetAllAppServicesByRepo(h.qCtx, db.GetAllAppServicesByRepoParams{
+			GhRepoID:   repo.GetID(),
+			BranchName: branch,
+		})
+		if err != nil {
+			fmt.Println("error getting branch by repo : ", err)
+			return nil
+		}
+
+		// TODO : make downgraddeployment, creatdeployment, generting gh token, unmarshiling env actions inside the worker as it is a redundant process
+		for _, s := range services {
+			fmt.Println("starting webhook job for :", s.Name, s.BranchName)
+			// TODO : check if watch path matches the pushed code commit
+
+			// start a new db transaction
+			tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
+			if err != nil {
+				fmt.Println("Error starting transaction:", err)
+				return nil
+			}
+			q = q.WithTx(tx)
+
+			var newStatus types.DeploymentStatus
+			if s.DeploymentStatus == types.DeploymentReady {
+				newStatus = types.DeploymentInactive
+			} else {
+				newStatus = types.DeploymentPruned
+			}
+
+			// update the previous deployment is_latest to false
+			if err := q.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
+				DeploymentID: s.DeploymentID,
+				Status:       newStatus,
+			}); err != nil {
+				tx.Rollback()
+				fmt.Println("Error downgrading previous deployment:", err)
+				return nil
+			}
+
+			// create a new deployment
+			dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
+				ID:        security.GeneratePrimaryKey(),
+				BranchID:  s.BranchID,
+				CommitMsg: "s",
+				IsLatest:  true,
+			})
+			if err != nil {
+				tx.Rollback()
+				fmt.Println("Error creating deployment:", err)
+				return nil
+			}
+
+			// get the github app details
+			ghApp, err := q.GetGhAppByAppId(h.qCtx, s.GhAppID)
+			if err != nil {
+				fmt.Println("Error fetching github app details:", err)
+				return nil
+			}
+
+			// get gh token
+			token, err := gh.GetGhToken(ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
+			if err != nil {
+				fmt.Println("Error generating github token:", err)
+				return nil
+			}
+
+			// used as uniquecontainer name and code storing path
+			imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", s.Name, s.BranchName, security.GenerateRandomID(6)))
+
+			envStr, err := UnmarshalServiceEnv(&ServiceEnvByte{
+				Env:          s.Env,
+				BuildArgs:    s.BuildArgs,
+				BuildSecrets: s.BuildSecrets,
+			})
+			if err != nil {
+				fmt.Println("Error unmarshaling service env:", err)
+				return nil
+			}
+
+			if err := tx.Commit(); err != nil {
+				fmt.Println("Error committing transaction:", err)
+				return nil
+			}
+
+			// push a new deployment job to the queue
+			h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
+				Type:              deploymentqueue.RebuildJob,
+				DeploymentID:      dID,
+				Token:             token,
+				Url:               s.GhRepoUrl,
+				Branch:            s.BranchName,
+				SwarmServiceName:  s.SwarmServiceName,
+				BuildPath:         s.BuildPath,
+				DockerFilePath:    s.DockerFilepath,
+				DockerContextPath: s.DockerContextpath,
+				DockerBuildStage:  s.DockerBuildstage,
+				ImgName:           imgName,
+				Env:               envStr.Env,
+				BuildArgs:         envStr.BuildArgs,
+				BuildSecrets:      envStr.BuildSecrets,
+			})
+
+		}
+	}
+
+	return nil
 }

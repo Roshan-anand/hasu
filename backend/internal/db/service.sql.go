@@ -152,6 +152,86 @@ func (q *Queries) DeletePsqlService(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const getAllAppServicesByRepo = `-- name: GetAllAppServicesByRepo :many
+SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
+    a.build_path, a.env, a.build_args, a.build_secrets,
+    a.docker_filepath, a.docker_contextpath, a.docker_buildstage,
+    b.id AS branch_id, b.branch_name, b.swarm_service_name, b.domain, b.port,
+    d.id AS deployment_id, d.status AS deployment_status
+FROM app_service a
+JOIN app_service_branch b ON b.service_id = a.id
+JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
+WHERE a.gh_repo_id = ? AND b.branch_name = ?
+`
+
+type GetAllAppServicesByRepoParams struct {
+	GhRepoID   int64  `json:"gh_repo_id"`
+	BranchName string `json:"branch_name"`
+}
+
+type GetAllAppServicesByRepoRow struct {
+	ServiceID         uuid.UUID              `json:"service_id"`
+	Name              string                 `json:"name"`
+	GhRepoUrl         string                 `json:"gh_repo_url"`
+	GhAppID           int64                  `json:"gh_app_id"`
+	BuildPath         string                 `json:"build_path"`
+	Env               []byte                 `json:"env"`
+	BuildArgs         []byte                 `json:"build_args"`
+	BuildSecrets      []byte                 `json:"build_secrets"`
+	DockerFilepath    string                 `json:"docker_filepath"`
+	DockerContextpath string                 `json:"docker_contextpath"`
+	DockerBuildstage  string                 `json:"docker_buildstage"`
+	BranchID          uuid.UUID              `json:"branch_id"`
+	BranchName        string                 `json:"branch_name"`
+	SwarmServiceName  string                 `json:"swarm_service_name"`
+	Domain            string                 `json:"domain"`
+	Port              int32                  `json:"port"`
+	DeploymentID      uuid.UUID              `json:"deployment_id"`
+	DeploymentStatus  types.DeploymentStatus `json:"deployment_status"`
+}
+
+func (q *Queries) GetAllAppServicesByRepo(ctx context.Context, arg GetAllAppServicesByRepoParams) ([]GetAllAppServicesByRepoRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllAppServicesByRepo, arg.GhRepoID, arg.BranchName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllAppServicesByRepoRow
+	for rows.Next() {
+		var i GetAllAppServicesByRepoRow
+		if err := rows.Scan(
+			&i.ServiceID,
+			&i.Name,
+			&i.GhRepoUrl,
+			&i.GhAppID,
+			&i.BuildPath,
+			&i.Env,
+			&i.BuildArgs,
+			&i.BuildSecrets,
+			&i.DockerFilepath,
+			&i.DockerContextpath,
+			&i.DockerBuildstage,
+			&i.BranchID,
+			&i.BranchName,
+			&i.SwarmServiceName,
+			&i.Domain,
+			&i.Port,
+			&i.DeploymentID,
+			&i.DeploymentStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAllService = `-- name: GetAllService :many
 SELECT ps.id, ps.type, ps.name, '' AS gh_repo_name, '' AS gh_repo_url, '' AS git_provider, '' AS branch_name, ps.created_at
 FROM psql_service ps
@@ -276,7 +356,7 @@ SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
     a.build_path, a.env, a.build_args, a.build_secrets,
     a.docker_filepath, a.docker_contextpath, a.docker_buildstage,
     b.id AS branch_id, b.branch_name, b.swarm_service_name, b.domain, b.port,
-    d.id AS deployment_id
+    d.id AS deployment_id, d.status AS deployment_status
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id
 JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
@@ -284,23 +364,24 @@ WHERE b.id = ?1
 `
 
 type GetAppServiceByBranchIdRow struct {
-	ServiceID         uuid.UUID `json:"service_id"`
-	Name              string    `json:"name"`
-	GhRepoUrl         string    `json:"gh_repo_url"`
-	GhAppID           int64     `json:"gh_app_id"`
-	BuildPath         string    `json:"build_path"`
-	Env               []byte    `json:"env"`
-	BuildArgs         []byte    `json:"build_args"`
-	BuildSecrets      []byte    `json:"build_secrets"`
-	DockerFilepath    string    `json:"docker_filepath"`
-	DockerContextpath string    `json:"docker_contextpath"`
-	DockerBuildstage  string    `json:"docker_buildstage"`
-	BranchID          uuid.UUID `json:"branch_id"`
-	BranchName        string    `json:"branch_name"`
-	SwarmServiceName  string    `json:"swarm_service_name"`
-	Domain            string    `json:"domain"`
-	Port              int32     `json:"port"`
-	DeploymentID      uuid.UUID `json:"deployment_id"`
+	ServiceID         uuid.UUID              `json:"service_id"`
+	Name              string                 `json:"name"`
+	GhRepoUrl         string                 `json:"gh_repo_url"`
+	GhAppID           int64                  `json:"gh_app_id"`
+	BuildPath         string                 `json:"build_path"`
+	Env               []byte                 `json:"env"`
+	BuildArgs         []byte                 `json:"build_args"`
+	BuildSecrets      []byte                 `json:"build_secrets"`
+	DockerFilepath    string                 `json:"docker_filepath"`
+	DockerContextpath string                 `json:"docker_contextpath"`
+	DockerBuildstage  string                 `json:"docker_buildstage"`
+	BranchID          uuid.UUID              `json:"branch_id"`
+	BranchName        string                 `json:"branch_name"`
+	SwarmServiceName  string                 `json:"swarm_service_name"`
+	Domain            string                 `json:"domain"`
+	Port              int32                  `json:"port"`
+	DeploymentID      uuid.UUID              `json:"deployment_id"`
+	DeploymentStatus  types.DeploymentStatus `json:"deployment_status"`
 }
 
 func (q *Queries) GetAppServiceByBranchId(ctx context.Context, branchID uuid.UUID) (GetAppServiceByBranchIdRow, error) {
@@ -324,6 +405,7 @@ func (q *Queries) GetAppServiceByBranchId(ctx context.Context, branchID uuid.UUI
 		&i.Domain,
 		&i.Port,
 		&i.DeploymentID,
+		&i.DeploymentStatus,
 	)
 	return i, err
 }
@@ -372,13 +454,13 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppSe
 }
 
 const getBranchesDomainByServiceId = `-- name: GetBranchesDomainByServiceId :many
-SELECT b.id, b.branch_name, b.domain, b.port
+SELECT b.id AS branch_id, b.branch_name, b.domain, b.port
 FROM app_service_branch b
 WHERE b.service_id = ?
 `
 
 type GetBranchesDomainByServiceIdRow struct {
-	ID         uuid.UUID `json:"id"`
+	BranchID   uuid.UUID `json:"branch_id"`
 	BranchName string    `json:"branch_name"`
 	Domain     string    `json:"domain"`
 	Port       int32     `json:"port"`
@@ -394,7 +476,7 @@ func (q *Queries) GetBranchesDomainByServiceId(ctx context.Context, serviceID uu
 	for rows.Next() {
 		var i GetBranchesDomainByServiceIdRow
 		if err := rows.Scan(
-			&i.ID,
+			&i.BranchID,
 			&i.BranchName,
 			&i.Domain,
 			&i.Port,
