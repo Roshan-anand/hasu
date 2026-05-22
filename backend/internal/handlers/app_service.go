@@ -13,6 +13,7 @@ import (
 	"github.com/Roshan-anand/godploy/internal/lib/gh"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
+	"github.com/google/go-github/v84/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/moby/moby/client"
@@ -100,6 +101,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github client"})
 	}
 
+	// get the github repository details
 	repo, _, err := ghClient.Repositories.GetByID(context.Background(), b.GhRepoID)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch repository info from github"})
@@ -108,6 +110,23 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	repoName := repo.GetFullName()
 	repoURL := repo.GetHTMLURL()
 	defaultBranch := repo.GetDefaultBranch()
+	owner := repo.GetOwner().GetLogin()
+	repoShortName := repo.GetName()
+
+	// get the latest commit info of the default branch
+	commits, _, err := ghClient.Repositories.ListCommits(context.Background(), owner, repoShortName, &github.CommitsListOptions{
+		SHA: defaultBranch,
+		ListOptions: github.ListOptions{
+			PerPage: 1,
+			Page:    1,
+		},
+	})
+	if err != nil || len(commits) == 0 {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch latest commit info from github"})
+	}
+
+	latestCommitHash := commits[0].GetSHA()
+	latestCommitMsg := commits[0].GetCommit().GetMessage()
 
 	// parse url
 	u, err := url.Parse(repoURL)
@@ -180,13 +199,13 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service branch"})
 	}
 
-	// TODO : get commit msg from client side
 	// create a new deployment for the app service
 	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
-		ID:        security.GeneratePrimaryKey(),
-		BranchID:  branchID,
-		CommitMsg: "s",
-		IsCurrent: true,
+		ID:         security.GeneratePrimaryKey(),
+		BranchID:   branchID,
+		CommitHash: latestCommitHash,
+		CommitMsg:  latestCommitMsg,
+		IsCurrent:  true,
 	})
 	if err != nil {
 		tx.Rollback()

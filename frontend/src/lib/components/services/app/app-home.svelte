@@ -46,7 +46,6 @@
 
 					<div>
 						<Button
-							class="ml-auto"
 							onclick={() =>
 								rebuildService.mutate({
 									branch_id

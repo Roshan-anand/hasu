@@ -45,13 +45,14 @@ type AppServiceBranch struct {
 }
 
 type Deployment struct {
-	ID        uuid.UUID              `json:"id"`
-	IsCurrent bool                   `json:"is_current"`
-	BranchID  uuid.UUID              `json:"branch_id"`
-	Status    types.DeploymentStatus `json:"status"`
-	CommitMsg string                 `json:"commit_msg"`
-	ImageName sql.NullString         `json:"image_name"`
-	CreatedAt time.Time              `json:"created_at"`
+	ID         uuid.UUID              `json:"id"`
+	IsCurrent  bool                   `json:"is_current"`
+	BranchID   uuid.UUID              `json:"branch_id"`
+	Status     types.DeploymentStatus `json:"status"`
+	CommitHash string                 `json:"commit_hash"`
+	CommitMsg  string                 `json:"commit_msg"`
+	ImageName  sql.NullString         `json:"image_name"`
+	CreatedAt  time.Time              `json:"created_at"`
 }
 
 type GithubApp struct {

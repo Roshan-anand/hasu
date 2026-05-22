@@ -76,7 +76,7 @@ VALUES (?, ?, ?, ?, ?, 80)
 RETURNING id;
 
 -- name: GetAppServiceByBranchId :one
-SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
+SELECT a.id AS service_id, a.name,a.gh_repo_id, a.gh_repo_url, a.gh_app_id,
     a.build_path, a.env, a.build_args, a.build_secrets,
     a.docker_filepath, a.docker_contextpath, a.docker_buildstage,
     b.id AS branch_id, b.branch_name, b.swarm_service_name, b.domain, b.port,

@@ -501,10 +501,11 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 
 			// create a new deployment
 			dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
-				ID:        security.GeneratePrimaryKey(),
-				BranchID:  s.BranchID,
-				CommitMsg: "s",
-				IsCurrent: true,
+				ID:         security.GeneratePrimaryKey(),
+				BranchID:   s.BranchID,
+				CommitHash: pushEvent.GetAfter(),
+				CommitMsg:  pushEvent.GetHeadCommit().GetMessage(),
+				IsCurrent:  true,
 			})
 			if err != nil {
 				tx.Rollback()

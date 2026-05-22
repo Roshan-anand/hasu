@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS deployments (
     is_current BOOLEAN NOT NULL,
     branch_id uuid NOT NULL REFERENCES app_service_branch(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'queued',
+    commit_hash TEXT NOT NULL,
     commit_msg TEXT NOT NULL,
     image_name TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL

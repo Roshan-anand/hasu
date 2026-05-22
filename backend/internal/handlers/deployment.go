@@ -15,6 +15,7 @@ import (
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/sse"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
+	"github.com/google/go-github/v84/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 )
@@ -137,19 +138,22 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch"})
 	}
 
+	var newStatus types.DeploymentStatus
+	switch service.DeploymentStatus {
+	case types.DeploymentQueued, types.DeploymentBuilding:
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Deployment is in progress, cannot rebuild now"})
+	case types.DeploymentReady:
+		newStatus = types.DeploymentInactive
+	default:
+		newStatus = types.DeploymentPruned
+	}
+
 	// start a new db transaction
 	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
 	q = q.WithTx(tx)
-
-	var newStatus types.DeploymentStatus
-	if service.DeploymentStatus == types.DeploymentReady {
-		newStatus = types.DeploymentInactive
-	} else {
-		newStatus = types.DeploymentPruned
-	}
 
 	// update the previous deployment is_latest to false
 	if err := q.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
@@ -160,19 +164,6 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
 
-	// TODO : get commit msg from client side
-	// create a new deployment for the app service
-	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
-		ID:        security.GeneratePrimaryKey(),
-		BranchID:  service.BranchID,
-		CommitMsg: "s",
-		IsCurrent: true,
-	})
-	if err != nil {
-		tx.Rollback()
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
-	}
-
 	// get the github app details
 	ghApp, err := q.GetGhAppByAppId(h.qCtx, service.GhAppID)
 	if err != nil {
@@ -180,6 +171,50 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid github app"})
 		}
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to verify github app"})
+	}
+
+	// get teh gh client
+	ghClient, err := gh.CreateGithubClient(context.Background(), ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github client"})
+	}
+
+	// get the github repository details
+	repo, _, err := ghClient.Repositories.GetByID(context.Background(), service.GhRepoID)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch repository info from github"})
+	}
+
+	owner := repo.GetOwner().GetLogin()
+	repoShortName := repo.GetName()
+
+	// get the latest commit info of the default branch
+	commits, _, err := ghClient.Repositories.ListCommits(context.Background(), owner, repoShortName, &github.CommitsListOptions{
+		SHA: service.BranchName,
+		ListOptions: github.ListOptions{
+			PerPage: 1,
+			Page:    1,
+		},
+	})
+	if err != nil || len(commits) == 0 {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch latest commit info from github"})
+	}
+
+	latestCommitHash := commits[0].GetSHA()
+	latestCommitMsg := commits[0].GetCommit().GetMessage()
+
+	// TODO : get commit msg from client side
+	// create a new deployment for the app service
+	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
+		ID:         security.GeneratePrimaryKey(),
+		BranchID:   service.BranchID,
+		CommitMsg:  latestCommitMsg,
+		CommitHash: latestCommitHash,
+		IsCurrent:  true,
+	})
+	if err != nil {
+		tx.Rollback()
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
 	}
 
 	// get gh token
@@ -246,6 +281,11 @@ func (h *ServiceHandler) RollbackAppService(c *echo.Context) error {
 	for i, d := range deployments {
 		// check if there is a old deployment after an active deployment to rollback.
 		if d.IsCurrent && i+1 < len(deployments) {
+
+			if d.Status == types.DeploymentQueued || d.Status == types.DeploymentBuilding {
+				return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Deployment is in progress, cannot rollback now"})
+			}
+
 			tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to start rollback"})
