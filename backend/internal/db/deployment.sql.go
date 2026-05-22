@@ -15,7 +15,7 @@ import (
 )
 
 const createDeployment = `-- name: CreateDeployment :one
-INSERT INTO deployments (id, branch_id, commit_msg, is_latest)
+INSERT INTO deployments (id, branch_id, commit_msg, is_current)
 VALUES (?, ?, ?, ?)
 RETURNING id
 `
@@ -24,7 +24,7 @@ type CreateDeploymentParams struct {
 	ID        uuid.UUID `json:"id"`
 	BranchID  uuid.UUID `json:"branch_id"`
 	CommitMsg string    `json:"commit_msg"`
-	IsLatest  bool      `json:"is_latest"`
+	IsCurrent bool      `json:"is_current"`
 }
 
 func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error) {
@@ -32,7 +32,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.ID,
 		arg.BranchID,
 		arg.CommitMsg,
-		arg.IsLatest,
+		arg.IsCurrent,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -51,7 +51,7 @@ func (q *Queries) DeleteDeploymentByID(ctx context.Context, id uuid.UUID) error 
 
 const downGradeDeployment = `-- name: DownGradeDeployment :exec
 UPDATE deployments
-SET is_latest = 0, status = ?
+SET is_current = 0, status = ?
 WHERE id = ?
 `
 
@@ -131,6 +131,51 @@ func (q *Queries) GetDeploymentStatus(ctx context.Context, id uuid.UUID) (types.
 	return status, err
 }
 
+const getDeploymentsByBranchID = `-- name: GetDeploymentsByBranchID :many
+SELECT d.id, d.is_current, d.image_name, d.status, b.swarm_service_name
+FROM deployments d
+JOIN app_service_branch b ON d.branch_id = b.id
+WHERE d.branch_id = ?
+ORDER BY d.created_at DESC
+`
+
+type GetDeploymentsByBranchIDRow struct {
+	ID               uuid.UUID              `json:"id"`
+	IsCurrent        bool                   `json:"is_current"`
+	ImageName        sql.NullString         `json:"image_name"`
+	Status           types.DeploymentStatus `json:"status"`
+	SwarmServiceName string                 `json:"swarm_service_name"`
+}
+
+func (q *Queries) GetDeploymentsByBranchID(ctx context.Context, branchID uuid.UUID) ([]GetDeploymentsByBranchIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDeploymentsByBranchID, branchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDeploymentsByBranchIDRow
+	for rows.Next() {
+		var i GetDeploymentsByBranchIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.IsCurrent,
+			&i.ImageName,
+			&i.Status,
+			&i.SwarmServiceName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getDeploymentsByServiceID = `-- name: GetDeploymentsByServiceID :many
 SELECT d.id, d.status, d.commit_msg, b.branch_name, d.created_at
 FROM deployments d
@@ -205,5 +250,21 @@ type UpdateDeploymentStatusParams struct {
 
 func (q *Queries) UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error {
 	_, err := q.db.ExecContext(ctx, updateDeploymentStatus, arg.Status, arg.ID)
+	return err
+}
+
+const upgradeDeployment = `-- name: UpgradeDeployment :exec
+UPDATE deployments
+SET is_current = 1, status = ?
+WHERE id = ?
+`
+
+type UpgradeDeploymentParams struct {
+	Status       types.DeploymentStatus `json:"status"`
+	DeploymentID uuid.UUID              `json:"deployment_id"`
+}
+
+func (q *Queries) UpgradeDeployment(ctx context.Context, arg UpgradeDeploymentParams) error {
+	_, err := q.db.ExecContext(ctx, upgradeDeployment, arg.Status, arg.DeploymentID)
 	return err
 }

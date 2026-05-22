@@ -108,7 +108,7 @@ func InitDb(dir string) (*DataBase, error) {
 
 	queries := db.New(pool) // get query instance from sqlc generated code
 
-	fmt.Println("database connection established ...") //TODO : replace with proper logging
+	fmt.Println("database connection established ...") // TODO : replace with proper logging
 	return &DataBase{
 		Pool:    pool,
 		Queries: queries,

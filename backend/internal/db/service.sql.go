@@ -160,7 +160,7 @@ SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
     d.id AS deployment_id, d.status AS deployment_status
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id
-JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
+JOIN deployments d ON d.branch_id = b.id AND d.is_current = 1
 WHERE a.gh_repo_id = ? AND b.branch_name = ?
 `
 
@@ -359,7 +359,7 @@ SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
     d.id AS deployment_id, d.status AS deployment_status
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id
-JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
+JOIN deployments d ON d.branch_id = b.id AND d.is_current = 1
 WHERE b.id = ?1
 `
 
@@ -418,7 +418,7 @@ SELECT
     a.created_at
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch = 1
-JOIN deployments d ON d.branch_id = b.id AND d.is_latest = 1
+JOIN deployments d ON d.branch_id = b.id AND d.is_current = 1
 WHERE a.id = ?
 `
 

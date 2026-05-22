@@ -61,6 +61,10 @@ type RebuildServiceReq struct {
 	BranchID uuid.UUID `json:"branch_id" validate:"required"`
 }
 
+type RoolbackServiceReq struct {
+	BranchID uuid.UUID `json:"branch_id" validate:"required"`
+}
+
 // create a new app service
 //
 // route: POST /api/service/app
@@ -115,6 +119,11 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	// used as uniquecontainer name and code storing path
 	serviceName := fmt.Sprintf("%s-%s-%s", b.Name, defaultBranch, security.GenerateRandomID(6))
 	imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", b.Name, defaultBranch, security.GenerateRandomID(6)))
+
+	// clear the evnironment array
+	b.Env = cleanArray(b.Env)
+	b.BuildArgs = cleanArray(b.BuildArgs)
+	b.BuildSecrets = cleanArray(b.BuildSecrets)
 
 	// convert into bytes
 	envByte, err := MarshalServiceEnv(&ServiceEnvArray{
@@ -177,7 +186,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		ID:        security.GeneratePrimaryKey(),
 		BranchID:  branchID,
 		CommitMsg: "s",
-		IsLatest:  true,
+		IsCurrent: true,
 	})
 	if err != nil {
 		tx.Rollback()
@@ -193,6 +202,8 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github token"})
 	}
+
+	fmt.Println("env :", len(b.Env), b.Env)
 
 	// push a new deployment job to the queue
 	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
@@ -229,6 +240,7 @@ func (h *ServiceHandler) GetAppServiceById(c *echo.Context) error {
 
 	service, err := h.Server.DB.Queries.GetAppServiceById(h.qCtx, serviceID)
 	if err != nil {
+		fmt.Printf("Failed to get service by id: %v\n", err)
 		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
 	}
 
@@ -391,6 +403,11 @@ func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
 		}
 	}
 
+	// clear the evnironment array
+	b.Env = cleanArray(b.Env)
+	b.BuildArgs = cleanArray(b.BuildArgs)
+	b.BuildSecrets = cleanArray(b.BuildSecrets)
+
 	// convert into bytes
 	envBytes, err := MarshalServiceEnv(&ServiceEnvArray{
 		Env:          b.Env,
@@ -412,112 +429,6 @@ func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "Successfully updated env"})
-}
-
-// NEXT_PUBLIC_TEST_ARGS
-// create a new app service
-//
-// route: POST /api/service/app/rebuild
-func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
-	b := new(RebuildServiceReq)
-	q := h.Server.DB.Queries
-
-	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
-		return c.JSON(http.StatusBadRequest, Res)
-	}
-
-	service, err := q.GetAppServiceByBranchId(h.qCtx, b.BranchID)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch"})
-	}
-
-	// start a new db transaction
-	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
-	}
-	q = q.WithTx(tx)
-
-	var newStatus types.DeploymentStatus
-	if service.DeploymentStatus == types.DeploymentReady {
-		newStatus = types.DeploymentInactive
-	} else {
-		newStatus = types.DeploymentPruned
-	}
-
-	// update the previous deployment is_latest to false
-	if err := q.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
-		DeploymentID: service.DeploymentID,
-		Status:       newStatus,
-	}); err != nil {
-		tx.Rollback()
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
-	}
-
-	// TODO : get commit msg from client side
-	// create a new deployment for the app service
-	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
-		ID:        security.GeneratePrimaryKey(),
-		BranchID:  service.BranchID,
-		CommitMsg: "s",
-		IsLatest:  true,
-	})
-	if err != nil {
-		tx.Rollback()
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
-	}
-
-	// get the github app details
-	ghApp, err := q.GetGhAppByAppId(h.qCtx, service.GhAppID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid github app"})
-		}
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to verify github app"})
-	}
-
-	// get gh token
-	token, err := gh.GetGhToken(ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github token"})
-	}
-
-	// used as uniquecontainer name and code storing path
-	imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", service.Name, service.BranchName, security.GenerateRandomID(6)))
-
-	envStr, err := UnmarshalServiceEnv(&ServiceEnvByte{
-		Env:          service.Env,
-		BuildArgs:    service.BuildArgs,
-		BuildSecrets: service.BuildSecrets,
-	})
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch domain"})
-	}
-
-	// end the db transaction and commit
-	if err := tx.Commit(); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
-	}
-
-	// push a new deployment job to the queue
-	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
-		Type:              deploymentqueue.RebuildJob,
-		DeploymentID:      dID,
-		Token:             token,
-		Url:               service.GhRepoUrl,
-		Branch:            service.BranchName,
-		SwarmServiceName:  service.SwarmServiceName,
-		BuildPath:         service.BuildPath,
-		DockerFilePath:    service.DockerFilepath,
-		DockerContextPath: service.DockerContextpath,
-		DockerBuildStage:  service.DockerBuildstage,
-		ImgName:           imgName,
-		Env:               envStr.Env,
-		BuildArgs:         envStr.BuildArgs,
-		BuildSecrets:      envStr.BuildSecrets,
-	})
-
-	return c.JSON(http.StatusOK, types.Res[uuid.UUID]{Message: "Successfully updated env", Data: service.ServiceID})
 }
 
 // delete app service

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
@@ -107,16 +108,10 @@ type ServiceEnvByte struct {
 }
 
 // remove all the empty string from the array and return pointer to new array
-func cleanArray(arr *[]string) *[]string {
-	cleaned := make([]string, 0)
-
-	for _, str := range *arr {
-		if str != "" {
-			cleaned = append(cleaned, str)
-		}
-	}
-
-	return &cleaned
+func cleanArray(arr []string) []string {
+	return slices.DeleteFunc(arr, func(s string) bool {
+		return s == ""
+	})
 }
 
 // to unmarshal all the evn into array of string
@@ -138,9 +133,9 @@ func UnmarshalServiceEnv(e *ServiceEnvByte) (*ServiceEnvArray, error) {
 	}
 
 	return &ServiceEnvArray{
-		Env:          *cleanArray(&env),
-		BuildArgs:    *cleanArray(&build_args),
-		BuildSecrets: *cleanArray(&build_secrets),
+		Env:          cleanArray(env),
+		BuildArgs:    cleanArray(build_args),
+		BuildSecrets: cleanArray(build_secrets),
 	}, nil
 }
 

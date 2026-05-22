@@ -13,6 +13,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v5 v5.0.0
+	github.com/mattn/go-sqlite3 v1.14.33
 	github.com/moby/moby/api v1.53.0
 	github.com/moby/moby/client v0.2.2
 	golang.org/x/crypto v0.49.0
@@ -39,7 +40,6 @@ require (
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/mattn/go-sqlite3 v1.14.33 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect

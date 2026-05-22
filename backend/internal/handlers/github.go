@@ -504,7 +504,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 				ID:        security.GeneratePrimaryKey(),
 				BranchID:  s.BranchID,
 				CommitMsg: "s",
-				IsLatest:  true,
+				IsCurrent: true,
 			})
 			if err != nil {
 				tx.Rollback()

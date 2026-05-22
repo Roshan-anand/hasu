@@ -97,20 +97,3 @@ export function useUpdateEnvMutation(getServiceId: () => string) {
 		onError: (error) => axiosErr(error as Error, 'Failed to update env')
 	}));
 }
-
-export function useRebuildServiceMutation() {
-	return createMutation(() => ({
-		mutationFn: async (payload: { branch_id: string }) =>
-			api.post<ApiRes<string>>('/service/app/rebuild', payload).then((res) => res.data),
-		onSuccess: (res) => {
-			toast.success('successfully rebuild the service');
-			goto(
-				resolve('/(protected)/(core)/[service_type]/[service_id]?tab=deployment', {
-					service_type: 'app' as ServiceType,
-					service_id: res.data
-				})
-			);
-		},
-		onError: (error) => axiosErr(error as Error, 'Failed to rebuild the service')
-	}));
-}

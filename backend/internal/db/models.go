@@ -46,7 +46,7 @@ type AppServiceBranch struct {
 
 type Deployment struct {
 	ID        uuid.UUID              `json:"id"`
-	IsLatest  bool                   `json:"is_latest"`
+	IsCurrent bool                   `json:"is_current"`
 	BranchID  uuid.UUID              `json:"branch_id"`
 	Status    types.DeploymentStatus `json:"status"`
 	CommitMsg string                 `json:"commit_msg"`

@@ -7,13 +7,17 @@
 	import AppLogs from './app-logs.svelte';
 	import { ChevronRight, ChevronDown } from '@lucide/svelte';
 	import { Button } from '@/components/ui/button';
-	import { useRebuildServiceMutation } from '@/features/services/mutation.svelte';
+	import {
+		useRebuildServiceMutation,
+		useRollbackServiceMutation
+	} from '@/features/deployments/mutation.svelte';
 
 	let { serviceId }: { serviceId: string } = $props();
 
 	// query to fetch service details based on service type and id
 	const serviceQuery = useGetServiceDetailsQuery(() => serviceId);
 	const rebuildService = useRebuildServiceMutation();
+	const rollBackService = useRollbackServiceMutation();
 
 	let open = $state(false);
 </script>
@@ -31,21 +35,32 @@
 	<Card class="flex-1 mb-5">
 		<CardContent>
 			<div class="flex flex-col gap-1 px-1">
-				<h3 class="text-2xl font-bold flex items-center gap-1">
-					<Icon icon="icon-park-outline:dot" class="text-green-500" />
-					<span>
-						{name}
-					</span>
-					<span class="bg-muted text-muted-foreground px-1 rounded-md">Production</span>
+				<h3 class="font-bold flex justify-between items-center">
+					<div class="flex items-center gap-2 text-2xl">
+						<Icon icon="icon-park-outline:dot" class="text-green-500" />
+						<span>
+							{name}
+						</span>
+						<span class="bg-muted text-muted-foreground px-1 rounded-md">Production</span>
+					</div>
 
-					<Button
-						class="ml-auto"
-						onclick={() =>
-							rebuildService.mutate({
-								branch_id
-							})}
-						disabled={rebuildService.isPending}>Redeploy</Button
-					>
+					<div>
+						<Button
+							class="ml-auto"
+							onclick={() =>
+								rebuildService.mutate({
+									branch_id
+								})}
+							disabled={rebuildService.isPending}>Redeploy</Button
+						>
+						<Button
+							onclick={() =>
+								rollBackService.mutate({
+									branch_id
+								})}
+							disabled={rollBackService.isPending}>Rollback</Button
+						>
+					</div>
 				</h3>
 				<p class="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
 					<Icon icon="mingcute:git-branch-line" />

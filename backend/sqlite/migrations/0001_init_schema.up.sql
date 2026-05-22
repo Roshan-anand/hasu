@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS app_service_branch (
 
 CREATE TABLE IF NOT EXISTS deployments (
     id uuid PRIMARY KEY,
-    is_latest BOOLEAN NOT NULL,
+    is_current BOOLEAN NOT NULL,
     branch_id uuid NOT NULL REFERENCES app_service_branch(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'queued',
     commit_msg TEXT NOT NULL,

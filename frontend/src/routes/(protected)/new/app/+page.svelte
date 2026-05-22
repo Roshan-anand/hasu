@@ -50,6 +50,8 @@
 			}
 		} as CreateAppServiceForm,
 		onSubmit: ({ value }) => {
+			console.log('Form submit triggerd');
+
 			if (org_id === '') {
 				toast.error('Please select an organization');
 				return;
@@ -75,12 +77,6 @@
 			const env = value.env.split('\n').filter((line) => line.trim() !== '');
 			const build_args = value.build_args.split('\n').filter((line) => line.trim() !== '');
 			const build_secrets = value.build_secrets.split('\n').filter((line) => line.trim() !== '');
-
-			console.log('Submitting form with values:', {
-				env,
-				build_args,
-				build_secrets
-			});
 
 			createServiceMutation.mutate({
 				org_id: org_id,

@@ -38,7 +38,9 @@ func (w *worker) ReDeployWorker(ctx context.Context, data chan *deploymentqueue.
 
 			// update the image and env
 			spec.TaskTemplate.ContainerSpec.Image = d.ImgName
-			spec.TaskTemplate.ContainerSpec.Env = d.Env
+			if len(d.Env) > 0 {
+				spec.TaskTemplate.ContainerSpec.Env = d.Env
+			}
 
 			// update the service with the new spec
 			if _, err := docker.ServiceUpdate(w.qCtx, d.SwarmServiceName, client.ServiceUpdateOptions{

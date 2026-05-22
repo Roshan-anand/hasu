@@ -27,6 +27,7 @@
 - [ ] test for application service lifecycle
 - [ ] rememberMe functionality for login
 - [x] make separate create page for app and DB service.
+- [ ] use tiptap SDK for editor like ui for env management. [medium, ui]
 
 ## enhancements
 

@@ -61,8 +61,6 @@ func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.De
 
 			// if env avalable
 			if len(d.Env) > 0 {
-				fmt.Println("env len :", len(d.Env))
-				fmt.Println("env val :", d.Env)
 				spec.TaskTemplate.ContainerSpec.Env = d.Env
 			}
 

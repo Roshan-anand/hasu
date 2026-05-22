@@ -72,6 +72,7 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	app.GET("/env", h.Service.GetServiceEnv)
 	app.PUT("/env", h.Service.UpdateAppServiceEnv)
 	app.POST("/rebuild", h.Service.RebuildAppService)
+	app.POST("/rollback", h.Service.RollbackAppService)
 
 	gh := protected.Group("/provider/github")
 	gh.GET("/app/create", h.Git.CreateGithubApp)
