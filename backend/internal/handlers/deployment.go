@@ -97,7 +97,6 @@ func (h *ServiceHandler) SubscribeServiceDeploymentLogs(c *echo.Context) error {
 
 	// if deployment is not in queued or building stage, then stream logs from badgerDB
 	if status != types.DeploymentQueued && status != types.DeploymentBuilding {
-		fmt.Println("streaming logs from badger db")
 		if err := h.Server.BadgerDB.StreamAllLogsByDeploymentID(dID, sse); err != nil {
 			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to stream logs"})
 		}

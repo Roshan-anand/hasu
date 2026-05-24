@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 
@@ -158,12 +159,16 @@ func GetDummyServerHandler() (*config.Server, *handlers.Handler, error) {
 	return server, h, nil
 }
 
-func TestEchoHandler(t *testing.T, h echo.HandlerFunc, body any, isAuth bool) (*httptest.ResponseRecorder, error) {
+func TestEchoHandler(t *testing.T, h echo.HandlerFunc, body any, isAuth bool, query url.Values) (*httptest.ResponseRecorder, error) {
 
 	config := echotest.ContextConfig{
 		Headers: map[string][]string{
 			echo.HeaderContentType: {echo.MIMEApplicationJSON},
 		},
+	}
+
+	if query != nil {
+		config.QueryValues = query
 	}
 
 	if body != nil {
@@ -203,7 +208,7 @@ var registerBody = &handlers.RegisterReq{
 
 // mock a new logined user
 func mockUserRejister(h *handlers.Handler, t *testing.T) handlers.AuthRes {
-	rec, err := TestEchoHandler(t, h.Auth.AppRegiter, registerBody, false)
+	rec, err := TestEchoHandler(t, h.Auth.AppRegiter, registerBody, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

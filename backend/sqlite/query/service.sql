@@ -1,28 +1,28 @@
 -- name: GetAllService :many
 SELECT ps.id, ps.type, ps.name, '' AS gh_repo_name, '' AS gh_repo_url, '' AS git_provider, '' AS branch_name, ps.created_at
 FROM psql_service ps
-WHERE ps.organization_id = @org_id
+WHERE ps.project_id = @project_id
 UNION ALL
 SELECT aps.id, aps.type, aps.name, aps.gh_repo_url, aps.gh_repo_url, aps.git_provider, b.branch_name, aps.created_at
 FROM app_service aps
 JOIN app_service_branch b ON aps.id = b.service_id AND b.is_default_branch = 1
-WHERE aps.organization_id = @org_id;
+WHERE aps.project_id = @project_id;
 
 -- name: ServiceNameExists :one
 SELECT CAST(
     (SELECT EXISTS (
         SELECT 1
         FROM psql_service ps
-        WHERE ps.organization_id = @org_id AND ps.name = @name
+        WHERE ps.project_id = @project_id AND ps.name = @name
         UNION ALL
         SELECT 1
         FROM app_service aps
-        WHERE aps.organization_id = @org_id AND aps.name = @name
+        WHERE aps.project_id = @project_id AND aps.name = @name
     ))
 AS BOOLEAN);
 
 -- name: CreatePsqlService :one
-INSERT INTO psql_service (id, organization_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url)
+INSERT INTO psql_service (id, project_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id;
 
@@ -41,7 +41,7 @@ DELETE FROM psql_service
 WHERE id = ?;
 
 -- name: CreateAppService :one
-INSERT INTO app_service (id, organization_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage)
+INSERT INTO app_service (id, project_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, type;
 
@@ -122,4 +122,3 @@ WHERE id = ?;
 SELECT b.id AS branch_id, b.branch_name, b.domain, b.port
 FROM app_service_branch b
 WHERE b.service_id = ?;
-

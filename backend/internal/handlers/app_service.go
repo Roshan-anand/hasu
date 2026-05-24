@@ -26,7 +26,7 @@ type DockerBuildReq struct {
 }
 
 type CreateAppServiceReq struct {
-	OrgID        uuid.UUID       `json:"org_id" validate:"required"`
+	ProjectID    uuid.UUID       `json:"project_id" validate:"required"`
 	Name         string          `json:"name" validate:"required,min=3,max=50"`
 	GitProvider  string          `json:"git_provider" validate:"required"`
 	GhAppID      int64           `json:"gh_app_id" validate:"required"`
@@ -79,8 +79,8 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 
 	// check if service name already exists in the organization
 	if exists, err := q.ServiceNameExists(h.qCtx, db.ServiceNameExistsParams{
-		OrgID: b.OrgID,
-		Name:  b.Name,
+		Name:      b.Name,
+		ProjectID: b.ProjectID,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to check service name"})
 	} else if exists {
@@ -164,7 +164,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	// create a new service
 	service, err := q.CreateAppService(h.qCtx, db.CreateAppServiceParams{
 		ID:                security.GeneratePrimaryKey(),
-		OrganizationID:    b.OrgID,
+		ProjectID:         b.ProjectID,
 		Type:              types.AppServiceType,
 		Name:              b.Name,
 		GitProvider:       b.GitProvider,

@@ -15,14 +15,14 @@ import (
 )
 
 const createAppService = `-- name: CreateAppService :one
-INSERT INTO app_service (id, organization_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage)
+INSERT INTO app_service (id, project_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, type
 `
 
 type CreateAppServiceParams struct {
 	ID                uuid.UUID         `json:"id"`
-	OrganizationID    uuid.UUID         `json:"organization_id"`
+	ProjectID         uuid.UUID         `json:"project_id"`
 	Type              types.ServiceType `json:"type"`
 	Name              string            `json:"name"`
 	GitProvider       string            `json:"git_provider"`
@@ -48,7 +48,7 @@ type CreateAppServiceRow struct {
 func (q *Queries) CreateAppService(ctx context.Context, arg CreateAppServiceParams) (CreateAppServiceRow, error) {
 	row := q.db.QueryRowContext(ctx, createAppService,
 		arg.ID,
-		arg.OrganizationID,
+		arg.ProjectID,
 		arg.Type,
 		arg.Name,
 		arg.GitProvider,
@@ -98,14 +98,14 @@ func (q *Queries) CreateAppServiceBranch(ctx context.Context, arg CreateAppServi
 }
 
 const createPsqlService = `-- name: CreatePsqlService :one
-INSERT INTO psql_service (id, organization_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url)
+INSERT INTO psql_service (id, project_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id
 `
 
 type CreatePsqlServiceParams struct {
 	ID               uuid.UUID         `json:"id"`
-	OrganizationID   uuid.UUID         `json:"organization_id"`
+	ProjectID        uuid.UUID         `json:"project_id"`
 	Type             types.ServiceType `json:"type"`
 	SwarmServiceName string            `json:"swarm_service_name"`
 	Name             string            `json:"name"`
@@ -118,7 +118,7 @@ type CreatePsqlServiceParams struct {
 func (q *Queries) CreatePsqlService(ctx context.Context, arg CreatePsqlServiceParams) (uuid.UUID, error) {
 	row := q.db.QueryRowContext(ctx, createPsqlService,
 		arg.ID,
-		arg.OrganizationID,
+		arg.ProjectID,
 		arg.Type,
 		arg.SwarmServiceName,
 		arg.Name,
@@ -235,12 +235,12 @@ func (q *Queries) GetAllAppServicesByRepo(ctx context.Context, arg GetAllAppServ
 const getAllService = `-- name: GetAllService :many
 SELECT ps.id, ps.type, ps.name, '' AS gh_repo_name, '' AS gh_repo_url, '' AS git_provider, '' AS branch_name, ps.created_at
 FROM psql_service ps
-WHERE ps.organization_id = ?1
+WHERE ps.project_id = ?1
 UNION ALL
 SELECT aps.id, aps.type, aps.name, aps.gh_repo_url, aps.gh_repo_url, aps.git_provider, b.branch_name, aps.created_at
 FROM app_service aps
 JOIN app_service_branch b ON aps.id = b.service_id AND b.is_default_branch = 1
-WHERE aps.organization_id = ?1
+WHERE aps.project_id = ?1
 `
 
 type GetAllServiceRow struct {
@@ -254,8 +254,8 @@ type GetAllServiceRow struct {
 	CreatedAt   time.Time         `json:"created_at"`
 }
 
-func (q *Queries) GetAllService(ctx context.Context, orgID uuid.UUID) ([]GetAllServiceRow, error) {
-	rows, err := q.db.QueryContext(ctx, getAllService, orgID)
+func (q *Queries) GetAllService(ctx context.Context, projectID uuid.UUID) ([]GetAllServiceRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllService, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -497,7 +497,7 @@ func (q *Queries) GetBranchesDomainByServiceId(ctx context.Context, serviceID uu
 }
 
 const getPsqlServiceById = `-- name: GetPsqlServiceById :one
-SELECT id, organization_id, type, swarm_service_id, swarm_service_name, status, name, db_name, db_user, db_password, image_id, internal_url, created_at
+SELECT id, project_id, type, swarm_service_id, swarm_service_name, status, name, db_name, db_user, db_password, image_id, internal_url, created_at
 FROM psql_service
 WHERE id = ?
 `
@@ -507,7 +507,7 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, id uuid.UUID) (PsqlSer
 	var i PsqlService
 	err := row.Scan(
 		&i.ID,
-		&i.OrganizationID,
+		&i.ProjectID,
 		&i.Type,
 		&i.SwarmServiceID,
 		&i.SwarmServiceName,
@@ -560,22 +560,22 @@ SELECT CAST(
     (SELECT EXISTS (
         SELECT 1
         FROM psql_service ps
-        WHERE ps.organization_id = ?1 AND ps.name = ?2
+        WHERE ps.project_id = ?1 AND ps.name = ?2
         UNION ALL
         SELECT 1
         FROM app_service aps
-        WHERE aps.organization_id = ?1 AND aps.name = ?2
+        WHERE aps.project_id = ?1 AND aps.name = ?2
     ))
 AS BOOLEAN)
 `
 
 type ServiceNameExistsParams struct {
-	OrgID uuid.UUID `json:"org_id"`
-	Name  string    `json:"name"`
+	ProjectID uuid.UUID `json:"project_id"`
+	Name      string    `json:"name"`
 }
 
 func (q *Queries) ServiceNameExists(ctx context.Context, arg ServiceNameExistsParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, serviceNameExists, arg.OrgID, arg.Name)
+	row := q.db.QueryRowContext(ctx, serviceNameExists, arg.ProjectID, arg.Name)
 	var column_1 bool
 	err := row.Scan(&column_1)
 	return column_1, err

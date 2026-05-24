@@ -29,9 +29,17 @@ CREATE TABLE IF NOT EXISTS session (
     expires_at DATETIME NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS psql_service (
+CREATE TABLE IF NOT EXISTS project(
     id uuid PRIMARY KEY,
     organization_id uuid NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    network_name TEXT NOT NULL UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS psql_service (
+    id uuid PRIMARY KEY,
+    project_id uuid NOT NULL REFERENCES project(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
     swarm_service_id TEXT,
     swarm_service_name TEXT NOT NULL,
@@ -47,7 +55,7 @@ CREATE TABLE IF NOT EXISTS psql_service (
 
 CREATE TABLE IF NOT EXISTS app_service (
     id uuid PRIMARY KEY,
-    organization_id uuid NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+    project_id uuid NOT NULL REFERENCES project(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
     name TEXT NOT NULL UNIQUE,
     git_provider TEXT NOT NULL,

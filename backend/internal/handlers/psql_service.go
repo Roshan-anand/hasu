@@ -29,7 +29,7 @@ type PsqlServiceHandler struct {
 }
 
 type CreatePsqlServiceReq struct {
-	OrgID      uuid.UUID `json:"org_id" validate:"required"`
+	ProjectID  uuid.UUID `json:"project_id" validate:"required"`
 	Name       string    `json:"name" validate:"required"`
 	DbName     string    `json:"db_name" validate:"required"`
 	DbUser     string    `json:"db_user" validate:"required"`
@@ -58,19 +58,19 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 
 	// check if service name already exists in the organization
 	if exists, err := q.ServiceNameExists(h.qCtx, db.ServiceNameExistsParams{
-		OrgID: b.OrgID,
-		Name:  b.Name,
+		ProjectID: b.ProjectID,
+		Name:      b.Name,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to check service name"})
 	} else if exists {
 		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Service name already exists"})
 	}
 
-	serviceName := fmt.Sprintf("%s-%s", b.Name, b.OrgID)
+	serviceName := fmt.Sprintf("%s-%s", b.Name, b.ProjectID)
 
 	service, err := h.Server.DB.Queries.CreatePsqlService(h.qCtx, db.CreatePsqlServiceParams{
 		ID:               security.GeneratePrimaryKey(),
-		OrganizationID:   b.OrgID,
+		ProjectID:        b.ProjectID,
 		Type:             types.PsqlServiceType,
 		SwarmServiceName: serviceName,
 		Name:             b.Name,

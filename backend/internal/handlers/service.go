@@ -9,7 +9,6 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
-	"github.com/Roshan-anand/godploy/internal/lib/auth"
 	"github.com/Roshan-anand/godploy/internal/lib/sse"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
@@ -36,21 +35,19 @@ func InitServiceHandlers(s *config.Server) *ServiceHandler {
 	}
 }
 
-// get all services of a organization
+// get all services of a project
 //
-// route: GET /api/service
+// route: GET /api/service?project_id=
 func (h *ServiceHandler) GetAllServices(c *echo.Context) error {
-	u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
 	q := h.Server.DB.Queries
 
-	orgID, err := q.GetUserCurrentOrg(h.qCtx, u.Email)
+	projectID, err := uuid.Parse(c.QueryParam("project_id"))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to get user's current org"})
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid project_id"})
 	}
 
-	services, err := q.GetAllService(h.qCtx, orgID)
+	services, err := q.GetAllService(h.qCtx, projectID)
 	if err != nil {
-		fmt.Printf("error getting services for org_id: %v, error: %v\n", orgID, err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to get services"})
 	}
 

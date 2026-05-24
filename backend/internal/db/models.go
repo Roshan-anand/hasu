@@ -14,7 +14,7 @@ import (
 
 type AppService struct {
 	ID                uuid.UUID         `json:"id"`
-	OrganizationID    uuid.UUID         `json:"organization_id"`
+	ProjectID         uuid.UUID         `json:"project_id"`
 	Type              types.ServiceType `json:"type"`
 	Name              string            `json:"name"`
 	GitProvider       string            `json:"git_provider"`
@@ -73,9 +73,17 @@ type Organization struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type Project struct {
+	ID             uuid.UUID   `json:"id"`
+	OrganizationID uuid.UUID   `json:"organization_id"`
+	Name           string      `json:"name"`
+	NetworkName    string      `json:"network_name"`
+	CreatedAt      interface{} `json:"created_at"`
+}
+
 type PsqlService struct {
 	ID               uuid.UUID              `json:"id"`
-	OrganizationID   uuid.UUID              `json:"organization_id"`
+	ProjectID        uuid.UUID              `json:"project_id"`
 	Type             types.ServiceType      `json:"type"`
 	SwarmServiceID   sql.NullString         `json:"swarm_service_id"`
 	SwarmServiceName string                 `json:"swarm_service_name"`

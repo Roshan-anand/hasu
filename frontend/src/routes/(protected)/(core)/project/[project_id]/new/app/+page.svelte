@@ -19,14 +19,14 @@
 	import { ChevronRight, ChevronDown } from '@lucide/svelte';
 	import SecretTextarea from '@/components/services/secret-textarea.svelte';
 	import { createForm } from '@tanstack/svelte-form';
-	import { GetUserData } from '@/features/global/query';
 	import Icon from '@iconify/svelte';
 	import { GitProvidersList } from '@/features/services/const';
 
+	const { data } = $props();
+	const projectId = $derived(data.project_id);
+
 	let environmentOpen = $state(false);
 	let buildSettingOpen = $state(false);
-
-	const { org_id } = GetUserData();
 
 	const githubAppsQuery = useGithubAppsQuery();
 	const getReposMutation = useGetReposMutation();
@@ -52,7 +52,7 @@
 		onSubmit: ({ value }) => {
 			console.log('Form submit triggerd');
 
-			if (org_id === '') {
+			if (projectId === '') {
 				toast.error('Please select an organization');
 				return;
 			}
@@ -79,7 +79,7 @@
 			const build_secrets = value.build_secrets.split('\n').filter((line) => line.trim() !== '');
 
 			createServiceMutation.mutate({
-				org_id: org_id,
+				project_id: projectId,
 				name: value.name.trim(),
 				git_provider: value.git_provider,
 				gh_app_id: value.gh_app_id,
@@ -102,7 +102,7 @@
 	const onGithubAppSelect = (appId: string) => {
 		const app = githubAppsQuery.data?.find((item) => item.app_id.toString() === appId);
 		if (!app) return;
-		if (org_id === '' || createServiceMutation.isPending || getReposMutation.isPending) return;
+		if (createServiceMutation.isPending || getReposMutation.isPending) return;
 
 		const githubProvider = GitProvidersList.get('github');
 		if (!githubProvider) return;
@@ -115,7 +115,7 @@
 
 	// reset and refetch app list of the selected git provider
 	const fetchGitProvider = (key: GitProviderKey) => {
-		if (org_id === '' || createServiceMutation.isPending) return;
+		if (createServiceMutation.isPending) return;
 		const provider = GitProvidersList.get(key);
 		if (!provider) return;
 
@@ -154,7 +154,7 @@
 				<Label class="my-1">Import from a git provider</Label>
 				<GitProviderField
 					value={field.state.value}
-					disabled={org_id === ''}
+					disabled={projectId === ''}
 					onSelect={(key) => {
 						field.handleChange(key);
 						fetchGitProvider(key);

@@ -44,3 +44,35 @@ SELECT CAST(EXISTS(
     JOIN user_organization uo ON o.id = uo.organization_id
     WHERE uo.user_email = ? AND o.name = @org_name
 ) AS BOOLEAN);
+
+-- name: CreateProject :one
+INSERT INTO project (id, organization_id, name, network_name)
+VALUES (?, ?, ?, ?)
+RETURNING id, name;
+
+-- name: GetAllProjects :many
+SELECT *
+FROM project
+WHERE organization_id = ?;
+
+-- name: CheckProjectExists :one
+SELECT CAST(EXISTS(
+    SELECT 1
+    FROM project
+    WHERE organization_id = ? AND name = @project_name
+) AS BOOLEAN);
+
+-- name: DeleteProject :exec
+DELETE FROM project
+WHERE id = ?;
+
+-- name: CheckProjectHasServices :one
+SELECT CAST(EXISTS(
+    SELECT 1
+    FROM app_service aps
+    WHERE aps.project_id = @project_id
+    UNION ALL
+    SELECT 1
+    FROM psql_service ps
+    WHERE ps.project_id = @project_id
+) AS BOOLEAN);

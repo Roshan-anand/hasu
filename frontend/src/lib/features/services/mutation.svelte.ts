@@ -10,11 +10,10 @@ import type {
 	UpdateBranchDomainPayload,
 	UpdateEnvPayload
 } from './type';
-import { getOrgServicesQueryKey } from './query.svelte';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import type { ApiRes, ServiceType } from '@/types';
-import { GetUserData } from '../global/query';
+import { getProjectServicesQueryKey } from './query.svelte';
 import { queryClient } from '@/query';
 
 export function useGetReposMutation() {
@@ -46,9 +45,8 @@ export function useCreateServiceMutation() {
 	}));
 }
 
-export function useDeleteServiceMutation() {
-	const { org_id } = GetUserData();
-
+export function useDeleteServiceMutation(getProjectId: () => string) {
+	const projectId = getProjectId();
 	return createMutation(() => ({
 		mutationFn: async ({ service_id, type }: DeleteServicePayload) => {
 			const url = type === 'psql' ? '/service/psql' : '/service/app';
@@ -57,7 +55,7 @@ export function useDeleteServiceMutation() {
 
 		onSuccess: (response, payload) => {
 			queryClient.setQueryData(
-				getOrgServicesQueryKey(org_id),
+				getProjectServicesQueryKey(projectId),
 				(cachedRows: ServiceListResponse[] | undefined) => {
 					if (!cachedRows) return [];
 					return cachedRows.filter((row) => row.id !== payload.service_id);

@@ -1,17 +1,22 @@
 import { api } from '@/axios';
 import { createQuery } from '@tanstack/svelte-query';
 import type { AppServiceDetails, GetBranchDomainRes, GetEnvRes, ServiceListResponse } from './type';
-import { GetUserData } from '../global/query';
 import type { ApiRes } from '@/types';
 
-export const getOrgServicesQueryKey = (orgId: string) => ['services-list', 'org', orgId] as const;
+export const getProjectServicesQueryKey = (projectId: string) =>
+	['services-list', 'project', projectId] as const;
 
-export function useGetAllServicesQuery() {
-	const { org_id } = GetUserData();
+export function useGetAllServicesQuery(getProjectId: () => string) {
+	const projectId = getProjectId();
 	return createQuery(() => ({
-		queryKey: getOrgServicesQueryKey(org_id),
+		queryKey: getProjectServicesQueryKey(projectId),
 		queryFn: async () =>
-			api.get<ApiRes<ServiceListResponse[]>>('/service').then((res) => res.data.data)
+			api
+				.get<ApiRes<ServiceListResponse[]>>('/service', {
+					params: { project_id: projectId }
+				})
+				.then((res) => res.data.data),
+		enabled: projectId !== ''
 	}));
 }
 

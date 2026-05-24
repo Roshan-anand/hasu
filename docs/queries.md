@@ -32,3 +32,7 @@
   - when to update local store from query cache vs mutation response
 
 - [ ] badger db how query all logs by prefix works
+
+- [ ] tanstack query cache keys per parent resource
+  - why service lists should key by project_id now that org -> project -> service
+  - how to avoid cache collisions when moving from org-scoped to project-scoped lists

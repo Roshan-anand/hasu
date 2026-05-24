@@ -21,6 +21,7 @@ services:
           path: ../frontend/bun.lock
     volumes:
       - ../frontend/.svelte-kit:/app/frontend/.svelte-kit:rw
+      - ../frontend:/app/frontend:rw
     environment:
       - NODE_ENV=development
       - DEV_BACKEND_URL=http://server:8080
@@ -42,6 +43,11 @@ services:
     container_name: godploy-backend-dev
     develop:
       watch:
+        - action: sync
+          path: ../backend
+          target: /app/backend
+          ignore:
+            - data/
         - action: rebuild
           path: ../backend/go.mod
         - action: rebuild

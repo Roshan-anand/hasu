@@ -82,7 +82,7 @@ export type CreateServicePayload = CreateAppServiceBody & {
 	env: string[];
 	build_args: string[];
 	build_secrets: string[];
-	org_id: string;
+	project_id: string;
 };
 
 export type CreatePsqlServiceBody = {

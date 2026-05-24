@@ -19,7 +19,7 @@ func TestSample(t *testing.T) {
 	}
 
 	t.Run("first time authenticating retusn 403 as no admin", func(t *testing.T) {
-		rec, err := TestEchoHandler(t, h.Auth.AuthUser, nil, false)
+		rec, err := TestEchoHandler(t, h.Auth.AuthUser, nil, false, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -30,7 +30,7 @@ func TestSample(t *testing.T) {
 	})
 
 	t.Run("register user", func(t *testing.T) {
-		rec, err := TestEchoHandler(t, h.Auth.AppRegiter, registerBody, false)
+		rec, err := TestEchoHandler(t, h.Auth.AppRegiter, registerBody, false, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -45,7 +45,7 @@ func TestSample(t *testing.T) {
 	})
 
 	t.Run("register again as admin", func(t *testing.T) {
-		rec, err := TestEchoHandler(t, h.Auth.AppRegiter, registerBody, false)
+		rec, err := TestEchoHandler(t, h.Auth.AppRegiter, registerBody, false, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -56,7 +56,7 @@ func TestSample(t *testing.T) {
 	})
 
 	t.Run("get auth user", func(t *testing.T) {
-		rec, err := TestEchoHandler(t, h.Auth.AuthUser, nil, true)
+		rec, err := TestEchoHandler(t, h.Auth.AuthUser, nil, true, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -67,7 +67,7 @@ func TestSample(t *testing.T) {
 	})
 
 	t.Run("login user", func(t *testing.T) {
-		rec, err := TestEchoHandler(t, h.Auth.AppLogin, loginBody, false)
+		rec, err := TestEchoHandler(t, h.Auth.AppLogin, loginBody, false, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,7 +83,7 @@ func TestSample(t *testing.T) {
 
 	t.Run("login with invalid creadential", func(t *testing.T) {
 		loginBody.Password = "wrong_pssword"
-		rec, err := TestEchoHandler(t, h.Auth.AppLogin, loginBody, false)
+		rec, err := TestEchoHandler(t, h.Auth.AppLogin, loginBody, false, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -93,7 +93,7 @@ func TestSample(t *testing.T) {
 		}
 
 		loginBody.Email = "no@email.com"
-		rec, err = TestEchoHandler(t, h.Auth.AppLogin, loginBody, false)
+		rec, err = TestEchoHandler(t, h.Auth.AppLogin, loginBody, false, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

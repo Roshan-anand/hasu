@@ -1,83 +1,50 @@
 <script lang="ts">
-	import { Button } from '@/components/ui/button';
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { useDeleteServiceMutation } from '@/features/services/mutation.svelte';
-	import type { ServiceType } from '@/types';
 	import { Search, Trash2 } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
-	import { goto } from '$app/navigation';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import { ChevronDown } from '@lucide/svelte';
-	import { useGetAllServicesQuery } from '@/features/services/query.svelte';
+	import { useDeleteProjectMutation } from '@/features/base/mutation.svelte';
+	import { useGetAllProjectsQuery } from '@/features/base/query.svelte';
+	import CreateProject from './create-project.svelte';
+	import { Button } from '@/components/ui/button';
 
 	let searchQuery = $state('');
+	const projectsQuery = useGetAllProjectsQuery();
+	const deleteProjectMutation = useDeleteProjectMutation();
 
-	const servicesQuery = useGetAllServicesQuery();
-	const deleteServiceMutation = useDeleteServiceMutation();
-
-	const deleteService = (serviceId: string, type: ServiceType) => {
-		if (deleteServiceMutation.isPending) return;
-		deleteServiceMutation.mutate({ service_id: serviceId, type });
+	const deleteProject = (projectId: string) => {
+		if (deleteProjectMutation.isPending) return;
+		deleteProjectMutation.mutate({ project_id: projectId });
 	};
 
-	// to filter services based on search input
-	const filteredServices = $derived.by(() => {
-		if (!servicesQuery.data) return [];
+	const filteredProjects = $derived.by(() => {
+		if (!projectsQuery.data) return [];
 
 		const keyword = searchQuery.trim().toLowerCase();
-		if (keyword === '') return servicesQuery.data;
+		if (keyword === '') return projectsQuery.data;
 
-		return servicesQuery.data.filter((service) => service.name.toLowerCase().includes(keyword));
+		return projectsQuery.data.filter((project) => project.name.toLowerCase().includes(keyword));
 	});
 
 	const tempItem = Array.from({ length: 6 });
-
-	const createOptions = [
-		{ name: 'Application', link: resolve('/new/app') },
-		{ name: 'DB', link: '' }
-	];
 </script>
 
 <nav class="flex gap-4">
 	<div class="flex-1 flex relative">
 		<Input
-			id="service-search"
-			placeholder="Search for services"
+			id="project-search"
+			placeholder="Search for projects"
 			class="p-2"
 			bind:value={searchQuery}
 		/>
-		<Label class="absolute top-0 right-0 m-1 opacity-75" for="service-search"><Search /></Label>
+		<Label class="absolute top-0 right-0 m-1 opacity-75" for="project-search"><Search /></Label>
 	</div>
-	<DropdownMenu.Root>
-		<DropdownMenu.Trigger>
-			{#snippet child({ props })}
-				<Button {...props}>
-					<span>create</span>
-					<ChevronDown class="size-4" />
-				</Button>
-			{/snippet}
-		</DropdownMenu.Trigger>
-		<DropdownMenu.Content align="end" class="w-40">
-			{#each createOptions as option (option.name)}
-				<DropdownMenu.Item
-					disabled={option.link === ''}
-					onSelect={() => {
-						if (option.link === '') return;
-						/* eslint-disable svelte/no-navigation-without-resolve */
-						void goto(option.link);
-					}}
-				>
-					{option.name}
-				</DropdownMenu.Item>
-			{/each}
-		</DropdownMenu.Content>
-	</DropdownMenu.Root>
+	<CreateProject />
 </nav>
 
 <section class="flex-1 p-2">
-	{#if servicesQuery.isPending}
+	{#if projectsQuery.isPending}
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 			{#each tempItem as _, i (i)}
 				<div class="rounded-lg border bg-card text-card-foreground shadow-sm p-4 space-y-3">
@@ -86,36 +53,32 @@
 				</div>
 			{/each}
 		</div>
-	{:else if servicesQuery.isError}
-		<p class="text-red-500">Failed to load services</p>
-	{:else if filteredServices.length > 0}
-		<!-- TODO : update UI to include new type of app service returned -->
+	{:else if projectsQuery.isError}
+		<p class="text-red-500">Failed to load projects</p>
+	{:else if filteredProjects.length > 0}
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-			{#each filteredServices as service (service.id)}
+			{#each filteredProjects as project (project.id)}
 				<div
 					class="rounded-lg border bg-card text-card-foreground shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer relative"
 				>
 					<a
-						href={resolve('/(protected)/(core)/[service_type]/[service_id]', {
-							service_type: service.type,
-							service_id: service.id
-						})}
+						href={resolve(`/(protected)/(core)/project/[project_id]`, { project_id: project.id })}
 						class="absolute z-10 size-full inset-0 text-transparent"
-						title="open service"
+						title="open project"
 					></a>
 					<div class="flex items-start justify-between gap-2">
 						<div>
-							<h3 class="font-semibold text-lg">{service.name}</h3>
-							<p class="text-xs uppercase text-muted-foreground">{service.type}</p>
+							<h3 class="font-semibold text-lg">{project.name}</h3>
+							<p class="text-xs uppercase text-muted-foreground">Project</p>
 						</div>
 						<Button
 							variant="destructive"
 							size="sm"
-							onclick={() => deleteService(service.id, service.type)}
-							disabled={deleteServiceMutation.isPending}
+							onclick={() => deleteProject(project.id)}
+							disabled={deleteProjectMutation.isPending}
 							class="z-20"
 						>
-							{#if deleteServiceMutation.isPending}
+							{#if deleteProjectMutation.isPending}
 								Deleting...
 							{:else}
 								<Trash2 />
@@ -128,7 +91,7 @@
 		</div>
 	{:else}
 		<h3 class="text-muted-foreground size-full flex flex-col items-center justify-center gap-2">
-			No services found
+			No projects found
 		</h3>
 	{/if}
 </section>

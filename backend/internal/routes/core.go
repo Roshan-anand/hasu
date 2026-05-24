@@ -48,6 +48,12 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	org.DELETE("", h.Org.DeleteOrg)
 	org.POST("/switch", h.Org.SwitchOrg)
 
+	// initialize project api routes
+	project := protected.Group("/project")
+	project.GET("", h.Project.GetAllProject)
+	project.POST("", h.Project.CreateProject)
+	project.DELETE("", h.Project.DeleteProject)
+
 	// initialize service api routes
 	service := protected.Group("/service")
 	service.GET("", h.Service.GetAllServices)

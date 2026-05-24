@@ -31,6 +31,45 @@ func (q *Queries) CheckOrgExists(ctx context.Context, arg CheckOrgExistsParams) 
 	return column_1, err
 }
 
+const checkProjectExists = `-- name: CheckProjectExists :one
+SELECT CAST(EXISTS(
+    SELECT 1
+    FROM project
+    WHERE organization_id = ? AND name = ?
+) AS BOOLEAN)
+`
+
+type CheckProjectExistsParams struct {
+	OrganizationID uuid.UUID `json:"organization_id"`
+	ProjectName    string    `json:"project_name"`
+}
+
+func (q *Queries) CheckProjectExists(ctx context.Context, arg CheckProjectExistsParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkProjectExists, arg.OrganizationID, arg.ProjectName)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const checkProjectHasServices = `-- name: CheckProjectHasServices :one
+SELECT CAST(EXISTS(
+    SELECT 1
+    FROM app_service aps
+    WHERE aps.project_id = ?1
+    UNION ALL
+    SELECT 1
+    FROM psql_service ps
+    WHERE ps.project_id = ?1
+) AS BOOLEAN)
+`
+
+func (q *Queries) CheckProjectHasServices(ctx context.Context, projectID uuid.UUID) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkProjectHasServices, projectID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const checkUserOrgExists = `-- name: CheckUserOrgExists :one
 SELECT CAST(EXISTS(
     SELECT 1 FROM user_organization uo
@@ -84,6 +123,36 @@ func (q *Queries) CreateOrg(ctx context.Context, arg CreateOrgParams) (CreateOrg
 	return i, err
 }
 
+const createProject = `-- name: CreateProject :one
+INSERT INTO project (id, organization_id, name, network_name)
+VALUES (?, ?, ?, ?)
+RETURNING id, name
+`
+
+type CreateProjectParams struct {
+	ID             uuid.UUID `json:"id"`
+	OrganizationID uuid.UUID `json:"organization_id"`
+	Name           string    `json:"name"`
+	NetworkName    string    `json:"network_name"`
+}
+
+type CreateProjectRow struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (CreateProjectRow, error) {
+	row := q.db.QueryRowContext(ctx, createProject,
+		arg.ID,
+		arg.OrganizationID,
+		arg.Name,
+		arg.NetworkName,
+	)
+	var i CreateProjectRow
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
 const deleteOrg = `-- name: DeleteOrg :exec
 DELETE FROM organization
 WHERE id = ?
@@ -91,6 +160,16 @@ WHERE id = ?
 
 func (q *Queries) DeleteOrg(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deleteOrg, id)
+	return err
+}
+
+const deleteProject = `-- name: DeleteProject :exec
+DELETE FROM project
+WHERE id = ?
+`
+
+func (q *Queries) DeleteProject(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteProject, id)
 	return err
 }
 
@@ -116,6 +195,41 @@ func (q *Queries) GetAllOrg(ctx context.Context, userEmail string) ([]GetAllOrgR
 	for rows.Next() {
 		var i GetAllOrgRow
 		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllProjects = `-- name: GetAllProjects :many
+SELECT id, organization_id, name, network_name, created_at
+FROM project
+WHERE organization_id = ?
+`
+
+func (q *Queries) GetAllProjects(ctx context.Context, organizationID uuid.UUID) ([]Project, error) {
+	rows, err := q.db.QueryContext(ctx, getAllProjects, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Project
+	for rows.Next() {
+		var i Project
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.Name,
+			&i.NetworkName,
+			&i.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
