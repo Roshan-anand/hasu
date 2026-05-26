@@ -2,8 +2,6 @@
 
 ## Docker Swarm
 
-- moved from "github.com/docker/docker/client" **(depricated)** to "github.com/moby/moby/client"
-
 **Docker Swarm** [ core orchestrator of the applicaiton ]
 
 - it's like a light weight k8s, best for small to medium scale project.

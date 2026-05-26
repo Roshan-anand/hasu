@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -50,7 +51,7 @@ func (h *HealthHandler) HealthCheck(c *echo.Context) error {
 }
 
 // TODO : remove this router for production
-type ghAppReq struct {
+type GhAppReq struct {
 	Name           string    `json:"name" validate:"required"`
 	OrgID          uuid.UUID `json:"organization_id" validate:"required"`
 	AppID          string    `json:"app_id" validate:"required"`
@@ -60,7 +61,7 @@ type ghAppReq struct {
 }
 
 func (h *HealthHandler) SetGhApp(c *echo.Context) error {
-	b := new(ghAppReq)
+	b := new(GhAppReq)
 	q := h.Server.DB.Queries
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
@@ -87,6 +88,7 @@ func (h *HealthHandler) SetGhApp(c *echo.Context) error {
 		WebhookSecret:  b.WebhookSecret,
 	})
 	if err != nil {
+		fmt.Printf("error creating github app: %v\n", err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github app"})
 	}
 

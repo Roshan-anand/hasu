@@ -74,11 +74,11 @@ type Organization struct {
 }
 
 type Project struct {
-	ID             uuid.UUID   `json:"id"`
-	OrganizationID uuid.UUID   `json:"organization_id"`
-	Name           string      `json:"name"`
-	NetworkName    string      `json:"network_name"`
-	CreatedAt      interface{} `json:"created_at"`
+	ID             uuid.UUID `json:"id"`
+	OrganizationID uuid.UUID `json:"organization_id"`
+	Name           string    `json:"name"`
+	NetworkName    string    `json:"network_name"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type PsqlService struct {

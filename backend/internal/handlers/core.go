@@ -10,6 +10,7 @@ type Handler struct {
 	Git         *GitHandler
 	Org         *OrgHandler
 	Project     *ProjectHandler
+	Deployment  *DeploymentHandler
 }
 
 func NewHandeler(srv *config.Server) *Handler {
@@ -21,5 +22,6 @@ func NewHandeler(srv *config.Server) *Handler {
 		Git:         InitGitHandlers(srv),
 		Org:         InitOrgHandlers(srv),
 		Project:     InitProjectHandlers(srv),
+		Deployment:  InitDeploymentHandlers(srv),
 	}
 }

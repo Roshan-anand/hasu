@@ -48,14 +48,10 @@ func createServer() (*config.Server, error) {
 	// setup deployment workers
 	// TODO : modify the ctx for a gracefull showdown of workers
 	dj := deploymentjob.NewJob(s)
-	go dj.PullWorker(context.Background(), s.DeploymentQ.PullQueue)
-	go dj.BuildWorker(context.Background(), s.DeploymentQ.BuildQueue)
-	go dj.DeployWorker(context.Background(), s.DeploymentQ.DeployQueue)
-	go dj.ReDeployWorker(context.Background(), s.DeploymentQ.RedeployQueue)
+	dj.StartAllDeploymentWorker()
 
 	// setup log broker
-	lb := logbroker.InitLogsBroker(s)
-	go lb.LogsBrokerJob(context.Background(), s.LogBrokerQ.Pub, s.LogBrokerQ.End)
+	logbroker.InitLogsBroker(s)
 
 	return s, nil
 }
@@ -103,5 +99,4 @@ func main() {
 		log.Fatal("failed to run server: ", err)
 		return
 	}
-
 }

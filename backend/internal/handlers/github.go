@@ -480,7 +480,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 				fmt.Println("Error starting transaction:", err)
 				return nil
 			}
-			q = q.WithTx(tx)
+			tq := q.WithTx(tx)
 
 			var newStatus types.DeploymentStatus
 			if s.DeploymentStatus == types.DeploymentReady {
@@ -490,7 +490,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 			}
 
 			// update the previous deployment is_latest to false
-			if err := q.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
+			if err := tq.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
 				DeploymentID: s.DeploymentID,
 				Status:       newStatus,
 			}); err != nil {
@@ -500,7 +500,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 			}
 
 			// create a new deployment
-			dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
+			dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 				ID:         security.GeneratePrimaryKey(),
 				BranchID:   s.BranchID,
 				CommitHash: pushEvent.GetAfter(),

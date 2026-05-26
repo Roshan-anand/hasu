@@ -19,7 +19,7 @@ func getDockerBuildCmd(d *deploymentqueue.BuildJobData) *exec.Cmd {
 	// 	"--secret", "id=npm_token,src=/tmp/npm_token",
 	// 	"--secret", "id=github_token,src=/tmp/github_token",
 
-	cmd := exec.Command("docker", "build")
+	cmd := exec.Command("docker", "build", "--progress=plain")
 
 	if d.DockerFilePath != "" {
 		cmd.Args = append(cmd.Args, "--file", d.DockerFilePath)
@@ -108,6 +108,8 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 					SwarmServiceName: d.SwarmServiceName,
 					ImgName:          d.ImgName,
 					Env:              d.Env,
+					IsPublic:         d.IsPublic,
+					NetworkName:      d.NetworkName,
 				})
 
 			case deploymentqueue.RebuildJob:
@@ -116,6 +118,8 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 					SwarmServiceName: d.SwarmServiceName,
 					ImgName:          d.ImgName,
 					Env:              d.Env,
+					IsPublic:         d.IsPublic,
+					NetworkName:      d.NetworkName,
 				})
 			default:
 				fmt.Printf("BuildWorker: unknown job type: %v\n", d.Type)

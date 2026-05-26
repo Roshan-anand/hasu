@@ -64,6 +64,7 @@ export type CreateAppServiceBody = {
 	gh_repo_id: number;
 	build_path: string;
 	watch_path: string;
+	public: boolean;
 	docker_build: {
 		file_path: string;
 		context_path: string;

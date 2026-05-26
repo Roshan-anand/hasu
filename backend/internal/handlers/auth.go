@@ -116,10 +116,10 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Internal Server Error"})
 	}
-	q = q.WithTx(tx)
+	tq := q.WithTx(tx)
 
 	// create organization first (user needs orgId at insert time)
-	org, err := q.CreateOrg(h.qCtx, db.CreateOrgParams{
+	org, err := tq.CreateOrg(h.qCtx, db.CreateOrgParams{
 		ID:   security.GeneratePrimaryKey(),
 		Name: b.OrgName,
 	})
@@ -129,7 +129,7 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 	}
 
 	// register new admin user
-	uId, err := q.CreateUser(h.qCtx, db.CreateUserParams{
+	uId, err := tq.CreateUser(h.qCtx, db.CreateUserParams{
 		ID:           security.GeneratePrimaryKey(),
 		Name:         b.Name,
 		Email:        b.Email,
@@ -143,7 +143,7 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 	}
 
 	// link user with organization
-	if err := q.LinkUserNOrg(h.qCtx, db.LinkUserNOrgParams{
+	if err := tq.LinkUserNOrg(h.qCtx, db.LinkUserNOrgParams{
 		UserEmail:      b.Email,
 		OrganizationID: org.ID,
 	}); err != nil {

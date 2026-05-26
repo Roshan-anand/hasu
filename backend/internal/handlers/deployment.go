@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
@@ -15,15 +16,30 @@ import (
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/sse"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/go-github/v84/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 )
 
+type DeploymentHandler struct {
+	Server   *config.Server
+	Validate *validator.Validate
+	qCtx     context.Context
+}
+
+func InitDeploymentHandlers(s *config.Server) *DeploymentHandler {
+	return &DeploymentHandler{
+		Server:   s,
+		Validate: validator.New(),
+		qCtx:     context.Background(),
+	}
+}
+
 // get all service deployment jobs
 //
 // route: GET /api/service/deployment?service_id
-func (h *ServiceHandler) GetServiceDeployments(c *echo.Context) error {
+func (h *DeploymentHandler) GetServiceDeployments(c *echo.Context) error {
 	q := h.Server.DB.Queries
 
 	// TODO : inlcude org_id to get all deployments of the org / service based on the query params.
@@ -48,7 +64,7 @@ func (h *ServiceHandler) GetServiceDeployments(c *echo.Context) error {
 // delete service deployment by deployment id
 //
 // route: DELETE /api/service/deployment
-func (h *ServiceHandler) DeleteServiceDeployment(c *echo.Context) error {
+func (h *DeploymentHandler) DeleteServiceDeployment(c *echo.Context) error {
 	b := new(DeploymentReq)
 	q := h.Server.DB.Queries
 
@@ -74,7 +90,7 @@ func (h *ServiceHandler) DeleteServiceDeployment(c *echo.Context) error {
 // subscribe to service deployment logs event
 //
 // route: GET /api/service/deployment/logs?deployment_id
-func (h *ServiceHandler) SubscribeServiceDeploymentLogs(c *echo.Context) error {
+func (h *DeploymentHandler) SubscribeServiceDeploymentLogs(c *echo.Context) error {
 	q := h.Server.DB.Queries
 	dID, err := uuid.Parse(c.QueryParam("deployment_id"))
 	if err != nil {
@@ -124,7 +140,7 @@ func (h *ServiceHandler) SubscribeServiceDeploymentLogs(c *echo.Context) error {
 // rebuild app service
 //
 // route: POST /api/service/app/rebuild
-func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
+func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 	b := new(RebuildServiceReq)
 	q := h.Server.DB.Queries
 
@@ -152,10 +168,10 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
-	q = q.WithTx(tx)
+	tq := q.WithTx(tx)
 
 	// update the previous deployment is_latest to false
-	if err := q.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
+	if err := tq.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
 		DeploymentID: service.DeploymentID,
 		Status:       newStatus,
 	}); err != nil {
@@ -164,7 +180,7 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 	}
 
 	// get the github app details
-	ghApp, err := q.GetGhAppByAppId(h.qCtx, service.GhAppID)
+	ghApp, err := tq.GetGhAppByAppId(h.qCtx, service.GhAppID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid github app"})
@@ -204,7 +220,7 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 
 	// TODO : get commit msg from client side
 	// create a new deployment for the app service
-	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
+	dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 		ID:         security.GeneratePrimaryKey(),
 		BranchID:   service.BranchID,
 		CommitMsg:  latestCommitMsg,
@@ -263,7 +279,7 @@ func (h *ServiceHandler) RebuildAppService(c *echo.Context) error {
 // rollback app service to previous deployment
 //
 // route: POST /api/service/app/rollback
-func (h *ServiceHandler) RollbackAppService(c *echo.Context) error {
+func (h *DeploymentHandler) RollbackAppService(c *echo.Context) error {
 	b := new(RoolbackServiceReq)
 	q := h.Server.DB.Queries
 
@@ -289,12 +305,12 @@ func (h *ServiceHandler) RollbackAppService(c *echo.Context) error {
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to start rollback"})
 			}
-			q = q.WithTx(tx)
+			tq := q.WithTx(tx)
 
 			newDyp := deployments[i+1]
 
 			// down grade the current deployment
-			if err := q.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
+			if err := tq.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
 				Status:       types.DeploymentInactive,
 				DeploymentID: d.ID,
 			}); err != nil {
@@ -303,7 +319,7 @@ func (h *ServiceHandler) RollbackAppService(c *echo.Context) error {
 			}
 
 			//upgrade the new deployment
-			if err := q.UpgradeDeployment(h.qCtx, db.UpgradeDeploymentParams{
+			if err := tq.UpgradeDeployment(h.qCtx, db.UpgradeDeploymentParams{
 				DeploymentID: newDyp.ID,
 				Status:       types.DeploymentBuilding,
 			}); err != nil {

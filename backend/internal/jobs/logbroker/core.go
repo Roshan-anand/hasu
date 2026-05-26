@@ -19,12 +19,15 @@ type LogsBroker struct {
 	LogBuffer LogBuffer
 }
 
-func InitLogsBroker(s *config.Server) *LogsBroker {
+func InitLogsBroker(s *config.Server) {
 	logBuffer := make(LogBuffer)
-	return &LogsBroker{
+	broker := &LogsBroker{
 		Server:    s,
 		LogBuffer: logBuffer,
 	}
+
+	q := s.LogBrokerQ
+	go broker.LogsBrokerJob(context.Background(), q.Pub, q.End)
 }
 
 func (job *LogsBroker) LogsBrokerJob(ctx context.Context, pub chan *logbrokerqueue.PubData, end chan *logbrokerqueue.EndLogData) {

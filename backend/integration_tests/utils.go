@@ -14,10 +14,15 @@ import (
 	"testing"
 
 	"github.com/Roshan-anand/godploy/internal/config"
+	"github.com/Roshan-anand/godploy/internal/db"
 	"github.com/Roshan-anand/godploy/internal/handlers"
+	deploymentjob "github.com/Roshan-anand/godploy/internal/jobs/deployment"
+	"github.com/Roshan-anand/godploy/internal/jobs/logbroker"
 	"github.com/Roshan-anand/godploy/internal/lib/auth"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/Roshan-anand/godploy/internal/routes"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/echotest"
 )
@@ -82,6 +87,16 @@ func readAndUnmarshl(body io.ReadCloser, v any) error {
 	}
 
 	return nil
+}
+
+// reads the reader and unmarshal it
+func readOnly(body io.ReadCloser) (string, error) {
+	b, err := io.ReadAll(body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(b), nil
 }
 
 // check if cookies exists
@@ -154,12 +169,24 @@ func GetDummyServerHandler() (*config.Server, *handlers.Handler, error) {
 		return nil, nil, fmt.Errorf("failed to initialize server: %w", err)
 	}
 
+	dj := deploymentjob.NewJob(server)
+	dj.StartAllDeploymentWorker()
+	logbroker.InitLogsBroker(server)
+
 	h := handlers.NewHandeler(server)
 
 	return server, h, nil
 }
 
-func TestEchoHandler(t *testing.T, h echo.HandlerFunc, body any, isAuth bool, query url.Values) (*httptest.ResponseRecorder, error) {
+type TestEchoBody struct {
+	T      *testing.T
+	H      echo.HandlerFunc
+	Body   any
+	Query  url.Values
+	IsAuth bool
+}
+
+func TestEchoHandler(te *TestEchoBody) (*httptest.ResponseRecorder, error) {
 
 	config := echotest.ContextConfig{
 		Headers: map[string][]string{
@@ -167,12 +194,12 @@ func TestEchoHandler(t *testing.T, h echo.HandlerFunc, body any, isAuth bool, qu
 		},
 	}
 
-	if query != nil {
-		config.QueryValues = query
+	if te.Query != nil {
+		config.QueryValues = te.Query
 	}
 
-	if body != nil {
-		b, err := json.Marshal(body)
+	if te.Body != nil {
+		b, err := json.Marshal(te.Body)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling body : %v", err)
 		}
@@ -180,9 +207,9 @@ func TestEchoHandler(t *testing.T, h echo.HandlerFunc, body any, isAuth bool, qu
 		config.JSONBody = b
 	}
 
-	eCtx, rec := config.ToContextRecorder(t)
+	eCtx, rec := config.ToContextRecorder(te.T)
 
-	if isAuth {
+	if te.IsAuth {
 		authUser := auth.AuthUser{
 			Email: "test@email.com",
 			Name:  "sample",
@@ -192,7 +219,7 @@ func TestEchoHandler(t *testing.T, h echo.HandlerFunc, body any, isAuth bool, qu
 		eCtx.Set("user_email", authUser)
 	}
 
-	if err := h(eCtx); err != nil {
+	if err := te.H(eCtx); err != nil {
 		return nil, err
 	}
 
@@ -206,9 +233,30 @@ var registerBody = &handlers.RegisterReq{
 	OrgName:  "red",
 }
 
+type MockUser struct {
+	Name      string
+	Email     string
+	OrgId     uuid.UUID
+	OrgName   string
+	ProjectID uuid.UUID
+}
+
 // mock a new logined user
-func mockUserRejister(h *handlers.Handler, t *testing.T) handlers.AuthRes {
-	rec, err := TestEchoHandler(t, h.Auth.AppRegiter, registerBody, false, nil)
+func mockUserRejister(h *handlers.Handler, t *testing.T, project bool) *MockUser {
+	err := godotenv.Load("../../.env")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mockUser := new(MockUser)
+
+	rec, err := TestEchoHandler(&TestEchoBody{
+		T:      t,
+		H:      h.Auth.AppRegiter,
+		Body:   registerBody,
+		Query:  nil,
+		IsAuth: false,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,9 +270,57 @@ func mockUserRejister(h *handlers.Handler, t *testing.T) handlers.AuthRes {
 		t.Fatal(err)
 	}
 
+	mockUser.Name = userData.Data.Name
+	mockUser.Email = userData.Data.Email
+	mockUser.OrgId = userData.Data.OrgId
+	mockUser.OrgName = userData.Data.OrgName
+
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status code %d, got %d", http.StatusUnauthorized, rec.Code)
 	}
 
-	return userData.Data
+	// set a sample github app
+	rec, err = TestEchoHandler(&TestEchoBody{
+		T:      t,
+		H:      h.Health.SetGhApp,
+		Body:   &handlers.GhAppReq{Name: os.Getenv("GH_APP_NAME"), AppID: os.Getenv("GH_APP_ID"), OrgID: mockUser.OrgId, InstallationID: os.Getenv("GH_INSTALLATION_ID"), PemKey: os.Getenv("GH_PEM_KEY"), WebhookSecret: os.Getenv("WEBHOOK_SECRET")},
+		Query:  nil,
+		IsAuth: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status code %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+
+	// mock a sample project
+	if project {
+		rec, err = TestEchoHandler(&TestEchoBody{
+			T:      t,
+			H:      h.Project.CreateProject,
+			Body:   &handlers.CreateProjectReq{Name: "newbe"},
+			Query:  nil,
+			IsAuth: true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body = rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var res types.Res[db.CreateProjectRow]
+		if err := readAndUnmarshl(body, &res); err != nil {
+			t.Fatal(err)
+		}
+
+		mockUser.ProjectID = res.Data.ID
+	}
+
+	return mockUser
 }

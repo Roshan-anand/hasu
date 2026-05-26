@@ -85,9 +85,9 @@ func (h *OrgHandler) CreateOrg(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to start transaction"})
 	}
-	q = q.WithTx(tx)
+	tq := q.WithTx(tx)
 
-	org, err := q.CreateOrg(h.qCtx, db.CreateOrgParams{
+	org, err := tq.CreateOrg(h.qCtx, db.CreateOrgParams{
 		ID:   security.GeneratePrimaryKey(),
 		Name: b.Name,
 	})
@@ -100,7 +100,7 @@ func (h *OrgHandler) CreateOrg(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create organization"})
 	}
 
-	if err := q.LinkUserNOrg(h.qCtx, db.LinkUserNOrgParams{
+	if err := tq.LinkUserNOrg(h.qCtx, db.LinkUserNOrgParams{
 		UserEmail:      u.Email,
 		OrganizationID: org.ID,
 	}); err != nil {

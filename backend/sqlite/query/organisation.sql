@@ -55,16 +55,17 @@ SELECT *
 FROM project
 WHERE organization_id = ?;
 
+-- name: GetProjectNetwork :one
+SELECT network_name
+FROM project
+WHERE id = @project_id;
+
 -- name: CheckProjectExists :one
 SELECT CAST(EXISTS(
     SELECT 1
     FROM project
     WHERE organization_id = ? AND name = @project_name
 ) AS BOOLEAN);
-
--- name: DeleteProject :exec
-DELETE FROM project
-WHERE id = ?;
 
 -- name: CheckProjectHasServices :one
 SELECT CAST(EXISTS(
@@ -76,3 +77,7 @@ SELECT CAST(EXISTS(
     FROM psql_service ps
     WHERE ps.project_id = @project_id
 ) AS BOOLEAN);
+
+-- name: DeleteProject :exec
+DELETE FROM project
+WHERE id = ?;

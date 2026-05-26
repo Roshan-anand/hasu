@@ -41,6 +41,11 @@ func main() {
 			fmt.Println("failed to setup godploy stack :", err)
 			return
 		}
+	case "server-start":
+		if err := runCommand("docker", "compose", "-p", "godploy", "-f", "../docker/compose.dev.yaml", "up", "server", "--watch"); err != nil {
+			fmt.Println("failed to setup godploy stack :", err)
+			return
+		}
 	case "dev-stop":
 		if err := runCommand("docker", "compose", "-p", "godploy", "-f", "../docker/compose.dev.yaml", "down"); err != nil {
 			fmt.Println("failed to stop godploy stack :", err)

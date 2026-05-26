@@ -64,6 +64,8 @@ func (w *worker) PullWorker(ctx context.Context, data chan *deploymentqueue.Pull
 				Env:               d.Env,
 				BuildArgs:         d.BuildArgs,
 				BuildSecrets:      d.BuildSecrets,
+				NetworkName:       d.NetworkName,
+				IsPublic:          d.IsPublic,
 			})
 
 		case <-ctx.Done():

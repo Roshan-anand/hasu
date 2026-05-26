@@ -13,10 +13,10 @@ import (
 	"github.com/Roshan-anand/godploy/internal/lib/gh"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/google/go-github/v84/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
-	"github.com/moby/moby/client"
 )
 
 type DockerBuildReq struct {
@@ -37,6 +37,7 @@ type CreateAppServiceReq struct {
 	BuildArgs    []string        `json:"build_args"`
 	BuildSecrets []string        `json:"build_secrets"`
 	DockerBuild  *DockerBuildReq `json:"docker_build"`
+	Public       bool            `json:"public"`
 }
 
 type UpdateDomainReq struct {
@@ -70,6 +71,7 @@ type RoolbackServiceReq struct {
 //
 // route: POST /api/service/app
 func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
+	fmt.Println("crea app service trigger")
 	b := new(CreateAppServiceReq)
 	q := h.Server.DB.Queries
 
@@ -96,10 +98,13 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to verify github app"})
 	}
 
+	// create a new github client
 	ghClient, err := gh.CreateGithubClient(context.Background(), ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github client"})
 	}
+
+	fmt.Println("create new gh client")
 
 	// get the github repository details
 	repo, _, err := ghClient.Repositories.GetByID(context.Background(), b.GhRepoID)
@@ -125,6 +130,8 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch latest commit info from github"})
 	}
 
+	fmt.Println("got all repository commit")
+
 	latestCommitHash := commits[0].GetSHA()
 	latestCommitMsg := commits[0].GetCommit().GetMessage()
 
@@ -139,10 +146,14 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	serviceName := fmt.Sprintf("%s-%s-%s", b.Name, defaultBranch, security.GenerateRandomID(6))
 	imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", b.Name, defaultBranch, security.GenerateRandomID(6)))
 
+	fmt.Println("parsed url")
+
 	// clear the evnironment array
 	b.Env = cleanArray(b.Env)
 	b.BuildArgs = cleanArray(b.BuildArgs)
 	b.BuildSecrets = cleanArray(b.BuildSecrets)
+
+	fmt.Println("cleared all evns")
 
 	// convert into bytes
 	envByte, err := MarshalServiceEnv(&ServiceEnvArray{
@@ -154,15 +165,19 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid env values"})
 	}
 
+	fmt.Println("marshal evn ")
+
 	// start a new db transaction
 	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
-	q = q.WithTx(tx)
+	tq := q.WithTx(tx)
+
+	fmt.Println("strted a new trnstacktion")
 
 	// create a new service
-	service, err := q.CreateAppService(h.qCtx, db.CreateAppServiceParams{
+	service, err := tq.CreateAppService(h.qCtx, db.CreateAppServiceParams{
 		ID:                security.GeneratePrimaryKey(),
 		ProjectID:         b.ProjectID,
 		Type:              types.AppServiceType,
@@ -186,8 +201,10 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
 
+	fmt.Println("created a new service in db")
+
 	// create a new branch for the app service
-	branchID, err := q.CreateAppServiceBranch(h.qCtx, db.CreateAppServiceBranchParams{
+	branchID, err := tq.CreateAppServiceBranch(h.qCtx, db.CreateAppServiceBranchParams{
 		ID:               security.GeneratePrimaryKey(),
 		IsDefaultBranch:  true,
 		BranchName:       defaultBranch,
@@ -199,8 +216,10 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service branch"})
 	}
 
+	fmt.Println("created a new branch for the service")
+
 	// create a new deployment for the app service
-	dID, err := q.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
+	dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 		ID:         security.GeneratePrimaryKey(),
 		BranchID:   branchID,
 		CommitHash: latestCommitHash,
@@ -212,17 +231,26 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
 	}
 
-	if err := tx.Commit(); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
-	}
-
 	// get gh token
 	token, err := gh.GetGhToken(ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github token"})
 	}
 
-	fmt.Println("env :", len(b.Env), b.Env)
+	fmt.Println("got gh token")
+
+	network, err := tq.GetProjectNetwork(h.qCtx, b.ProjectID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get project network"})
+	}
+
+	fmt.Println("got project network")
+
+	if err := tx.Commit(); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
+	}
+
+	fmt.Println("commited all changes to db")
 
 	// push a new deployment job to the queue
 	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
@@ -240,7 +268,11 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		Env:               b.Env,
 		BuildArgs:         b.BuildArgs,
 		BuildSecrets:      b.BuildSecrets,
+		IsPublic:          b.Public,
+		NetworkName:       network,
 	})
+
+	fmt.Println("enqueued deployment job")
 
 	return c.JSON(http.StatusOK, types.Res[uuid.UUID]{
 		Message: "",
@@ -349,23 +381,20 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 	}
 
 	// get service spec to update the labels
-	inspectRes, err := docker.ServiceInspect(context.Background(), swarmService, client.ServiceInspectOptions{})
+	inspectRes, _, err := docker.ServiceInspectWithRaw(context.Background(), swarmService, swarm.ServiceInspectOptions{})
 	if err != nil {
 		fmt.Printf("Failed to inspect swarm service: %v\n", err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to inspect swarm service"})
 	}
-	serviceV := inspectRes.Service.Meta.Version
-	spec := inspectRes.Service.Spec
+	serviceV := inspectRes.Version
+	spec := inspectRes.Spec
 
 	// add domain specfic labels
 	spec.Annotations.Labels[fmt.Sprintf("traefik.http.routers.%s.rule", swarmService)] = fmt.Sprintf("Host(`%s`)", b.Domain)
 	spec.Annotations.Labels[fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", swarmService)] = fmt.Sprintf("%d", b.Port)
 
 	// update the swarm service
-	if _, err := docker.ServiceUpdate(context.Background(), swarmService, client.ServiceUpdateOptions{
-		Version: serviceV,
-		Spec:    spec,
-	}); err != nil {
+	if _, err := docker.ServiceUpdate(context.Background(), swarmService, serviceV, spec, swarm.ServiceUpdateOptions{}); err != nil {
 		fmt.Printf("Failed to update swarm service: %v\n", err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update swarm service"})
 	}
@@ -403,20 +432,17 @@ func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
 	// update env in all the service
 	for _, serviceName := range swarmServices {
 		// get service spec to update the labels
-		inspectRes, err := docker.ServiceInspect(context.Background(), serviceName, client.ServiceInspectOptions{})
+		inspectRes, _, err := docker.ServiceInspectWithRaw(context.Background(), serviceName, swarm.ServiceInspectOptions{})
 		if err != nil {
 			fmt.Printf("Failed to inspect swarm service: %v\n", err)
 			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to inspect swarm service"})
 		}
-		serviceV := inspectRes.Service.Meta.Version
-		spec := inspectRes.Service.Spec
+		serviceV := inspectRes.Version
+		spec := inspectRes.Spec
 		spec.TaskTemplate.ContainerSpec.Env = b.Env
 
 		// update the swarm service
-		if _, err := docker.ServiceUpdate(context.Background(), serviceName, client.ServiceUpdateOptions{
-			Version: serviceV,
-			Spec:    spec,
-		}); err != nil {
+		if _, err := docker.ServiceUpdate(context.Background(), serviceName, serviceV, spec, swarm.ServiceUpdateOptions{}); err != nil {
 			fmt.Printf("Failed to update swarm service: %v\n", err)
 			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update swarm service"})
 		}

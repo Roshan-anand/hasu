@@ -7,7 +7,7 @@ import (
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
-	"github.com/moby/moby/client"
+	"github.com/docker/docker/api/types/swarm"
 )
 
 // responsible for pulling code and storing it local
@@ -29,7 +29,7 @@ func (w *worker) ReDeployWorker(ctx context.Context, data chan *deploymentqueue.
 			})
 
 			// get the swarm service spec
-			res, err := docker.ServiceInspect(w.qCtx, d.SwarmServiceName, client.ServiceInspectOptions{})
+			res, _, err := docker.ServiceInspectWithRaw(w.qCtx, d.SwarmServiceName, swarm.ServiceInspectOptions{})
 			if err != nil {
 				fmt.Printf("DeployWorker: error inspecting service: %v\n", err)
 				l.EndLogs(&logbrokerqueue.EndLogData{
@@ -39,8 +39,8 @@ func (w *worker) ReDeployWorker(ctx context.Context, data chan *deploymentqueue.
 				})
 				continue
 			}
-			version := res.Service.Version
-			spec := res.Service.Spec
+			version := res.Version
+			spec := res.Spec
 
 			// update the image and env
 			spec.TaskTemplate.ContainerSpec.Image = d.ImgName
@@ -49,10 +49,7 @@ func (w *worker) ReDeployWorker(ctx context.Context, data chan *deploymentqueue.
 			}
 
 			// update the service with the new spec
-			if _, err := docker.ServiceUpdate(w.qCtx, d.SwarmServiceName, client.ServiceUpdateOptions{
-				Version: version,
-				Spec:    spec,
-			}); err != nil {
+			if _, err := docker.ServiceUpdate(w.qCtx, d.SwarmServiceName, version, spec, swarm.ServiceUpdateOptions{}); err != nil {
 				fmt.Printf("DeployWorker: error updating service: %v\n", err)
 				l.EndLogs(&logbrokerqueue.EndLogData{
 					DeploymentID: d.DeploymentID,

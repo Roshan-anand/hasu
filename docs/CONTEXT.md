@@ -20,6 +20,14 @@ _Avoid_: App, container
 A service created from a built-in database template such as Postgres or Redis.
 _Avoid_: Addon, plugin, managed database
 
+**Predefined Service Template**:
+A built-in service definition that provides the deploy configuration for a predefined service type.
+_Avoid_: Preset, boilerplate service
+
+**Template Version**:
+The selectable base image version offered by a predefined service template.
+_Avoid_: Custom image, runtime patch level
+
 **Project Network**:
 The private network shared by services in the same project.
 _Avoid_: Org network, cluster network
@@ -36,6 +44,10 @@ _Avoid_: Internet app, external container
 A service reachable only from other services on the same project network.
 _Avoid_: Hidden app, background container
 
+**Exposure Mode**:
+The access mode of a service, either public or internal.
+_Avoid_: Network mode, visibility
+
 ## Relationships
 
 - An **Organization** contains one or more **Projects**
@@ -44,8 +56,11 @@ _Avoid_: Hidden app, background container
 - A **Service** belongs to exactly one **Project**
 - A **Project** provides exactly one **Project Network** for its **Services**
 - A **Predefined Database Service** is a kind of **Service**
+- A **Predefined Database Service** is created from exactly one **Predefined Service Template**
+- A **Predefined Database Service** selects exactly one **Template Version** from its template's allowed versions
 - A **Public Service** joins the **Project Network** and the global ingress network
 - An **Internal Service** joins only the **Project Network**
+- A **Service** has exactly one **Exposure Mode** at a time
 - A **Service** may use an **Internal URL** to communicate with another **Service** in the same **Project**
 
 ## Example dialogue
@@ -56,7 +71,11 @@ _Avoid_: Hidden app, background container
 > **Dev:** "Can an application service be private too, or are only databases private?"
 > **Domain expert:** "Any **Service** can be internal-only; a **Public Service** is the one that also gets external ingress."
 
+> **Dev:** "How much can the user change when creating Postgres?"
+> **Domain expert:** "They choose from a **Predefined Service Template**, then edit safe fields like name, credentials, and the allowed **Template Version**."
+
 ## Flagged ambiguities
 
 - `service` was previously discussed as belonging directly to an **Organization**; resolved: a **Service** belongs to a **Project**, and a **Project** belongs to an **Organization**.
 - `application` was previously used to imply public access; resolved: an application may be either a **Public Service** or an **Internal Service**.
+- `network` was used to describe service visibility; resolved: use **Exposure Mode** for public vs internal, and **Project Network** for the private network itself.

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '@/components/ui/button';
+	import { Checkbox } from '@/components/ui/checkbox';
 	import GitProviderField from '@/components/services/git-provider-field.svelte';
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
@@ -40,6 +41,7 @@
 			gh_repo_id: 0,
 			build_path: '/',
 			watch_path: '/',
+			public: true,
 			env: '',
 			build_args: '',
 			build_secrets: '',
@@ -50,13 +52,6 @@
 			}
 		} as CreateAppServiceForm,
 		onSubmit: ({ value }) => {
-			console.log('Form submit triggerd');
-
-			if (projectId === '') {
-				toast.error('Please select an organization');
-				return;
-			}
-
 			const selectedGithubRepo = getReposMutation.data?.find(
 				(repo) => repo.id === value.gh_repo_id
 			);
@@ -86,6 +81,7 @@
 				gh_repo_id: value.gh_repo_id,
 				build_path: buildPath,
 				watch_path: watchPath,
+				public: value.public,
 				env,
 				build_args,
 				build_secrets,
@@ -334,6 +330,25 @@
 						disabled={createServiceMutation.isPending}
 					/>
 					<FormError errors={field.state.meta.errors} />
+				</div>
+			{/snippet}
+		</form.Field>
+
+		<form.Field name="public">
+			{#snippet children(field)}
+				<div class="flex items-center space-x-2">
+					<Checkbox
+						id={field.name}
+						checked={field.state.value}
+						onchange={() => field.handleChange(!field.state.value)}
+						disabled={createServiceMutation.isPending}
+					/>
+					<Label
+						for={field.name}
+						class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+					>
+						Make it public
+					</Label>
 				</div>
 			{/snippet}
 		</form.Field>

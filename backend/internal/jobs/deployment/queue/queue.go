@@ -24,6 +24,8 @@ type PullJobData struct {
 	Env               []string
 	BuildArgs         []string
 	BuildSecrets      []string
+	IsPublic          bool
+	NetworkName       string
 }
 
 type BuildJobData struct {
@@ -39,6 +41,8 @@ type BuildJobData struct {
 	Env               []string
 	BuildArgs         []string
 	BuildSecrets      []string
+	IsPublic          bool
+	NetworkName       string
 }
 
 type DeployJobData struct {
@@ -46,6 +50,8 @@ type DeployJobData struct {
 	SwarmServiceName string
 	ImgName          string
 	Env              []string
+	IsPublic         bool
+	NetworkName      string
 }
 
 type RedeployJobData = DeployJobData

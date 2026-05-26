@@ -9,12 +9,13 @@
 
 ## running the services
 
-- run `cp .env.example .env`
+- run `make env` to create `.env` files
 - run `make cloud-tunnel` to start cloudflared tunnel for local https support
   - copy the `https://<custom_generated>.trycloudflare.com` url
   - paste it in `.env` file in the root folder in `SERVER_PUBLIC_URL` var
 - run `make setup` to setup traefik and build needed docker images
-- run `make dev-start` to start dev services
+- run `make server-start` to start the server service
+- run `make web-start` to start the web service
 - you can access services at
   - Traefik dashboard : `https://traefik.godploy.localhost` (to access the dashboard username : `godploy`, password : `godploy`)
   - Godploy web : `https://localhost:3000`

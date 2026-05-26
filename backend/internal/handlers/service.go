@@ -11,10 +11,10 @@ import (
 	"github.com/Roshan-anand/godploy/internal/db"
 	"github.com/Roshan-anand/godploy/internal/lib/sse"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
-	"github.com/moby/moby/client"
 )
 
 type ServiceHandler struct {
@@ -74,7 +74,7 @@ func (h *ServiceHandler) GetServiceLogs(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to get swarm service"})
 	}
 
-	serviceLogs, err := h.Server.Docker.Client.ServiceLogs(context.Background(), swarmService, client.ServiceLogsOptions{
+	serviceLogs, err := h.Server.Docker.Client.ServiceLogs(context.Background(), swarmService, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Timestamps: true,

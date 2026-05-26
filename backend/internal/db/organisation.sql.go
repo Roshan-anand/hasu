@@ -278,6 +278,19 @@ func (q *Queries) GetOrgById(ctx context.Context, id uuid.UUID) (GetOrgByIdRow, 
 	return i, err
 }
 
+const getProjectNetwork = `-- name: GetProjectNetwork :one
+SELECT network_name
+FROM project
+WHERE id = ?1
+`
+
+func (q *Queries) GetProjectNetwork(ctx context.Context, projectID uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, getProjectNetwork, projectID)
+	var network_name string
+	err := row.Scan(&network_name)
+	return network_name, err
+}
+
 const linkUserNOrg = `-- name: LinkUserNOrg :exec
 INSERT INTO user_organization (user_email, organization_id)
 VALUES (?, ?)

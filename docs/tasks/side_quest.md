@@ -33,22 +33,24 @@
 
 - [ ] use dynamic imports in client side
 - create service form
-  - [x] the git provider github shoudl be auto fetched if the selected service is app. [easy, query]
+  - [x] the git provider github should be auto fetched if the selected service is app. [easy, query]
   - [x] select field for selecting git-provider-app after **git-provider-selection**.
   - [x] input field for build path after **branch-selection**.
   - [x] select field for selecting watch path after **build-path-selection**.
   - [x] update create service api to accept build path, repo nd branch. [easy, api]
   - [x] if no github app connected then show msg and link to connect github app. [easy, ui]
   - [x] Load ui for select option till it fetch data
-  - [x] the name input shoudl be dafault to selected repo name.
+  - [x] the name input should be dafault to selected repo name.
   - [ ] when setting name based on repo selected, also try to validate if service name already exists in client side itself to appen a random string for the name. [easy, ui]
 - deployment logs page
   - [ ] fix logs dialog box width
   - [ ] show error msg in red bg.
+  - [ ] scroll should be always at the bottom. [easy, ui]
 - rollback
   - [ ] config operation if image not exists
   - [ ] provide settings to +/- keeping the image of deployments
   - [ ] automaticcally delete deployments img if max exceeds
+- [ ] modify the bg workers to production level setup.
 
 ## Potential bugs
 

@@ -57,9 +57,9 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	// initialize service api routes
 	service := protected.Group("/service")
 	service.GET("", h.Service.GetAllServices)
-	service.GET("/deployment", h.Service.GetServiceDeployments)
-	service.DELETE("/deployment", h.Service.DeleteServiceDeployment)
-	service.GET("/deployment/logs", h.Service.SubscribeServiceDeploymentLogs)
+	service.GET("/deployment", h.Deployment.GetServiceDeployments)
+	service.DELETE("/deployment", h.Deployment.DeleteServiceDeployment)
+	service.GET("/deployment/logs", h.Deployment.SubscribeServiceDeploymentLogs)
 	service.GET("/logs", h.Service.GetServiceLogs)
 
 	psql := service.Group("/psql")
@@ -77,8 +77,8 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	app.PUT("/domain", h.Service.UpdateAppServiceDomain)
 	app.GET("/env", h.Service.GetServiceEnv)
 	app.PUT("/env", h.Service.UpdateAppServiceEnv)
-	app.POST("/rebuild", h.Service.RebuildAppService)
-	app.POST("/rollback", h.Service.RollbackAppService)
+	app.POST("/rebuild", h.Deployment.RebuildAppService)
+	app.POST("/rollback", h.Deployment.RollbackAppService)
 
 	gh := protected.Group("/provider/github")
 	gh.GET("/app/create", h.Git.CreateGithubApp)

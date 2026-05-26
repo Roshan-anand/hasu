@@ -17,3 +17,12 @@ func NewJob(s *config.Server) *worker {
 		qCtx:   context.Background(),
 	}
 }
+
+// starts all the deployment workers
+func (w *worker) StartAllDeploymentWorker() {
+	q := w.Server.DeploymentQ
+	go w.PullWorker(context.Background(), q.PullQueue)
+	go w.BuildWorker(context.Background(), q.BuildQueue)
+	go w.DeployWorker(context.Background(), q.DeployQueue)
+	go w.ReDeployWorker(context.Background(), q.RedeployQueue)
+}

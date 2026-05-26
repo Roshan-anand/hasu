@@ -3,6 +3,10 @@
 permission:
 	@sudo chown -R $(id -u):$(id -g) ./frontend/.svelte-kit
 
+env:
+	@cp .env.example .env && \
+	cd frontend && cp .env.example .env
+	
 install-web:
 	cd frontend && \
 	bun install && \
@@ -64,13 +68,21 @@ dev-start:
 	@cd backend && \
 	go run cmd/setup/main.go dev-start
 
+server-start:
+	@cd backend && \
+	go run cmd/setup/main.go server-start
+
+web-start:
+	@cd frontend && \
+	bun run dev --host 0.0.0.0 --port 3000
+
 dev-stop:
 	@cd backend && \
 	go run cmd/setup/main.go dev-stop
 
 services-rm:
 	docker service rm godploy_traefik
-	
+
 test-backend:
 	@cd backend && \
 	go run cmd/setup/main.go test-backend
@@ -97,6 +109,6 @@ clean-web:
 	rm -rf ./frontend/node_modules ./frontend/.svelte-kit ./frontend/build
 
 clean-server:
-	rm -rf ./backend/bin ./backend/frontend/dist ./bin/godploy
+	rm -rf ./backend/bin ./backend/frontend/dist ./bin/godploy ./backend/data
 
 clean: clean-web clean-server

@@ -11,9 +11,9 @@ services:
         - action: sync
           path: ../frontend
           target: /app/frontend
+          initial_sync: true
           ignore:
             - node_modules/
-            - .svelte-kit/
             - build/
         - action: rebuild
           path: ../frontend/package.json
@@ -21,7 +21,6 @@ services:
           path: ../frontend/bun.lock
     volumes:
       - ../frontend/.svelte-kit:/app/frontend/.svelte-kit:rw
-      - ../frontend:/app/frontend:rw
     environment:
       - NODE_ENV=development
       - DEV_BACKEND_URL=http://server:8080
@@ -43,11 +42,6 @@ services:
     container_name: godploy-backend-dev
     develop:
       watch:
-        - action: sync
-          path: ../backend
-          target: /app/backend
-          ignore:
-            - data/
         - action: rebuild
           path: ../backend/go.mod
         - action: rebuild
@@ -63,7 +57,7 @@ services:
       - godploy-dev-codebase:/etc/godploy/code
     environment:
       - JWT_SECRET=red_balloon
-      - APP_ENV=dev
+      - APP_ENV=development
       - WEB_URL=http://localhost:3000
     ports:
       - "8080:8080"
