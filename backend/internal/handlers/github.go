@@ -197,7 +197,6 @@ func (h *GitHandler) CreateGithubAppCallback(c *echo.Context) error {
 		},
 		State: state,
 	}); err != nil {
-		fmt.Println("Error updating redirect session with github app id:", err)
 		return c.Redirect(http.StatusFound, "/?github_error=internal")
 	}
 	// go removeSession(query, state)
@@ -215,14 +214,12 @@ func (h *GitHandler) SetupGithubApp(c *echo.Context) error {
 	state := c.QueryParam("state")
 	ghAppId, err := q.GetRedirectSessionGhAppID(h.qCtx, state)
 	if err != nil || !ghAppId.Valid {
-		fmt.Println("Error fetching redirect session:", err)
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid state"})
 	}
 	go removeSession(q, state)
 
 	instllation_id, err := strconv.ParseInt(c.QueryParam("installation_id"), 10, 64)
 	if err != nil {
-		fmt.Println("Error parsing installation ID:", err)
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid installation ID"})
 	}
 
@@ -241,7 +238,6 @@ func (h *GitHandler) SetupGithubApp(c *echo.Context) error {
 	// verify installation ID by making an authenticated request to GitHub API
 	_, _, err = appClient.Apps.GetInstallation(context.Background(), instllation_id)
 	if err != nil {
-		fmt.Println("Error verifying installation ID:", err)
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid installation ID"})
 	}
 
@@ -274,7 +270,6 @@ func (h *GitHandler) GetAllGithubApps(c *echo.Context) error {
 				Data:    nil,
 			})
 		}
-		fmt.Println("Error fetching github app:", err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github app"})
 	}
 
@@ -465,7 +460,6 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 			BranchName: branch,
 		})
 		if err != nil {
-			fmt.Println("error getting branch by repo : ", err)
 			return nil
 		}
 

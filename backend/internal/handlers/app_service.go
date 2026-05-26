@@ -71,7 +71,6 @@ type RoolbackServiceReq struct {
 //
 // route: POST /api/service/app
 func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
-	fmt.Println("crea app service trigger")
 	b := new(CreateAppServiceReq)
 	q := h.Server.DB.Queries
 
@@ -104,8 +103,6 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github client"})
 	}
 
-	fmt.Println("create new gh client")
-
 	// get the github repository details
 	repo, _, err := ghClient.Repositories.GetByID(context.Background(), b.GhRepoID)
 	if err != nil {
@@ -130,8 +127,6 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch latest commit info from github"})
 	}
 
-	fmt.Println("got all repository commit")
-
 	latestCommitHash := commits[0].GetSHA()
 	latestCommitMsg := commits[0].GetCommit().GetMessage()
 
@@ -146,14 +141,10 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	serviceName := fmt.Sprintf("%s-%s-%s", b.Name, defaultBranch, security.GenerateRandomID(6))
 	imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", b.Name, defaultBranch, security.GenerateRandomID(6)))
 
-	fmt.Println("parsed url")
-
 	// clear the evnironment array
 	b.Env = cleanArray(b.Env)
 	b.BuildArgs = cleanArray(b.BuildArgs)
 	b.BuildSecrets = cleanArray(b.BuildSecrets)
-
-	fmt.Println("cleared all evns")
 
 	// convert into bytes
 	envByte, err := MarshalServiceEnv(&ServiceEnvArray{
@@ -165,16 +156,12 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid env values"})
 	}
 
-	fmt.Println("marshal evn ")
-
 	// start a new db transaction
 	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
 	tq := q.WithTx(tx)
-
-	fmt.Println("strted a new trnstacktion")
 
 	// create a new service
 	service, err := tq.CreateAppService(h.qCtx, db.CreateAppServiceParams{
@@ -201,8 +188,6 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
 
-	fmt.Println("created a new service in db")
-
 	// create a new branch for the app service
 	branchID, err := tq.CreateAppServiceBranch(h.qCtx, db.CreateAppServiceBranchParams{
 		ID:               security.GeneratePrimaryKey(),
@@ -215,8 +200,6 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		tx.Rollback()
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service branch"})
 	}
-
-	fmt.Println("created a new branch for the service")
 
 	// create a new deployment for the app service
 	dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
@@ -237,20 +220,14 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github token"})
 	}
 
-	fmt.Println("got gh token")
-
 	network, err := tq.GetProjectNetwork(h.qCtx, b.ProjectID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get project network"})
 	}
 
-	fmt.Println("got project network")
-
 	if err := tx.Commit(); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
-
-	fmt.Println("commited all changes to db")
 
 	// push a new deployment job to the queue
 	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
@@ -272,8 +249,6 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		NetworkName:       network,
 	})
 
-	fmt.Println("enqueued deployment job")
-
 	return c.JSON(http.StatusOK, types.Res[uuid.UUID]{
 		Message: "",
 		Data:    service.ID,
@@ -291,7 +266,6 @@ func (h *ServiceHandler) GetAppServiceById(c *echo.Context) error {
 
 	service, err := h.Server.DB.Queries.GetAppServiceById(h.qCtx, serviceID)
 	if err != nil {
-		fmt.Printf("Failed to get service by id: %v\n", err)
 		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
 	}
 
@@ -383,7 +357,6 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 	// get service spec to update the labels
 	inspectRes, _, err := docker.ServiceInspectWithRaw(context.Background(), swarmService, swarm.ServiceInspectOptions{})
 	if err != nil {
-		fmt.Printf("Failed to inspect swarm service: %v\n", err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to inspect swarm service"})
 	}
 	serviceV := inspectRes.Version
@@ -395,7 +368,6 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 
 	// update the swarm service
 	if _, err := docker.ServiceUpdate(context.Background(), swarmService, serviceV, spec, swarm.ServiceUpdateOptions{}); err != nil {
-		fmt.Printf("Failed to update swarm service: %v\n", err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update swarm service"})
 	}
 
@@ -434,7 +406,6 @@ func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
 		// get service spec to update the labels
 		inspectRes, _, err := docker.ServiceInspectWithRaw(context.Background(), serviceName, swarm.ServiceInspectOptions{})
 		if err != nil {
-			fmt.Printf("Failed to inspect swarm service: %v\n", err)
 			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to inspect swarm service"})
 		}
 		serviceV := inspectRes.Version
@@ -443,7 +414,6 @@ func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
 
 		// update the swarm service
 		if _, err := docker.ServiceUpdate(context.Background(), serviceName, serviceV, spec, swarm.ServiceUpdateOptions{}); err != nil {
-			fmt.Printf("Failed to update swarm service: %v\n", err)
 			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update swarm service"})
 		}
 	}

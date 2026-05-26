@@ -51,7 +51,6 @@ func (h *DeploymentHandler) GetServiceDeployments(c *echo.Context) error {
 
 	deployemnts, err := q.GetDeploymentsByServiceID(h.qCtx, serviceID)
 	if err != nil {
-		fmt.Printf("error getting deployments for service_id: %v, error: %v\n", serviceID, err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to get deployments"})
 	}
 

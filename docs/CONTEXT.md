@@ -16,6 +16,10 @@ _Avoid_: App, workspace, repo group
 A deployable runtime unit that belongs to exactly one project.
 _Avoid_: App, container
 
+**Service Branch**:
+A separately deployable branch instance of an application service.
+_Avoid_: Environment, clone, duplicate service
+
 **Predefined Database Service**:
 A service created from a built-in database template such as Postgres or Redis.
 _Avoid_: Addon, plugin, managed database
@@ -54,6 +58,7 @@ _Avoid_: Network mode, visibility
 - A **Project** belongs to exactly one **Organization**
 - A **Project** contains one or more **Services**
 - A **Service** belongs to exactly one **Project**
+- An application **Service** may contain one or more **Service Branches**
 - A **Project** provides exactly one **Project Network** for its **Services**
 - A **Predefined Database Service** is a kind of **Service**
 - A **Predefined Database Service** is created from exactly one **Predefined Service Template**
@@ -73,6 +78,9 @@ _Avoid_: Network mode, visibility
 
 > **Dev:** "How much can the user change when creating Postgres?"
 > **Domain expert:** "They choose from a **Predefined Service Template**, then edit safe fields like name, credentials, and the allowed **Template Version**."
+
+> **Dev:** "If I deploy another git branch, is that a new service?"
+> **Domain expert:** "No, it is another **Service Branch** under the same application **Service**."
 
 ## Flagged ambiguities
 

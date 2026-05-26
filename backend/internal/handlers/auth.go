@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/Roshan-anand/godploy/internal/config"
@@ -107,7 +106,6 @@ func (h *AuthHandler) AppRegiter(c *echo.Context) error {
 	// hash password
 	hPass, err := security.HashPassword(b.Password)
 	if err != nil {
-		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Internal Server Error"})
 	}
 
