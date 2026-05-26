@@ -22,18 +22,13 @@ SELECT CAST(
 AS BOOLEAN);
 
 -- name: CreatePsqlService :one
-INSERT INTO psql_service (id, project_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO psql_service (id, project_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url, image_name)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id;
 
 -- name: GetPsqlServiceById :one
 SELECT *
 FROM psql_service
-WHERE id = ?;
-
--- name: SetPsqlSwarmServiceId :exec
-UPDATE psql_service
-SET swarm_service_id = ?
 WHERE id = ?;
 
 -- name: DeletePsqlService :exec

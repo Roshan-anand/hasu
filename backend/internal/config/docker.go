@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 )
@@ -80,4 +82,26 @@ func (d *DockerClient) RemoveServices(swarmServiceNames map[string]struct{}) {
 			fmt.Printf("failed to remove service %s : %v\n", s, err)
 		}
 	}
+}
+
+func (d *DockerClient) CreateNetwork(networkName string) error {
+	_, err := d.Client.NetworkInspect(context.Background(), networkName, network.InspectOptions{})
+	if err != nil {
+		if errdefs.IsNotFound(err) {
+			// create network if not exist
+			_, err := d.Client.NetworkCreate(context.Background(), networkName, network.CreateOptions{
+				Driver:     "overlay",
+				Scope:      "swarm",
+				Attachable: true,
+			})
+			if err != nil {
+				fmt.Printf("error creating network: %v\n", err)
+				return err
+			}
+		} else {
+			fmt.Printf("error inspecting network: %v\n", err)
+			return err
+		}
+	}
+	return nil
 }

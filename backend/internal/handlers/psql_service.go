@@ -4,11 +4,15 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -41,15 +45,26 @@ func InitPsqlServiceHandlers(s *config.Server) *PsqlServiceHandler {
 	}
 }
 
+func isPsqlImage(image string) bool {
+	// TODO : improve checking logic
+	return strings.Contains(image, "postgres")
+}
+
 // create a new psql service
 //
 // route: POST /api/service/psql
 func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 	q := h.Server.DB.Queries
 	b := new(CreatePsqlServiceReq)
+	docker := h.Server.Docker.Client
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
 		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	// check if image is a postgres image
+	if !isPsqlImage(b.Image) {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid image. Only postgres images are allowed"})
 	}
 
 	// check if service name already exists in the organization
@@ -62,9 +77,71 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Service name already exists"})
 	}
 
-	serviceName := fmt.Sprintf("%s-%s", b.Name, b.ProjectID)
+	network, err := q.GetProjectNetwork(h.qCtx, b.ProjectID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to fetch project network"})
+	}
 
-	service, err := h.Server.DB.Queries.CreatePsqlService(h.qCtx, db.CreatePsqlServiceParams{
+	serviceName := fmt.Sprintf("%s-%s", b.Name, security.GenerateRandomID(6))
+
+	// create volume for the psql service
+	vlName := serviceName + "_pgdata"
+	docker.VolumeCreate(h.qCtx, volume.CreateOptions{
+		Name:   vlName,
+		Driver: "local",
+	})
+
+	// create network if not exist
+	if err := h.Server.Docker.CreateNetwork(network); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create network"})
+	}
+
+	// config swarm service spec
+	spec := swarm.ServiceSpec{
+		Annotations: swarm.Annotations{
+			Name: serviceName,
+		},
+
+		TaskTemplate: swarm.TaskSpec{
+			ContainerSpec: &swarm.ContainerSpec{
+				Image: b.Image,
+
+				Env: []string{
+					"POSTGRES_PASSWORD=" + b.DbPassword,
+					"POSTGRES_USER=" + b.DbUser,
+					"POSTGRES_DB=" + b.DbName,
+				},
+
+				Mounts: []mount.Mount{
+					{
+						Type:   mount.TypeVolume,
+						Source: vlName,
+						Target: "/var/lib/postgresql/data",
+					},
+				},
+			},
+
+			Networks: []swarm.NetworkAttachmentConfig{
+				{
+					Target: network,
+				},
+			},
+
+			RestartPolicy: &swarm.RestartPolicy{
+				Condition: swarm.RestartPolicyConditionAny,
+			},
+		},
+	}
+
+	// depoly the service
+	_, err = docker.ServiceCreate(h.qCtx, spec, swarm.ServiceCreateOptions{})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to deploy service"})
+	}
+
+	internalUrl := fmt.Sprintf("postgres://%s:%s@%s:5432/%s", b.DbUser, b.DbPassword, serviceName, b.DbName)
+
+	serviceID, err := h.Server.DB.Queries.CreatePsqlService(h.qCtx, db.CreatePsqlServiceParams{
 		ID:               security.GeneratePrimaryKey(),
 		ProjectID:        b.ProjectID,
 		Type:             types.PsqlServiceType,
@@ -73,20 +150,25 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 		DbName:           b.DbName,
 		DbUser:           b.DbUser,
 		DbPassword:       b.DbPassword, // TODO : make is hased
-		InternalUrl:      "",           // TODO : create internal URl
+		InternalUrl:      internalUrl,
+		ImageName:        b.Image,
 	})
 	if err != nil {
+		fmt.Println("error creating service in db :", err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
 
-	return c.JSON(http.StatusOK, service)
+	return c.JSON(http.StatusOK, types.Res[uuid.UUID]{
+		Message: "",
+		Data:    serviceID,
+	})
 }
 
 // get psql service details by id
 //
-// route: GET /api/service/psql/:id
+// route: GET /api/service/psql/?service_id=
 func (h *ServiceHandler) GetPsqlServiceById(c *echo.Context) error {
-	serviceID, err := uuid.Parse(c.Param("id"))
+	serviceID, err := uuid.Parse(c.QueryParam("service_id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid service id"})
 	}
@@ -96,151 +178,40 @@ func (h *ServiceHandler) GetPsqlServiceById(c *echo.Context) error {
 		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
 	}
 
-	return c.JSON(http.StatusOK, service)
-}
-
-// deploy the psql service to docker swarm
-//
-// route: POST /api/service/psql/deploy
-func (h *ServiceHandler) DeployPsqlService(c *echo.Context) error {
-	// docker := h.Server.Docker.Client
-	// q := h.Server.DB.Queries
-
-	// b := new(ServiceReq)
-
-	// if Res := BindAndValidate(b, c, h.Validate); Res != nil {
-	// 	return c.JSON(http.StatusBadRequest, Res)
-	// }
-
-	// service, err := q.GetPsqlServiceById(h.qCtx, b.ServiceId)
-	// if err != nil {
-	// 	return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
-	// }
-
-	// // create a volume for the service
-	// vlName := service.SwarmServiceName + "_pgdata"
-	// docker.VolumeCreate(h.qCtx, client.VolumeCreateOptions{
-	// 	Name:   vlName,
-	// 	Driver: "local",
-	// })
-
-	// replicas := uint64(2)
-
-	// spec := client.ServiceCreateOptions{
-	// 	Spec: swarm.ServiceSpec{
-
-	// 		Annotations: swarm.Annotations{
-	// 			Name: service.SwarmServiceName,
-	// 		},
-
-	// 		TaskTemplate: swarm.TaskSpec{
-	// 			ContainerSpec: &swarm.ContainerSpec{
-	// 				Image: service.ImageID, // TODO validate if image accepts image_id
-
-	// 				Env: []string{
-	// 					"POSTGRES_PASSWORD=" + service.DbPassword,
-	// 					"POSTGRES_USER=" + service.DbUser,
-	// 					"POSTGRES_DB=" + service.DbName,
-	// 				},
-
-	// 				Mounts: []mount.Mount{
-	// 					{
-	// 						Type:   mount.TypeVolume,
-	// 						Source: vlName,
-	// 						Target: "/var/lib/postgresql/data",
-	// 					},
-	// 				},
-	// 			},
-
-	// 			RestartPolicy: &swarm.RestartPolicy{
-	// 				Condition: swarm.RestartPolicyConditionAny,
-	// 			},
-	// 		},
-
-	// 		Mode: swarm.ServiceMode{
-	// 			Replicated: &swarm.ReplicatedService{
-	// 				Replicas: &replicas,
-	// 			},
-	// 		},
-	// 	},
-	// }
-
-	// // depoly the service
-	// sRes, err := docker.ServiceCreate(h.qCtx, spec)
-	// if err != nil {
-	// 	return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to deploy service"})
-	// }
-
-	// // update the service ID
-	// if err := q.SetPsqlSwarmServiceId(h.qCtx, db.SetPsqlSwarmServiceIdParams{
-	// 	SwarmServiceID: sql.NullString{
-	// 		String: sRes.ID,
-	// 		Valid:  true,
-	// 	},
-	// 	ID: service.ID,
-	// }); err != nil {
-	// 	docker.ServiceRemove(h.qCtx, sRes.ID, client.ServiceRemoveOptions{})
-	// 	return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update service with service id"})
-	// }
-
-	return c.JSON(http.StatusOK, map[string]string{
-		"id": "",
+	return c.JSON(http.StatusOK, types.Res[db.PsqlService]{
+		Message: "",
+		Data:    service,
 	})
-}
-
-// stop the psql service
-//
-// route: POST /api/service/psql/stop
-func (h *ServiceHandler) StopPsqlService(c *echo.Context) error {
-	// docker := h.Server.Docker.Client
-	// q := h.Server.DB.Queries
-
-	// b := new(ServiceReq)
-
-	// if Res := BindAndValidate(b, c, h.Validate); Res != nil {
-	// 	return c.JSON(http.StatusBadRequest, Res)
-	// }
-
-	// service, err := q.GetPsqlServiceById(h.qCtx, b.ServiceId)
-	// if err != nil {
-	// 	return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
-	// }
-
-	// if _, err := docker.ServiceRemove(h.qCtx, service.SwarmServiceID.String, client.ServiceRemoveOptions{}); err != nil {
-	// 	return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error removing service"})
-	// }
-
-	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "successfully removed the service"})
 }
 
 // stops and delete the psql service
 //
 // route: DELETE /api/service/psql
 func (h *ServiceHandler) DeletePsqlService(c *echo.Context) error {
-	// docker := h.Server.Docker.Client
-	// q := h.Server.DB.Queries
+	docker := h.Server.Docker.Client
+	q := h.Server.DB.Queries
 
-	// b := new(ServiceReq)
+	b := new(ServiceReq)
 
-	// if Res := BindAndValidate(b, c, h.Validate); Res != nil {
-	// 	return c.JSON(http.StatusBadRequest, Res)
-	// }
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
 
-	// service, err := q.GetPsqlServiceById(h.qCtx, b.ServiceId)
-	// if err != nil {
-	// 	return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Failed to fetch service details"})
-	// }
+	service, err := q.GetPsqlServiceById(h.qCtx, b.ServiceId)
+	if err != nil {
+		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Failed to fetch service details"})
+	}
 
-	// // check and stop the service if it is running
-	// // if s, _ := docker.ServiceInspect(h.qCtx, service.SwarmServiceID.String, client.ServiceInspectOptions{}); s.Service.ID != "" {
-	// // 	if _, err := docker.ServiceRemove(h.qCtx, service.SwarmServiceID.String, client.ServiceRemoveOptions{}); err != nil {
-	// // 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: fmt.Sprintln("error removing service :", err)})
-	// // 	}
-	// // }
+	// check and stop the service if it is running
+	if s, _, _ := docker.ServiceInspectWithRaw(h.qCtx, service.SwarmServiceName, swarm.ServiceInspectOptions{}); s.ID != "" {
+		if err := docker.ServiceRemove(h.qCtx, service.SwarmServiceName); err != nil {
+			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: fmt.Sprintln("error removing service :", err)})
+		}
+	}
 
-	// if err := q.DeletePsqlService(h.qCtx, b.ServiceId); err != nil {
-	// 	return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
-	// }
+	if err := q.DeletePsqlService(h.qCtx, b.ServiceId); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
+	}
 
 	return c.JSON(http.StatusOK, types.Res[struct{}]{
 		Message: "Successsfully deleted service",

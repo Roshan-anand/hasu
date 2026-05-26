@@ -7,8 +7,6 @@ import (
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
-	"github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 )
 
@@ -31,33 +29,14 @@ func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.De
 			})
 
 			// create network if not exist
-			_, err := docker.NetworkInspect(context.Background(), d.NetworkName, network.InspectOptions{})
-			if err != nil {
-				if errdefs.IsNotFound(err) {
-					// create network if not exist
-					_, err := docker.NetworkCreate(context.Background(), d.NetworkName, network.CreateOptions{
-						Driver:     "overlay",
-						Scope:      "swarm",
-						Attachable: true,
-					})
-					if err != nil {
-						fmt.Printf("DeployWorker: error creating network: %v\n", err)
-						l.EndLogs(&logbrokerqueue.EndLogData{
-							DeploymentID: d.DeploymentID,
-							Status:       types.DeploymentError,
-							Message:      err.Error(),
-						})
-						continue
-					}
-				} else {
-					fmt.Printf("DeployWorker: error inspecting network: %v\n", err)
-					l.EndLogs(&logbrokerqueue.EndLogData{
-						DeploymentID: d.DeploymentID,
-						Status:       types.DeploymentError,
-						Message:      err.Error(),
-					})
-					continue
-				}
+			if err := w.Server.Docker.CreateNetwork(d.NetworkName); err != nil {
+				fmt.Printf("DeployWorker: error creating network: %v\n", err)
+				l.EndLogs(&logbrokerqueue.EndLogData{
+					DeploymentID: d.DeploymentID,
+					Status:       types.DeploymentError,
+					Message:      err.Error(),
+				})
+				continue
 			}
 
 			replicas := uint64(1)
@@ -111,7 +90,7 @@ func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.De
 				}
 			}
 
-			_, err = docker.ServiceCreate(context.Background(), spec, swarm.ServiceCreateOptions{})
+			_, err := docker.ServiceCreate(context.Background(), spec, swarm.ServiceCreateOptions{})
 			if err != nil {
 				fmt.Printf("DeployWorker: error creating service: %v\n", err)
 				l.EndLogs(&logbrokerqueue.EndLogData{

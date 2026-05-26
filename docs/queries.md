@@ -36,3 +36,7 @@
 - [ ] tanstack query cache keys per parent resource
   - why service lists should key by project_id now that org -> project -> service
   - how to avoid cache collisions when moving from org-scoped to project-scoped lists
+
+- [ ] echo path params in handler tests
+  - how to inject route params with `SetParamNames` + `SetParamValues`
+  - see `backend/integration_tests/utils.go`

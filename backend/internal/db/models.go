@@ -82,19 +82,17 @@ type Project struct {
 }
 
 type PsqlService struct {
-	ID               uuid.UUID              `json:"id"`
-	ProjectID        uuid.UUID              `json:"project_id"`
-	Type             types.ServiceType      `json:"type"`
-	SwarmServiceID   sql.NullString         `json:"swarm_service_id"`
-	SwarmServiceName string                 `json:"swarm_service_name"`
-	Status           types.DeploymentStatus `json:"status"`
-	Name             string                 `json:"name"`
-	DbName           string                 `json:"db_name"`
-	DbUser           string                 `json:"db_user"`
-	DbPassword       string                 `json:"db_password"`
-	ImageID          string                 `json:"image_id"`
-	InternalUrl      string                 `json:"internal_url"`
-	CreatedAt        time.Time              `json:"created_at"`
+	ID               uuid.UUID         `json:"id"`
+	ProjectID        uuid.UUID         `json:"project_id"`
+	Type             types.ServiceType `json:"type"`
+	Name             string            `json:"name"`
+	SwarmServiceName string            `json:"swarm_service_name"`
+	DbName           string            `json:"db_name"`
+	DbUser           string            `json:"db_user"`
+	DbPassword       string            `json:"db_password"`
+	ImageName        string            `json:"image_name"`
+	InternalUrl      string            `json:"internal_url"`
+	CreatedAt        time.Time         `json:"created_at"`
 }
 
 type RedirectSession struct {

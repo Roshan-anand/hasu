@@ -98,8 +98,8 @@ func (q *Queries) CreateAppServiceBranch(ctx context.Context, arg CreateAppServi
 }
 
 const createPsqlService = `-- name: CreatePsqlService :one
-INSERT INTO psql_service (id, project_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO psql_service (id, project_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url, image_name)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id
 `
 
@@ -113,6 +113,7 @@ type CreatePsqlServiceParams struct {
 	DbUser           string            `json:"db_user"`
 	DbPassword       string            `json:"db_password"`
 	InternalUrl      string            `json:"internal_url"`
+	ImageName        string            `json:"image_name"`
 }
 
 func (q *Queries) CreatePsqlService(ctx context.Context, arg CreatePsqlServiceParams) (uuid.UUID, error) {
@@ -126,6 +127,7 @@ func (q *Queries) CreatePsqlService(ctx context.Context, arg CreatePsqlServicePa
 		arg.DbUser,
 		arg.DbPassword,
 		arg.InternalUrl,
+		arg.ImageName,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -510,7 +512,7 @@ func (q *Queries) GetDefaultBranchSwarmService(ctx context.Context, serviceID uu
 }
 
 const getPsqlServiceById = `-- name: GetPsqlServiceById :one
-SELECT id, project_id, type, swarm_service_id, swarm_service_name, status, name, db_name, db_user, db_password, image_id, internal_url, created_at
+SELECT id, project_id, type, name, swarm_service_name, db_name, db_user, db_password, image_name, internal_url, created_at
 FROM psql_service
 WHERE id = ?
 `
@@ -522,14 +524,12 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, id uuid.UUID) (PsqlSer
 		&i.ID,
 		&i.ProjectID,
 		&i.Type,
-		&i.SwarmServiceID,
-		&i.SwarmServiceName,
-		&i.Status,
 		&i.Name,
+		&i.SwarmServiceName,
 		&i.DbName,
 		&i.DbUser,
 		&i.DbPassword,
-		&i.ImageID,
+		&i.ImageName,
 		&i.InternalUrl,
 		&i.CreatedAt,
 	)
@@ -608,22 +608,6 @@ type SetDomianAndPortForBranchParams struct {
 
 func (q *Queries) SetDomianAndPortForBranch(ctx context.Context, arg SetDomianAndPortForBranchParams) error {
 	_, err := q.db.ExecContext(ctx, setDomianAndPortForBranch, arg.Domain, arg.Port, arg.ID)
-	return err
-}
-
-const setPsqlSwarmServiceId = `-- name: SetPsqlSwarmServiceId :exec
-UPDATE psql_service
-SET swarm_service_id = ?
-WHERE id = ?
-`
-
-type SetPsqlSwarmServiceIdParams struct {
-	SwarmServiceID sql.NullString `json:"swarm_service_id"`
-	ID             uuid.UUID      `json:"id"`
-}
-
-func (q *Queries) SetPsqlSwarmServiceId(ctx context.Context, arg SetPsqlSwarmServiceIdParams) error {
-	_, err := q.db.ExecContext(ctx, setPsqlSwarmServiceId, arg.SwarmServiceID, arg.ID)
 	return err
 }
 

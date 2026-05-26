@@ -63,11 +63,18 @@ func (h *ProjectHandler) CreateProject(c *echo.Context) error {
 		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Project with this name already exists in the organization"})
 	}
 
+	networkName := b.Name + "_network"
+
+	// create a network
+	if err := h.Server.Docker.CreateNetwork(networkName); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create network for project"})
+	}
+
 	// create a new project
 	project, err := q.CreateProject(h.qCtx, db.CreateProjectParams{
 		ID:             security.GeneratePrimaryKey(),
 		Name:           b.Name,
-		NetworkName:    b.Name + "_network",
+		NetworkName:    networkName,
 		OrganizationID: org.ID,
 	})
 	if err != nil {
@@ -115,6 +122,16 @@ func (h *ProjectHandler) DeleteProject(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "internal server error"})
 	} else if exists {
 		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Cannot delete project with active services"})
+	}
+
+	// delete the project network
+	networkName, err := q.GetProjectNetwork(h.qCtx, b.ProjectID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get project network"})
+	}
+
+	if err := h.Server.Docker.Client.NetworkRemove(h.qCtx, networkName); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to delete project network"})
 	}
 
 	if err := q.DeleteProject(h.qCtx, b.ProjectID); err != nil {
