@@ -10,8 +10,8 @@ export function useLoginMutation() {
 	return createMutation(() => ({
 		mutationFn: (payload: LoginPayload) =>
 			api.post<ApiRes<AuthResponse>>('/auth/login', payload).then((res) => res.data),
-		onSuccess: (res) => {
-			setUserData(res.data);
+		onSuccess: ({ data }) => {
+			setUserData(data);
 			goto(resolve('/'));
 		}
 	}));
@@ -21,8 +21,8 @@ export function useRegisterMutation() {
 	return createMutation(() => ({
 		mutationFn: (payload: RegisterPayload) =>
 			api.post<ApiRes<AuthResponse>>('/auth/register', payload).then((res) => res.data),
-		onSuccess: (res) => {
-			setUserData(res.data);
+		onSuccess: ({ data }) => {
+			setUserData(data);
 			goto(resolve('/'));
 		}
 	}));

@@ -5,7 +5,6 @@
 	import { Label } from '@/components/ui/label';
 	import { useCreateProjectMutation } from '@/features/base/mutation.svelte';
 
-	// AI: Dialog owns open state and closes on successful creation.
 	let dialogOpen = $state(false);
 	let projectName = $state('');
 	const createProjectMutation = useCreateProjectMutation();

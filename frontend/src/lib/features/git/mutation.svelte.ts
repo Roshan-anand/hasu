@@ -13,13 +13,13 @@ export function useDeleteGithubAppMutation() {
 	return createMutation(() => ({
 		mutationFn: (payload: DeleteGithubAppPayload) =>
 			api.delete<ApiRes<number>>('/provider/github/app', { data: payload }).then((res) => res.data),
-		onSuccess: (res) => {
+		onSuccess: ({ data }) => {
 			queryClient.setQueryData(
 				getGithubAppsQueryKey(org_id),
 				(cachedApps: GithubApp[] | null | undefined) => {
 					if (!cachedApps) return null;
 
-					const remainingApps = cachedApps.filter((app) => app.app_id !== res.data);
+					const remainingApps = cachedApps.filter((app) => app.app_id !== data);
 					return remainingApps.length > 0 ? remainingApps : null;
 				}
 			);

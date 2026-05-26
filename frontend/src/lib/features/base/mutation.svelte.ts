@@ -32,15 +32,15 @@ export function useDeleteProjectMutation() {
 	return createMutation(() => ({
 		mutationFn: async (payload: DeleteProjectPayload) =>
 			api.delete<ApiRes<null>>('/project', { data: payload }).then((res) => res.data),
-		onSuccess: (res, payload) => {
+		onSuccess: ({ message }, { project_id }) => {
 			queryClient.setQueryData(
 				getOrgProjectsQueryKey(org_id),
 				(cachedRows: ProjectListResponse[] | undefined) => {
 					if (!cachedRows) return [];
-					return cachedRows.filter((row) => row.id !== payload.project_id);
+					return cachedRows.filter((row) => row.id !== project_id);
 				}
 			);
-			toast.success(res.message || 'Project deleted successfully');
+			toast.success(message || 'Project deleted successfully');
 		},
 		onError: (error) => axiosErr(error as Error, 'Failed to delete project')
 	}));

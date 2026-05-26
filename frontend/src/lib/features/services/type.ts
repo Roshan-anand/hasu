@@ -94,6 +94,10 @@ export type CreatePsqlServiceBody = {
 	image: string;
 };
 
+export type CreatePsqlServicePayload = CreatePsqlServiceBody & {
+	project_id: string;
+};
+
 export type AppServiceDetails = {
 	id: string;
 	name: string;

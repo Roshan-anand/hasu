@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// AI: Exercise create/get/delete flows via the Echo handler harness to validate the PSQL service lifecycle.
 func TestPsqlService(t *testing.T) {
 	_, h, err := GetDummyServerHandler()
 	if err != nil {

@@ -17,15 +17,15 @@ export function useDeleteDeploymentMutation(getServiceId: () => string) {
 				})
 				.then((res) => res.data);
 		},
-		onSuccess: (response, payload) => {
+		onSuccess: ({ message }, { deployment_id }) => {
 			queryClient.setQueryData(
 				getDeploymentsQueryKey(getServiceId()),
 				(cachedRows: ServiceDeployment[] | undefined) => {
 					if (!cachedRows) return [];
-					return cachedRows.filter((row) => row.id !== payload.deployment_id);
+					return cachedRows.filter((row) => row.id !== deployment_id);
 				}
 			);
-			toast.success(response.message || 'Deployment deleted successfully');
+			toast.success(message || 'Deployment deleted successfully');
 		},
 		onError: (error) => axiosErr(error as Error, 'Failed to delete deployment')
 	}));
@@ -35,12 +35,12 @@ export function useRebuildServiceMutation() {
 	return createMutation(() => ({
 		mutationFn: async (payload: { branch_id: string }) =>
 			api.post<ApiRes<string>>('/service/app/rebuild', payload).then((res) => res.data),
-		onSuccess: (res) => {
+		onSuccess: ({ data }) => {
 			toast.success('successfully rebuild the service');
 			goto(
 				resolve('/(protected)/(core)/[service_type]/[service_id]?tab=deployment', {
 					service_type: 'app' as ServiceType,
-					service_id: res.data
+					service_id: data
 				})
 			);
 		},
@@ -52,8 +52,8 @@ export function useRollbackServiceMutation() {
 	return createMutation(() => ({
 		mutationFn: async (payload: { branch_id: string }) =>
 			api.post<ApiRes<null>>('/service/app/rollback', payload).then((res) => res.data),
-		onSuccess: (res) => {
-			toast.success(res.message || 'successfully started rollback');
+		onSuccess: ({ message }) => {
+			toast.success(message || 'successfully started rollback');
 			// goto(
 			// 	resolve('/(protected)/(core)/[service_type]/[service_id]?tab=deployment', {
 			// 		service_type: 'app' as ServiceType,

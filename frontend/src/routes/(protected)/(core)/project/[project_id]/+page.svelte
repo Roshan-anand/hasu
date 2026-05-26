@@ -45,7 +45,12 @@
 				project_id: getProjectID()
 			})
 		},
-		{ name: 'DB', link: '' }
+		{
+			name: 'DB',
+			link: resolve('/(protected)/(core)/project/[project_id]/new/db', {
+				project_id: getProjectID()
+			})
+		}
 	];
 </script>
 
@@ -70,14 +75,8 @@
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content align="end" class="w-40">
 			{#each createOptions as option (option.name)}
-				<DropdownMenu.Item
-					disabled={option.link === ''}
-					onSelect={() => {
-						if (option.link === '') return;
-						/* eslint-disable svelte/no-navigation-without-resolve */
-						void goto(option.link);
-					}}
-				>
+				<!-- eslint-disable svelte/no-navigation-without-resolve -->
+				<DropdownMenu.Item onSelect={() => goto(option.link)}>
 					{option.name}
 				</DropdownMenu.Item>
 			{/each}
