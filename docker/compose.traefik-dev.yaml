@@ -59,6 +59,7 @@ services:
       - "--certificatesresolvers.le.acme.email=roshananand2005@gmail.com" # replace with your actual email
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
       - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+      - "--entrypoints.websecure.http.tls.certresolver=le"
 
     deploy:
       mode: replicated

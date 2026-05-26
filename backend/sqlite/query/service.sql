@@ -113,6 +113,11 @@ SELECT swarm_service_name
 FROM app_service_branch
 WHERE service_id = ?;
 
+-- name: GetDefaultBranchSwarmService :one
+SELECT swarm_service_name
+FROM app_service_branch
+WHERE service_id = ? AND is_default_branch = 1;
+
 -- name: SetDomianAndPortForBranch :exec
 UPDATE app_service_branch
 SET domain = ?, port = ?

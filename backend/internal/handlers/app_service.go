@@ -67,6 +67,11 @@ type RoolbackServiceReq struct {
 	BranchID uuid.UUID `json:"branch_id" validate:"required"`
 }
 
+type ScaleAppServiceReq struct {
+	ServiceId uuid.UUID `json:"service_id" validate:"required"`
+	Replicas  uint64    `json:"replicas" validate:"required"`
+}
+
 // create a new app service
 //
 // route: POST /api/service/app
@@ -489,4 +494,33 @@ func (h *ServiceHandler) DeleteAppService(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "Successsfully deleted service"})
+}
+
+// scale app service
+//
+// route: POST /api/service/app/scale
+func (h *ServiceHandler) ScaleAppService(c *echo.Context) error {
+	b := new(ScaleAppServiceReq)
+	q := h.Server.DB.Queries
+	docker := h.Server.Docker.Client
+
+	swarmName, err := q.GetDefaultBranchSwarmService(h.qCtx, b.ServiceId)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error getting default branch service"})
+	}
+
+	swarmService, _, err := docker.ServiceInspectWithRaw(context.Background(), swarmName, swarm.ServiceInspectOptions{})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error inspecting swarm service"})
+	}
+	version := swarmService.Version
+	spec := swarmService.Spec
+
+	spec.Mode.Replicated.Replicas = &b.Replicas
+
+	if _, err := docker.ServiceUpdate(context.Background(), swarmName, version, spec, swarm.ServiceUpdateOptions{}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error updating the swarm service"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "successfully updated the replicas"})
 }

@@ -37,22 +37,6 @@ CREATE TABLE IF NOT EXISTS project(
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS psql_service (
-    id uuid PRIMARY KEY,
-    project_id uuid NOT NULL REFERENCES project(id) ON DELETE CASCADE,
-    type TEXT NOT NULL,
-    swarm_service_id TEXT,
-    swarm_service_name TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'queued',
-    name TEXT NOT NULL UNIQUE,
-    db_name TEXT NOT NULL,
-    db_user TEXT NOT NULL,
-    db_password TEXT NOT NULL,
-    image_id TEXT NOT NULL,
-    internal_url TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS app_service (
     id uuid PRIMARY KEY,
     project_id uuid NOT NULL REFERENCES project(id) ON DELETE CASCADE,
@@ -95,6 +79,22 @@ CREATE TABLE IF NOT EXISTS deployments (
     commit_hash TEXT NOT NULL,
     commit_msg TEXT NOT NULL,
     image_name TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS psql_service (
+    id uuid PRIMARY KEY,
+    project_id uuid NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    swarm_service_id TEXT,
+    swarm_service_name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'queued',
+    name TEXT NOT NULL UNIQUE,
+    db_name TEXT NOT NULL,
+    db_user TEXT NOT NULL,
+    db_password TEXT NOT NULL,
+    image_id TEXT NOT NULL,
+    internal_url TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 

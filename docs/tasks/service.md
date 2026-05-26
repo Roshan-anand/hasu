@@ -27,7 +27,7 @@
 - [x] API to update domain & port of the service.
 - [ ] API to update ssl certs for the service.
 - [x] API to Remove Application service.
-- [ ] API to update the replicas of the service.
+- [x] API to update the replicas of the service.
 
 ## webhook utils
 - [ ] validate webhook commit by watch path

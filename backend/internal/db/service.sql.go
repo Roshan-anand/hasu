@@ -496,6 +496,19 @@ func (q *Queries) GetBranchesDomainByServiceId(ctx context.Context, serviceID uu
 	return items, nil
 }
 
+const getDefaultBranchSwarmService = `-- name: GetDefaultBranchSwarmService :one
+SELECT swarm_service_name
+FROM app_service_branch
+WHERE service_id = ? AND is_default_branch = 1
+`
+
+func (q *Queries) GetDefaultBranchSwarmService(ctx context.Context, serviceID uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, getDefaultBranchSwarmService, serviceID)
+	var swarm_service_name string
+	err := row.Scan(&swarm_service_name)
+	return swarm_service_name, err
+}
+
 const getPsqlServiceById = `-- name: GetPsqlServiceById :one
 SELECT id, project_id, type, swarm_service_id, swarm_service_name, status, name, db_name, db_user, db_password, image_id, internal_url, created_at
 FROM psql_service
