@@ -7,9 +7,11 @@ import type {
 	GetReposPayload,
 	GithubRepo,
 	CreatePsqlServicePayload,
+	RedeployPsqlServicePayload,
 	ServiceListResponse,
 	UpdateBranchDomainPayload,
-	UpdateEnvPayload
+	UpdateEnvPayload,
+	UpdatePsqlServicePayload
 } from './type';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
@@ -110,5 +112,31 @@ export function useUpdateEnvMutation(getServiceId: () => string) {
 			toast.success(message || 'Env updated successfully');
 		},
 		onError: (error) => axiosErr(error as Error, 'Failed to update env')
+	}));
+}
+
+export function useUpdatePsqlServiceMutation(getServiceId: () => string) {
+	return createMutation(() => ({
+		mutationFn: async (payload: UpdatePsqlServicePayload) =>
+			api.put<ApiRes<null>>('/service/psql', payload).then((res) => res.data),
+		onSuccess: ({ message }) => {
+			queryClient.invalidateQueries({
+				queryKey: ['psql-service-details', getServiceId()]
+			});
+			toast.success(message || 'PSQL details updated successfully');
+			// TODO : show an info msg to redploy
+		},
+		onError: (error) => axiosErr(error as Error, 'Failed to update PSQL details')
+	}));
+}
+
+export function useRedeployPsqlServiceMutation() {
+	return createMutation(() => ({
+		mutationFn: async (payload: RedeployPsqlServicePayload) =>
+			api.post<ApiRes<null>>('/service/psql/redeploy', payload).then((res) => res.data),
+		onSuccess: ({ message }) => {
+			toast.success(message || 'PSQL redeploy started');
+		},
+		onError: (error) => axiosErr(error as Error, 'Failed to redeploy PSQL service')
 	}));
 }

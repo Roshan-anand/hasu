@@ -37,6 +37,13 @@ type CreatePsqlServiceReq struct {
 	Image      string    `json:"image" validate:"required"`
 }
 
+type UpdatePsqlServiceReq struct {
+	ServiceID  uuid.UUID `json:"service_id" validate:"required"`
+	DbName     string    `json:"db_name" validate:"required"`
+	DbUser     string    `json:"db_user" validate:"required"`
+	DbPassword string    `json:"db_password" validate:"required"`
+}
+
 func InitPsqlServiceHandlers(s *config.Server) *PsqlServiceHandler {
 	return &PsqlServiceHandler{
 		Server:   s,
@@ -48,6 +55,10 @@ func InitPsqlServiceHandlers(s *config.Server) *PsqlServiceHandler {
 func isPsqlImage(image string) bool {
 	// TODO : improve checking logic
 	return strings.Contains(image, "postgres")
+}
+
+func buildPsqlInternalURL(dbUser, dbPassword, serviceName, dbName string) string {
+	return fmt.Sprintf("postgres://%s:%s@%s:5432/%s", dbUser, dbPassword, serviceName, dbName)
 }
 
 // create a new psql service
@@ -139,7 +150,7 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to deploy service"})
 	}
 
-	internalUrl := fmt.Sprintf("postgres://%s:%s@%s:5432/%s", b.DbUser, b.DbPassword, serviceName, b.DbName)
+	internalUrl := buildPsqlInternalURL(b.DbUser, b.DbPassword, serviceName, b.DbName)
 
 	serviceID, err := h.Server.DB.Queries.CreatePsqlService(h.qCtx, db.CreatePsqlServiceParams{
 		ID:               security.GeneratePrimaryKey(),
@@ -166,9 +177,9 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 
 // get psql service details by id
 //
-// route: GET /api/service/psql/?service_id=
+// route: GET /api/service/psql/:id
 func (h *ServiceHandler) GetPsqlServiceById(c *echo.Context) error {
-	serviceID, err := uuid.Parse(c.QueryParam("service_id"))
+	serviceID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid service id"})
 	}
@@ -182,6 +193,78 @@ func (h *ServiceHandler) GetPsqlServiceById(c *echo.Context) error {
 		Message: "",
 		Data:    service,
 	})
+}
+
+// update psql service details
+//
+// route: PUT /api/service/psql
+func (h *ServiceHandler) UpdatePsqlServiceDetails(c *echo.Context) error {
+	q := h.Server.DB.Queries
+
+	b := new(UpdatePsqlServiceReq)
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	service, err := q.GetPsqlServiceById(h.qCtx, b.ServiceID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
+	}
+
+	internalUrl := buildPsqlInternalURL(b.DbUser, b.DbPassword, service.SwarmServiceName, b.DbName)
+
+	if err := q.UpdatePsqlServiceDetails(h.qCtx, db.UpdatePsqlServiceDetailsParams{
+		DbName:      b.DbName,
+		DbUser:      b.DbUser,
+		DbPassword:  b.DbPassword,
+		InternalUrl: internalUrl,
+		ID:          b.ServiceID,
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update service details"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "Successfully updated service details"})
+}
+
+// redeploy psql service with saved details
+//
+// route: POST /api/service/psql/redeploy
+func (h *ServiceHandler) RedeployPsqlService(c *echo.Context) error {
+	q := h.Server.DB.Queries
+	docker := h.Server.Docker.Client
+
+	b := new(ServiceReq)
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	service, err := q.GetPsqlServiceById(h.qCtx, b.ServiceId)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
+	}
+
+	inspectRes, _, err := docker.ServiceInspectWithRaw(h.qCtx, service.SwarmServiceName, swarm.ServiceInspectOptions{})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to inspect swarm service"})
+	}
+
+	serviceV := inspectRes.Version
+	spec := inspectRes.Spec
+	if spec.TaskTemplate.ContainerSpec == nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Missing container spec"})
+	}
+
+	spec.TaskTemplate.ContainerSpec.Env = []string{
+		"POSTGRES_PASSWORD=" + service.DbPassword,
+		"POSTGRES_USER=" + service.DbUser,
+		"POSTGRES_DB=" + service.DbName,
+	}
+
+	if _, err := docker.ServiceUpdate(h.qCtx, service.SwarmServiceName, serviceV, spec, swarm.ServiceUpdateOptions{}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to redeploy service"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "Successfully started redeploy"})
 }
 
 // stops and delete the psql service

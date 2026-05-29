@@ -1,6 +1,12 @@
 import { api } from '@/axios';
 import { createQuery } from '@tanstack/svelte-query';
-import type { AppServiceDetails, GetBranchDomainRes, GetEnvRes, ServiceListResponse } from './type';
+import type {
+	AppServiceDetails,
+	GetBranchDomainRes,
+	GetEnvRes,
+	PsqlServiceDetails,
+	ServiceListResponse
+} from './type';
 import type { ApiRes } from '@/types';
 
 export const getProjectServicesQueryKey = (projectId: string) =>
@@ -20,7 +26,7 @@ export function useGetAllServicesQuery(getProjectId: () => string) {
 	}));
 }
 
-export function useGetServiceDetailsQuery(getID: () => string) {
+export function useGetAppServiceDetailsQuery(getID: () => string) {
 	const serviceId = getID();
 	return createQuery(() => ({
 		queryKey: ['service-details', serviceId],
@@ -53,6 +59,18 @@ export function useGetServiceEnvQuery(getServiceId: () => string) {
 				.get<ApiRes<GetEnvRes>>('/service/app/env', {
 					params: { service_id: serviceId }
 				})
+				.then((res) => res.data.data),
+		enabled: serviceId !== ''
+	}));
+}
+
+export function useGetPsqlServiceDetailsQuery(getID: () => string) {
+	const serviceId = getID();
+	return createQuery(() => ({
+		queryKey: ['psql-service-details', serviceId],
+		queryFn: async () =>
+			api
+				.get<ApiRes<PsqlServiceDetails>>(`/service/psql/${serviceId}`)
 				.then((res) => res.data.data),
 		enabled: serviceId !== ''
 	}));

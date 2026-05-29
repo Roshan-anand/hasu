@@ -11,7 +11,7 @@
 {#if serviceType === 'app'}
 	<AppService {serviceId} {tab} />
 {:else if serviceType === 'psql'}
-	<PsqlService />
+	<PsqlService {serviceId} />
 {:else}
 	<p class="text-muted-foreground">Invalid service type in URL</p>
 {/if}

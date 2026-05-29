@@ -31,6 +31,12 @@ func TestPsqlService(t *testing.T) {
 		Image:      "postgres:16-alpine",
 	}
 
+	updatePsqlServiceReq := &handlers.UpdatePsqlServiceReq{
+		DbName:     "updated_db",
+		DbUser:     "updated_user",
+		DbPassword: "updated_pass",
+	}
+
 	var psqlServiceID uuid.UUID
 
 	t.Run("create psql service and get id", func(t *testing.T) {
@@ -105,6 +111,72 @@ func TestPsqlService(t *testing.T) {
 
 		if res.Data.ID != psqlServiceID {
 			t.Fatalf("expected service id %s, got %s", psqlServiceID, res.Data.ID)
+		}
+	})
+
+	t.Run("update psql service details", func(t *testing.T) {
+		updatePsqlServiceReq.ServiceID = psqlServiceID
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.UpdatePsqlServiceDetails, IsAuth: true, Body: updatePsqlServiceReq})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			msg, err := readOnly(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Log(msg)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		query := url.Values{}
+		query.Add("service_id", psqlServiceID.String())
+		rec, err = TestEchoHandler(&TestEchoBody{T: t, H: h.Service.GetPsqlServiceById, IsAuth: true, Query: query})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body = rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var res types.Res[db.PsqlService]
+		if err := readAndUnmarshl(body, &res); err != nil {
+			t.Fatal(err)
+		}
+
+		if res.Data.DbName != updatePsqlServiceReq.DbName {
+			t.Fatalf("expected db name %s, got %s", updatePsqlServiceReq.DbName, res.Data.DbName)
+		}
+		if res.Data.DbUser != updatePsqlServiceReq.DbUser {
+			t.Fatalf("expected db user %s, got %s", updatePsqlServiceReq.DbUser, res.Data.DbUser)
+		}
+		if res.Data.DbPassword != updatePsqlServiceReq.DbPassword {
+			t.Fatalf("expected db password %s, got %s", updatePsqlServiceReq.DbPassword, res.Data.DbPassword)
+		}
+	})
+
+	t.Run("redeploy psql service", func(t *testing.T) {
+		redeployReq := &handlers.ServiceReq{ServiceId: psqlServiceID}
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.RedeployPsqlService, IsAuth: true, Body: redeployReq})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			msg, err := readOnly(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Log(msg)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
 		}
 	})
 

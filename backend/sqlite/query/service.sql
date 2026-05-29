@@ -35,6 +35,14 @@ WHERE id = ?;
 DELETE FROM psql_service
 WHERE id = ?;
 
+-- name: UpdatePsqlServiceDetails :exec
+UPDATE psql_service
+SET db_name = ?,
+    db_user = ?,
+    db_password = ?,
+    internal_url = ?
+WHERE id = ?;
+
 -- name: CreateAppService :one
 INSERT INTO app_service (id, project_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

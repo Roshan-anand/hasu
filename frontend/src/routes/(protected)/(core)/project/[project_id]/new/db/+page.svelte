@@ -15,7 +15,6 @@
 
 	const createPsqlServiceMutation = useCreatePsqlServiceMutation();
 
-	// AI: Toggle visibility for the password field.
 	let isPasswordVisible = $state(false);
 
 	// Predefined Postgres images to keep selection consistent.

@@ -65,6 +65,8 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	psql := service.Group("/psql")
 	psql.GET("/:id", h.Service.GetPsqlServiceById)
 	psql.POST("", h.Service.CreatePsqlService)
+	psql.PUT("", h.Service.UpdatePsqlServiceDetails)
+	psql.POST("/redeploy", h.Service.RedeployPsqlService)
 	psql.DELETE("", h.Service.DeletePsqlService)
 
 	app := service.Group("/app")

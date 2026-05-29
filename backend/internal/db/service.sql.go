@@ -705,3 +705,31 @@ func (q *Queries) UpdateAppServiceEnv(ctx context.Context, arg UpdateAppServiceE
 	)
 	return err
 }
+
+const updatePsqlServiceDetails = `-- name: UpdatePsqlServiceDetails :exec
+UPDATE psql_service
+SET db_name = ?,
+    db_user = ?,
+    db_password = ?,
+    internal_url = ?
+WHERE id = ?
+`
+
+type UpdatePsqlServiceDetailsParams struct {
+	DbName      string    `json:"db_name"`
+	DbUser      string    `json:"db_user"`
+	DbPassword  string    `json:"db_password"`
+	InternalUrl string    `json:"internal_url"`
+	ID          uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdatePsqlServiceDetails(ctx context.Context, arg UpdatePsqlServiceDetailsParams) error {
+	_, err := q.db.ExecContext(ctx, updatePsqlServiceDetails,
+		arg.DbName,
+		arg.DbUser,
+		arg.DbPassword,
+		arg.InternalUrl,
+		arg.ID,
+	)
+	return err
+}

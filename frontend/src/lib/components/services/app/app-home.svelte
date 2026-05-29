@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { Card, CardContent } from '@/components/ui/card';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { useGetServiceDetailsQuery } from '@/features/services/query.svelte';
 	import Icon from '@iconify/svelte';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import AppLogs from './app-logs.svelte';
@@ -11,11 +10,12 @@
 		useRebuildServiceMutation,
 		useRollbackServiceMutation
 	} from '@/features/deployments/mutation.svelte';
+	import { useGetAppServiceDetailsQuery } from '@/features/services/query.svelte';
 
 	let { serviceId }: { serviceId: string } = $props();
 
 	// query to fetch service details based on service type and id
-	const serviceQuery = useGetServiceDetailsQuery(() => serviceId);
+	const serviceQuery = useGetAppServiceDetailsQuery(() => serviceId);
 	const rebuildService = useRebuildServiceMutation();
 	const rollBackService = useRollbackServiceMutation();
 

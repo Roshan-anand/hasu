@@ -100,6 +100,29 @@ export type CreatePsqlServicePayload = CreatePsqlServiceBody & {
 	project_id: string;
 };
 
+export type PsqlServiceDetails = {
+	id: string;
+	name: string;
+	swarm_service_name: string;
+	db_name: string;
+	db_user: string;
+	db_password: string;
+	image_name: string;
+	internal_url: string;
+	created_at: string;
+};
+
+export type UpdatePsqlServicePayload = {
+	service_id: string;
+	db_name: string;
+	db_user: string;
+	db_password: string;
+};
+
+export type RedeployPsqlServicePayload = {
+	service_id: string;
+};
+
 export type AppServiceDetails = {
 	id: string;
 	name: string;
