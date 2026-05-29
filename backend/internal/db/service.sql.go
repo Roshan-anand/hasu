@@ -14,6 +14,28 @@ import (
 	"github.com/google/uuid"
 )
 
+const checkBranchExists = `-- name: CheckBranchExists :one
+SELECT CAST(
+    (SELECT EXISTS (
+        SELECT 1
+        FROM app_service_branch
+        WHERE service_id = ?1 AND branch_name = ?2
+    ))
+AS BOOLEAN)
+`
+
+type CheckBranchExistsParams struct {
+	ServiceID  uuid.UUID `json:"service_id"`
+	BranchName string    `json:"branch_name"`
+}
+
+func (q *Queries) CheckBranchExists(ctx context.Context, arg CheckBranchExistsParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkBranchExists, arg.ServiceID, arg.BranchName)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createAppService = `-- name: CreateAppService :one
 INSERT INTO app_service (id, project_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -71,14 +93,15 @@ func (q *Queries) CreateAppService(ctx context.Context, arg CreateAppServicePara
 }
 
 const createAppServiceBranch = `-- name: CreateAppServiceBranch :one
-INSERT INTO app_service_branch (id, is_default_branch, branch_name, swarm_service_name, service_id, port)
-VALUES (?, ?, ?, ?, ?, 80)
+INSERT INTO app_service_branch (id, is_default_branch, is_public, branch_name, swarm_service_name, service_id, port)
+VALUES (?, ?, ?, ?, ?, ?, 80)
 RETURNING id
 `
 
 type CreateAppServiceBranchParams struct {
 	ID               uuid.UUID `json:"id"`
 	IsDefaultBranch  bool      `json:"is_default_branch"`
+	IsPublic         bool      `json:"is_public"`
 	BranchName       string    `json:"branch_name"`
 	SwarmServiceName string    `json:"swarm_service_name"`
 	ServiceID        uuid.UUID `json:"service_id"`
@@ -88,6 +111,7 @@ func (q *Queries) CreateAppServiceBranch(ctx context.Context, arg CreateAppServi
 	row := q.db.QueryRowContext(ctx, createAppServiceBranch,
 		arg.ID,
 		arg.IsDefaultBranch,
+		arg.IsPublic,
 		arg.BranchName,
 		arg.SwarmServiceName,
 		arg.ServiceID,
@@ -416,10 +440,9 @@ func (q *Queries) GetAppServiceByBranchId(ctx context.Context, branchID uuid.UUI
 
 const getAppServiceById = `-- name: GetAppServiceById :one
 SELECT
-    a.id, a.name, a.gh_repo_name, a.gh_repo_url,
+    a.id, a.project_id, a.type, a.name, a.git_provider, a.gh_app_id, a.gh_repo_id, a.gh_repo_name, a.gh_repo_url, a.build_path, a.watch_path, a.docker_filepath, a.docker_contextpath, a.docker_buildstage, a.env, a.build_args, a.build_secrets, a.created_at,
     d.status, d.commit_msg,
-    b.id AS branch_id, b.branch_name, b.domain,
-    a.created_at
+    b.id AS branch_id, b.branch_name, b.domain
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch = 1
 JOIN deployments d ON d.branch_id = b.id AND d.is_current = 1
@@ -427,16 +450,29 @@ WHERE a.id = ?
 `
 
 type GetAppServiceByIdRow struct {
-	ID         uuid.UUID              `json:"id"`
-	Name       string                 `json:"name"`
-	GhRepoName string                 `json:"gh_repo_name"`
-	GhRepoUrl  string                 `json:"gh_repo_url"`
-	Status     types.DeploymentStatus `json:"status"`
-	CommitMsg  string                 `json:"commit_msg"`
-	BranchID   uuid.UUID              `json:"branch_id"`
-	BranchName string                 `json:"branch_name"`
-	Domain     string                 `json:"domain"`
-	CreatedAt  time.Time              `json:"created_at"`
+	ID                uuid.UUID              `json:"id"`
+	ProjectID         uuid.UUID              `json:"project_id"`
+	Type              types.ServiceType      `json:"type"`
+	Name              string                 `json:"name"`
+	GitProvider       string                 `json:"git_provider"`
+	GhAppID           int64                  `json:"gh_app_id"`
+	GhRepoID          int64                  `json:"gh_repo_id"`
+	GhRepoName        string                 `json:"gh_repo_name"`
+	GhRepoUrl         string                 `json:"gh_repo_url"`
+	BuildPath         string                 `json:"build_path"`
+	WatchPath         string                 `json:"watch_path"`
+	DockerFilepath    string                 `json:"docker_filepath"`
+	DockerContextpath string                 `json:"docker_contextpath"`
+	DockerBuildstage  string                 `json:"docker_buildstage"`
+	Env               []byte                 `json:"env"`
+	BuildArgs         []byte                 `json:"build_args"`
+	BuildSecrets      []byte                 `json:"build_secrets"`
+	CreatedAt         time.Time              `json:"created_at"`
+	Status            types.DeploymentStatus `json:"status"`
+	CommitMsg         string                 `json:"commit_msg"`
+	BranchID          uuid.UUID              `json:"branch_id"`
+	BranchName        string                 `json:"branch_name"`
+	Domain            string                 `json:"domain"`
 }
 
 func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppServiceByIdRow, error) {
@@ -444,15 +480,28 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppSe
 	var i GetAppServiceByIdRow
 	err := row.Scan(
 		&i.ID,
+		&i.ProjectID,
+		&i.Type,
 		&i.Name,
+		&i.GitProvider,
+		&i.GhAppID,
+		&i.GhRepoID,
 		&i.GhRepoName,
 		&i.GhRepoUrl,
+		&i.BuildPath,
+		&i.WatchPath,
+		&i.DockerFilepath,
+		&i.DockerContextpath,
+		&i.DockerBuildstage,
+		&i.Env,
+		&i.BuildArgs,
+		&i.BuildSecrets,
+		&i.CreatedAt,
 		&i.Status,
 		&i.CommitMsg,
 		&i.BranchID,
 		&i.BranchName,
 		&i.Domain,
-		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -496,6 +545,29 @@ func (q *Queries) GetBranchesDomainByServiceId(ctx context.Context, serviceID uu
 		return nil, err
 	}
 	return items, nil
+}
+
+const getDefaultBranchByServiceId = `-- name: GetDefaultBranchByServiceId :one
+SELECT id, service_id, is_default_branch, is_public, branch_name, swarm_service_name, domain, port, created_at
+FROM app_service_branch
+WHERE service_id = ? AND is_default_branch = 1
+`
+
+func (q *Queries) GetDefaultBranchByServiceId(ctx context.Context, serviceID uuid.UUID) (AppServiceBranch, error) {
+	row := q.db.QueryRowContext(ctx, getDefaultBranchByServiceId, serviceID)
+	var i AppServiceBranch
+	err := row.Scan(
+		&i.ID,
+		&i.ServiceID,
+		&i.IsDefaultBranch,
+		&i.IsPublic,
+		&i.BranchName,
+		&i.SwarmServiceName,
+		&i.Domain,
+		&i.Port,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getDefaultBranchSwarmService = `-- name: GetDefaultBranchSwarmService :one

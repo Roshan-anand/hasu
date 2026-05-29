@@ -84,6 +84,7 @@ func TestAppService(t *testing.T) {
 		}
 
 		createAppServiceReq.GhRepoID = res.Data[0].ID
+		createAppServiceReq.DefaultBranch = res.Data[0].DefaultBranch
 	})
 
 	t.Run("create new app service", func(t *testing.T) {

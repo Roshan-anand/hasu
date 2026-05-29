@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS app_service_branch (
     id uuid PRIMARY KEY,
     service_id uuid NOT NULL REFERENCES app_service(id) ON DELETE CASCADE,
     is_default_branch BOOLEAN NOT NULL,
+    is_public BOOLEAN NOT NULL,
     branch_name TEXT NOT NULL,
     swarm_service_name TEXT NOT NULL,
     domain TEXT NOT NULL DEFAULT '',

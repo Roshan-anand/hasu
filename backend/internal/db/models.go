@@ -37,6 +37,7 @@ type AppServiceBranch struct {
 	ID               uuid.UUID `json:"id"`
 	ServiceID        uuid.UUID `json:"service_id"`
 	IsDefaultBranch  bool      `json:"is_default_branch"`
+	IsPublic         bool      `json:"is_public"`
 	BranchName       string    `json:"branch_name"`
 	SwarmServiceName string    `json:"swarm_service_name"`
 	Domain           string    `json:"domain"`

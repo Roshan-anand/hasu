@@ -53,6 +53,7 @@ export type GithubRepo = {
 	repo_url: string;
 	private: boolean;
 	default_branch: string;
+	branches: string[];
 };
 
 export type GetReposPayload = { provider: GitProviderOption; appId: number };
@@ -62,6 +63,7 @@ export type CreateAppServiceBody = {
 	git_provider: GitProviderKey;
 	gh_app_id: number;
 	gh_repo_id: number;
+	default_branch: string;
 	build_path: string;
 	watch_path: string;
 	public: boolean;

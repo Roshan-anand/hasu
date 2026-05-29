@@ -19,7 +19,7 @@ import (
 	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
 	"github.com/Roshan-anand/godploy/internal/lib/auth"
-	"github.com/Roshan-anand/godploy/internal/lib/gh"
+	ghservice "github.com/Roshan-anand/godploy/internal/lib/gh"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
@@ -58,13 +58,14 @@ type DeleteGithubAppReq struct {
 }
 
 type GetGithubRepoListRes struct {
-	ID            int64  `json:"id"`
-	Name          string `json:"name"`
-	FullName      string `json:"full_name"`
-	Private       bool   `json:"private"`
-	DefaultBranch string `json:"default_branch"`
-	HtmlURL       string `json:"html_url"`
-	RepoURL       string `json:"repo_url"`
+	ID            int64    `json:"id"`
+	Name          string   `json:"name"`
+	FullName      string   `json:"full_name"`
+	Private       bool     `json:"private"`
+	DefaultBranch string   `json:"default_branch"`
+	Branches      []string `json:"branches"`
+	HtmlURL       string   `json:"html_url"`
+	RepoURL       string   `json:"repo_url"`
 }
 
 func InitGitHandlers(s *config.Server) *GitHandler {
@@ -223,14 +224,8 @@ func (h *GitHandler) SetupGithubApp(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid installation ID"})
 	}
 
-	// varify installation ID
-	ghApp, err := q.GetGhAppByAppId(h.qCtx, ghAppId.Int64)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to setup github app"})
-	}
-
 	// get app client
-	appClient, err := gh.CreateAppClient(ghApp.AppID, ghApp.PemKey)
+	appClient, err := ghservice.NewGithubAppClient(q, ghAppId.Int64)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to setup github app"})
 	}
@@ -246,7 +241,7 @@ func (h *GitHandler) SetupGithubApp(c *echo.Context) error {
 			Int64: instllation_id,
 			Valid: true,
 		},
-		AppID: ghApp.AppID,
+		AppID: ghAppId.Int64,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to setup github app"})
 	}
@@ -297,17 +292,12 @@ func (h *GitHandler) DeleteGithubApp(c *echo.Context) error {
 		return c.JSON(http.StatusForbidden, types.Res[struct{}]{Message: "admin access required"})
 	}
 
-	ghApp, err := q.GetGhAppByAppId(h.ghCtx, b.AppID)
+	appClient, err := ghservice.NewGithubAppClient(q, b.AppID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to delete github app"})
 	}
 
-	client, err := gh.CreateAppClient(ghApp.AppID, ghApp.PemKey)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to delete github app"})
-	}
-
-	_, err = client.Apps.DeleteInstallation(h.qCtx, ghApp.AppID)
+	_, err = appClient.Apps.DeleteInstallation(h.qCtx, b.AppID)
 	if err != nil {
 		fmt.Println("Error deleting github app installation:", err)
 	}
@@ -330,19 +320,8 @@ func (h *GitHandler) GetGithubRepoList(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid app_id"})
 	}
 
-	ghApp, err := q.GetGhAppByAppId(h.qCtx, appID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "No github connected"})
-		}
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github repos"})
-	}
-
-	if !ghApp.InstallationID.Valid || ghApp.InstallationID.Int64 == 0 {
-		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "No github connected"})
-	}
-
-	ghClient, err := gh.CreateGithubClient(context.Background(), ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
+	// create a new github client
+	gh, err := ghservice.New(q, appID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github repos"})
 	}
@@ -355,7 +334,7 @@ func (h *GitHandler) GetGithubRepoList(c *echo.Context) error {
 	repos := make([]GetGithubRepoListRes, 0)
 
 	for {
-		pageRepos, resp, err := ghClient.Apps.ListRepos(h.ghCtx, opts)
+		pageRepos, resp, err := gh.Client.Apps.ListRepos(h.ghCtx, opts)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github repos"})
 		}
@@ -367,12 +346,41 @@ func (h *GitHandler) GetGithubRepoList(c *echo.Context) error {
 				continue
 			}
 
+			// Fetch branches per repo so the UI can offer an explicit deploy branch.
+			branches := make([]string, 0)
+			branchOpts := &github.BranchListOptions{
+				ListOptions: github.ListOptions{
+					PerPage: 100,
+					Page:    1,
+				},
+			}
+			for {
+				pageBranches, branchResp, err := gh.Client.Repositories.ListBranches(h.ghCtx, owner, repoName, branchOpts)
+				if err != nil {
+					return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github branches"})
+				}
+
+				for _, branch := range pageBranches {
+					branchName := branch.GetName()
+					if branchName == "" {
+						continue
+					}
+					branches = append(branches, branchName)
+				}
+
+				if branchResp.NextPage == 0 {
+					break
+				}
+				branchOpts.Page = branchResp.NextPage
+			}
+
 			repos = append(repos, GetGithubRepoListRes{
 				ID:            repo.GetID(),
 				Name:          repo.GetName(),
 				FullName:      repo.GetFullName(),
 				Private:       repo.GetPrivate(),
 				DefaultBranch: repo.GetDefaultBranch(),
+				Branches:      branches,
 				HtmlURL:       repo.GetHTMLURL(),
 				RepoURL:       repo.GetCloneURL(),
 			})
@@ -507,22 +515,16 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 				return nil
 			}
 
-			// get the github app details
-			ghApp, err := q.GetGhAppByAppId(h.qCtx, s.GhAppID)
+			// create new github client
+			gh, err := ghservice.New(q, s.GhAppID)
 			if err != nil {
-				fmt.Println("Error fetching github app details:", err)
+				tx.Rollback()
+				fmt.Println("Error creating github client:", err)
 				return nil
 			}
 
-			// get gh token
-			token, err := gh.GetGhToken(ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
-			if err != nil {
-				fmt.Println("Error generating github token:", err)
-				return nil
-			}
-
-			// used as uniquecontainer name and code storing path
-			imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", s.Name, s.BranchName, security.GenerateRandomID(6)))
+			// used as unique image and service name
+			unique := generateServiceAndImgName(s.Name, s.BranchName)
 
 			envStr, err := UnmarshalServiceEnv(&ServiceEnvByte{
 				Env:          s.Env,
@@ -543,7 +545,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 			h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
 				Type:              deploymentqueue.RebuildJob,
 				DeploymentID:      dID,
-				Token:             token,
+				Token:             gh.Token,
 				Url:               s.GhRepoUrl,
 				Branch:            s.BranchName,
 				SwarmServiceName:  s.SwarmServiceName,
@@ -551,7 +553,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 				DockerFilePath:    s.DockerFilepath,
 				DockerContextPath: s.DockerContextpath,
 				DockerBuildStage:  s.DockerBuildstage,
-				ImgName:           imgName,
+				ImgName:           unique.ImgName,
 				Env:               envStr.Env,
 				BuildArgs:         envStr.BuildArgs,
 				BuildSecrets:      envStr.BuildSecrets,

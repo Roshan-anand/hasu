@@ -6,18 +6,16 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
-	"github.com/Roshan-anand/godploy/internal/lib/gh"
+	ghservice "github.com/Roshan-anand/godploy/internal/lib/gh"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/sse"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/go-github/v84/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 )
@@ -178,52 +176,33 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
 
-	// get the github app details
-	ghApp, err := tq.GetGhAppByAppId(h.qCtx, service.GhAppID)
+	// create a new github client
+	gh, err := ghservice.New(q, service.GhAppID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid github app"})
+			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: fmt.Sprintf("github app with app id %d not found", service.GhAppID)})
 		}
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to verify github app"})
-	}
-
-	// get teh gh client
-	ghClient, err := gh.CreateGithubClient(context.Background(), ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
-	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github client"})
 	}
 
 	// get the github repository details
-	repo, _, err := ghClient.Repositories.GetByID(context.Background(), service.GhRepoID)
+	repo, err := gh.GetRepo(service.GhRepoID)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch repository info from github"})
 	}
 
-	owner := repo.GetOwner().GetLogin()
-	repoShortName := repo.GetName()
-
 	// get the latest commit info of the default branch
-	commits, _, err := ghClient.Repositories.ListCommits(context.Background(), owner, repoShortName, &github.CommitsListOptions{
-		SHA: service.BranchName,
-		ListOptions: github.ListOptions{
-			PerPage: 1,
-			Page:    1,
-		},
-	})
-	if err != nil || len(commits) == 0 {
+	commit, err := gh.GetLatestCommit(repo.Owner, repo.Name, service.BranchName)
+	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch latest commit info from github"})
 	}
 
-	latestCommitHash := commits[0].GetSHA()
-	latestCommitMsg := commits[0].GetCommit().GetMessage()
-
-	// TODO : get commit msg from client side
 	// create a new deployment for the app service
 	dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 		ID:         security.GeneratePrimaryKey(),
 		BranchID:   service.BranchID,
-		CommitMsg:  latestCommitMsg,
-		CommitHash: latestCommitHash,
+		CommitMsg:  commit.Message,
+		CommitHash: commit.Hash,
 		IsCurrent:  true,
 	})
 	if err != nil {
@@ -231,14 +210,8 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
 	}
 
-	// get gh token
-	token, err := gh.GetGhToken(ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github token"})
-	}
-
-	// used as uniquecontainer name and code storing path
-	imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", service.Name, service.BranchName, security.GenerateRandomID(6)))
+	// used as unique image and service name
+	unique := generateServiceAndImgName(service.Name, service.BranchName)
 
 	envStr, err := UnmarshalServiceEnv(&ServiceEnvByte{
 		Env:          service.Env,
@@ -258,7 +231,7 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
 		Type:              deploymentqueue.RebuildJob,
 		DeploymentID:      dID,
-		Token:             token,
+		Token:             gh.Token,
 		Url:               service.GhRepoUrl,
 		Branch:            service.BranchName,
 		SwarmServiceName:  service.SwarmServiceName,
@@ -266,7 +239,7 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 		DockerFilePath:    service.DockerFilepath,
 		DockerContextPath: service.DockerContextpath,
 		DockerBuildStage:  service.DockerBuildstage,
-		ImgName:           imgName,
+		ImgName:           unique.ImgName,
 		Env:               envStr.Env,
 		BuildArgs:         envStr.BuildArgs,
 		BuildSecrets:      envStr.BuildSecrets,

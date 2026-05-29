@@ -52,10 +52,9 @@ WHERE id = ?;
 
 -- name: GetAppServiceById :one
 SELECT
-    a.id, a.name, a.gh_repo_name, a.gh_repo_url,
+    a.*,
     d.status, d.commit_msg,
-    b.id AS branch_id, b.branch_name, b.domain,
-    a.created_at
+    b.id AS branch_id, b.branch_name, b.domain
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch = 1
 JOIN deployments d ON d.branch_id = b.id AND d.is_current = 1
@@ -66,9 +65,23 @@ DELETE FROM app_service
 WHERE id = ?;
 
 -- name: CreateAppServiceBranch :one
-INSERT INTO app_service_branch (id, is_default_branch, branch_name, swarm_service_name, service_id, port)
-VALUES (?, ?, ?, ?, ?, 80)
+INSERT INTO app_service_branch (id, is_default_branch, is_public, branch_name, swarm_service_name, service_id, port)
+VALUES (?, ?, ?, ?, ?, ?, 80)
 RETURNING id;
+
+-- name: CheckBranchExists :one
+SELECT CAST(
+    (SELECT EXISTS (
+        SELECT 1
+        FROM app_service_branch
+        WHERE service_id = @service_id AND branch_name = @branch_name
+    ))
+AS BOOLEAN);
+
+-- name: GetDefaultBranchByServiceId :one
+SELECT *
+FROM app_service_branch
+WHERE service_id = ? AND is_default_branch = 1;
 
 -- name: GetAppServiceByBranchId :one
 SELECT a.id AS service_id, a.name,a.gh_repo_id, a.gh_repo_url, a.gh_app_id,

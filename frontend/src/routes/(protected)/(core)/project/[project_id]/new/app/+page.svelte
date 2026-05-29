@@ -39,6 +39,7 @@
 			git_provider: 'github',
 			gh_app_id: 0,
 			gh_repo_id: 0,
+			default_branch: '',
 			build_path: '/',
 			watch_path: '/',
 			public: true,
@@ -79,6 +80,7 @@
 				git_provider: value.git_provider,
 				gh_app_id: value.gh_app_id,
 				gh_repo_id: value.gh_repo_id,
+				default_branch: value.default_branch,
 				build_path: buildPath,
 				watch_path: watchPath,
 				public: value.public,
@@ -103,6 +105,9 @@
 		const githubProvider = GitProvidersList.get('github');
 		if (!githubProvider) return;
 
+		form.setFieldValue('gh_repo_id', 0);
+		form.setFieldValue('default_branch', '');
+
 		getReposMutation.mutate({
 			appId: app.app_id,
 			provider: githubProvider
@@ -117,10 +122,12 @@
 
 		form.setFieldValue('gh_app_id', 0);
 		form.setFieldValue('gh_repo_id', 0);
+		form.setFieldValue('default_branch', '');
 
 		if (key === 'github' && githubAppsQuery.data?.length === 0) void githubAppsQuery.refetch();
 	};
 
+	// Sync branch selection with repo choice, defaulting to repo's default branch.
 	const onRepoSelect = (repoId: number) => {
 		const repo = getReposMutation.data?.find((r) => r.id === repoId);
 		if (!repo) return;
@@ -128,6 +135,8 @@
 		form.setFieldValue('gh_repo_id', repoId);
 		const repoName = getReposMutation.data?.find((repo) => repo.id == repoId)?.name;
 		form.setFieldValue('name', repoName || '');
+		const defaultBranch = getReposMutation.data?.find((repo) => repo.id == repoId)?.default_branch;
+		form.setFieldValue('default_branch', defaultBranch || '');
 	};
 
 	const getGithubAppName = (appId: number) =>
@@ -205,7 +214,7 @@
 				ghRepoID: state.values.gh_repo_id
 			})}
 		>
-			{#snippet children({ ghAppID, gitProvider })}
+			{#snippet children({ ghAppID, gitProvider, ghRepoID })}
 				<form.Field name="gh_repo_id">
 					{#snippet children(field)}
 						<div class="space-y-1.5">
@@ -259,6 +268,49 @@
 									{#if getReposMutation.data}
 										{#each getReposMutation.data as repo (repo.id)}
 											<Select.Item value={repo.id.toString()} label={repo.full_name} />
+										{/each}
+									{/if}
+								</Select.Content>
+							</Select.Root>
+							<FormError errors={field.state.meta.errors} />
+						</div>
+					{/snippet}
+				</form.Field>
+
+				<form.Field name="default_branch">
+					{#snippet children(field)}
+						<div class="space-y-1.5">
+							<Label class="my-1" for="git-branch-select">Branch</Label>
+							<Select.Root
+								type="single"
+								value={field.state.value}
+								onValueChange={(value) => field.handleChange(value)}
+								disabled={ghAppID === 0 || ghRepoID === 0}
+							>
+								<Select.Trigger class="w-full h-fit" id="git-branch-select">
+									{#if getReposMutation.data}
+										<div class="flex items-center gap-3 p-2 py-4">
+											<Icon icon="meteor-icons:git-branch" width="20" height="20" class="size-4" />
+											{#if field.state.value === ''}
+												<span>Select branch</span>
+											{:else}
+												<span class="text-sm text-muted-foreground">{field.state.value}</span>
+											{/if}
+										</div>
+									{:else}
+										<span class="text-sm text-muted-foreground">
+											{getReposMutation.isPending ? 'Loading branches...' : 'Select branch'}
+										</span>
+									{/if}
+								</Select.Trigger>
+								<Select.Content>
+									{#if getReposMutation.data}
+										{#each getReposMutation.data as repo (repo.id)}
+											{#if repo.id === ghRepoID}
+												{#each repo.branches as branch (branch)}
+													<Select.Item value={branch} label={branch} />
+												{/each}
+											{/if}
 										{/each}
 									{/if}
 								</Select.Content>

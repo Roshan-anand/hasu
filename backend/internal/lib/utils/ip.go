@@ -47,3 +47,11 @@ func ValidatePublicUrl(link string) bool {
 
 	return true
 }
+
+func GetUrltHostNPath(fullurl string) (string, error) {
+	u, err := url.Parse(fullurl)
+	if err != nil {
+		return "", fmt.Errorf("error parsing git url: %v", err)
+	}
+	return u.Host + u.Path, nil
+}

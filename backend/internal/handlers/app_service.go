@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
-	"github.com/Roshan-anand/godploy/internal/lib/gh"
+	ghservice "github.com/Roshan-anand/godploy/internal/lib/gh"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
+	"github.com/Roshan-anand/godploy/internal/lib/utils"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/google/go-github/v84/github"
 	"github.com/google/uuid"
@@ -26,18 +26,24 @@ type DockerBuildReq struct {
 }
 
 type CreateAppServiceReq struct {
-	ProjectID    uuid.UUID       `json:"project_id" validate:"required"`
-	Name         string          `json:"name" validate:"required,min=3,max=50"`
-	GitProvider  string          `json:"git_provider" validate:"required"`
-	GhAppID      int64           `json:"gh_app_id" validate:"required"`
-	GhRepoID     int64           `json:"gh_repo_id" validate:"required"`
-	BuildPath    string          `json:"build_path" validate:"required"`
-	WatchPath    string          `json:"watch_path" validate:"required"`
-	Env          []string        `json:"env"`
-	BuildArgs    []string        `json:"build_args"`
-	BuildSecrets []string        `json:"build_secrets"`
-	DockerBuild  *DockerBuildReq `json:"docker_build"`
-	Public       bool            `json:"public"`
+	ProjectID     uuid.UUID       `json:"project_id" validate:"required"`
+	Name          string          `json:"name" validate:"required,min=3,max=50"`
+	GitProvider   string          `json:"git_provider" validate:"required"`
+	GhAppID       int64           `json:"gh_app_id" validate:"required"`
+	GhRepoID      int64           `json:"gh_repo_id" validate:"required"`
+	DefaultBranch string          `json:"default_branch" validate:"required"`
+	BuildPath     string          `json:"build_path" validate:"required"`
+	WatchPath     string          `json:"watch_path" validate:"required"`
+	Env           []string        `json:"env"`
+	BuildArgs     []string        `json:"build_args"`
+	BuildSecrets  []string        `json:"build_secrets"`
+	DockerBuild   *DockerBuildReq `json:"docker_build"`
+	Public        bool            `json:"public"`
+}
+
+type CreatePreviewAppServiceReq struct {
+	ServiceID uuid.UUID `json:"service_id" validate:"required"`
+	Branch    string    `json:"branch" validate:"required"`
 }
 
 type UpdateDomainReq struct {
@@ -93,58 +99,34 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Service name already exists"})
 	}
 
-	// get the github app details
-	ghApp, err := q.GetGhAppByAppId(h.qCtx, b.GhAppID)
+	// create a new github client
+	gh, err := ghservice.New(q, b.GhAppID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid github app"})
+			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: fmt.Sprintf("github app with app id %d not found", b.GhAppID)})
 		}
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to verify github app"})
-	}
-
-	// create a new github client
-	ghClient, err := gh.CreateGithubClient(context.Background(), ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
-	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github client"})
 	}
 
 	// get the github repository details
-	repo, _, err := ghClient.Repositories.GetByID(context.Background(), b.GhRepoID)
+	repo, err := gh.GetRepo(b.GhRepoID)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch repository info from github"})
 	}
 
-	repoName := repo.GetFullName()
-	repoURL := repo.GetHTMLURL()
-	defaultBranch := repo.GetDefaultBranch()
-	owner := repo.GetOwner().GetLogin()
-	repoShortName := repo.GetName()
-
-	// get the latest commit info of the default branch
-	commits, _, err := ghClient.Repositories.ListCommits(context.Background(), owner, repoShortName, &github.CommitsListOptions{
-		SHA: defaultBranch,
-		ListOptions: github.ListOptions{
-			PerPage: 1,
-			Page:    1,
-		},
-	})
-	if err != nil || len(commits) == 0 {
+	// get the latest commit info of the selected branch
+	commit, err := gh.GetLatestCommit(repo.Owner, repo.Name, b.DefaultBranch)
+	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch latest commit info from github"})
 	}
 
-	latestCommitHash := commits[0].GetSHA()
-	latestCommitMsg := commits[0].GetCommit().GetMessage()
-
-	// parse url
-	u, err := url.Parse(repoURL)
+	url, err := utils.GetUrltHostNPath(repo.URL)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to parse repository url"})
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid repository url"})
 	}
-	url := u.Host + u.Path
 
-	// used as uniquecontainer name and code storing path
-	serviceName := fmt.Sprintf("%s-%s-%s", b.Name, defaultBranch, security.GenerateRandomID(6))
-	imgName := strings.ToLower(fmt.Sprintf("%s-%s-dyp_%s", b.Name, defaultBranch, security.GenerateRandomID(6)))
+	// used as unique image and service name
+	unique := generateServiceAndImgName(b.Name, b.DefaultBranch)
 
 	// clear the evnironment array
 	b.Env = cleanArray(b.Env)
@@ -175,9 +157,9 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		Type:              types.AppServiceType,
 		Name:              b.Name,
 		GitProvider:       b.GitProvider,
-		GhAppID:           ghApp.AppID,
+		GhAppID:           b.GhAppID,
 		GhRepoID:          b.GhRepoID,
-		GhRepoName:        repoName,
+		GhRepoName:        repo.FullName,
 		GhRepoUrl:         url,
 		BuildPath:         b.BuildPath,
 		WatchPath:         b.WatchPath,
@@ -197,8 +179,9 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	branchID, err := tq.CreateAppServiceBranch(h.qCtx, db.CreateAppServiceBranchParams{
 		ID:               security.GeneratePrimaryKey(),
 		IsDefaultBranch:  true,
-		BranchName:       defaultBranch,
-		SwarmServiceName: serviceName,
+		IsPublic:         b.Public,
+		BranchName:       b.DefaultBranch,
+		SwarmServiceName: unique.ServiceName,
 		ServiceID:        service.ID,
 	})
 	if err != nil {
@@ -210,8 +193,8 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 		ID:         security.GeneratePrimaryKey(),
 		BranchID:   branchID,
-		CommitHash: latestCommitHash,
-		CommitMsg:  latestCommitMsg,
+		CommitHash: commit.Hash,
+		CommitMsg:  commit.Message,
 		IsCurrent:  true,
 	})
 	if err != nil {
@@ -219,12 +202,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
 	}
 
-	// get gh token
-	token, err := gh.GetGhToken(ghApp.AppID, ghApp.InstallationID.Int64, ghApp.PemKey)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github token"})
-	}
-
+	// get project network
 	network, err := tq.GetProjectNetwork(h.qCtx, b.ProjectID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get project network"})
@@ -238,19 +216,168 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
 		Type:              deploymentqueue.DeployJob,
 		DeploymentID:      dID,
-		Token:             token,
+		Token:             gh.Token,
 		Url:               url,
-		Branch:            defaultBranch,
-		SwarmServiceName:  serviceName,
+		Branch:            b.DefaultBranch,
+		SwarmServiceName:  unique.ServiceName,
 		BuildPath:         b.BuildPath,
 		DockerFilePath:    b.DockerBuild.FilePath,
 		DockerContextPath: b.DockerBuild.ContextPath,
 		DockerBuildStage:  b.DockerBuild.BuildStage,
-		ImgName:           imgName,
+		ImgName:           unique.ServiceName,
 		Env:               b.Env,
 		BuildArgs:         b.BuildArgs,
 		BuildSecrets:      b.BuildSecrets,
 		IsPublic:          b.Public,
+		NetworkName:       network,
+	})
+
+	return c.JSON(http.StatusOK, types.Res[uuid.UUID]{
+		Message: "",
+		Data:    service.ID,
+	})
+}
+
+// TODO: under development, will be added in future PR
+// create a new app service for a sub branch
+//
+// route: POST /api/service/app/preview
+func (h *ServiceHandler) CreatePreviewAppService(c *echo.Context) error {
+	b := new(CreatePreviewAppServiceReq)
+	q := h.Server.DB.Queries
+
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	service, err := q.GetAppServiceById(h.qCtx, b.ServiceID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
+	}
+
+	// create a new github client
+	gh, err := ghservice.New(q, service.GhAppID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github client"})
+	}
+
+	// get the github repository details
+	repo, err := gh.GetRepo(service.GhRepoID)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch repository info from github"})
+	}
+
+	// varify if it is a valid branch
+	branches, _, err := gh.Client.Repositories.ListBranches(context.Background(), repo.Owner, repo.Name, &github.BranchListOptions{})
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch branches from github"})
+	}
+
+	isValidBranch := false
+	for _, branch := range branches {
+		if branch.GetName() == b.Branch {
+			isValidBranch = true
+			break
+		}
+	}
+
+	if !isValidBranch {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid branch name"})
+	}
+
+	// check if branch with same name already in deployment
+	if exists, err := q.CheckBranchExists(h.qCtx, db.CheckBranchExistsParams{
+		ServiceID:  service.ID,
+		BranchName: b.Branch,
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to check branch name"})
+	} else if exists {
+		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Branch with same name already exists"})
+	}
+
+	// used as unique image and service name
+	unique := generateServiceAndImgName(service.Name, b.Branch)
+
+	// start a new db transaction
+	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
+	}
+	tq := q.WithTx(tx)
+
+	// create a new branch for the app service
+	branchID, err := tq.CreateAppServiceBranch(h.qCtx, db.CreateAppServiceBranchParams{
+		ID:               security.GeneratePrimaryKey(),
+		IsDefaultBranch:  true,
+		BranchName:       b.Branch,
+		SwarmServiceName: unique.ServiceName,
+		ServiceID:        service.ID,
+	})
+	if err != nil {
+		tx.Rollback()
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service branch"})
+	}
+
+	// TODO: varify if passing addrs of struct is more efficient than passing 2 strings as args
+	// get the latest commit info of the selected branch
+	commit, err := gh.GetLatestCommit(repo.Owner, repo.Name, b.Branch)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch latest commit info from github"})
+	}
+
+	// create a new deployment for the app service
+	dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
+		ID:         security.GeneratePrimaryKey(),
+		BranchID:   branchID,
+		CommitHash: commit.Hash,
+		CommitMsg:  commit.Message,
+		IsCurrent:  true,
+	})
+	if err != nil {
+		tx.Rollback()
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
+	}
+
+	network, err := tq.GetProjectNetwork(h.qCtx, service.ProjectID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get project network"})
+	}
+
+	branch, err := tq.GetDefaultBranchByServiceId(h.qCtx, service.ID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch info"})
+	}
+
+	if err := tx.Commit(); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
+	}
+
+	envArray, err := UnmarshalServiceEnv(&ServiceEnvByte{
+		Env:          service.Env,
+		BuildArgs:    service.BuildArgs,
+		BuildSecrets: service.BuildSecrets,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
+	}
+
+	// push a new deployment job to the queue
+	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
+		Type:              deploymentqueue.DeployJob,
+		DeploymentID:      dID,
+		Token:             gh.Token,
+		Url:               service.GhRepoUrl,
+		Branch:            b.Branch,
+		SwarmServiceName:  unique.ServiceName,
+		BuildPath:         service.BuildPath,
+		DockerFilePath:    service.DockerFilepath,
+		DockerContextPath: service.DockerContextpath,
+		DockerBuildStage:  service.DockerBuildstage,
+		ImgName:           unique.ImgName,
+		Env:               envArray.Env,
+		BuildArgs:         envArray.BuildArgs,
+		BuildSecrets:      envArray.BuildSecrets,
+		IsPublic:          branch.IsPublic,
 		NetworkName:       network,
 	})
 

@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/Roshan-anand/godploy/internal/db"
+	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v5"
@@ -63,7 +65,7 @@ func getManifestData(url string, state string) (string, error) {
 		"name": appName,
 		"url":  url,
 		"hook_attributes": map[string]string{
-			"url": url + "/api/github/events",
+			"url": url + "/api/github/webhook",
 		},
 		"redirect_url": url + "/api/provider/github/app/callback",
 		// "callback_urls": []string{"http://localhost:8080/api/provider/github/app/callback"},
@@ -161,4 +163,22 @@ func MarshalServiceEnv(e *ServiceEnvArray) (*ServiceEnvByte, error) {
 		BuildArgs:    buildArgsByte,
 		BuildSecrets: buildSecretsByte,
 	}, nil
+}
+
+type GenerateNameRes struct {
+	ServiceName string
+	ImgName     string
+}
+
+// used as uniquecontainer name and code storing path
+func generateServiceAndImgName(name string, branch string) *GenerateNameRes {
+	base := fmt.Sprintf("%s-%s", name, branch)
+	id := security.GenerateRandomID(3)
+	serviceName := fmt.Sprintf("%s-%s", base, id)
+	imgName := strings.ToLower(fmt.Sprintf("%s-dyp_%s", base, id))
+
+	return &GenerateNameRes{
+		ServiceName: serviceName,
+		ImgName:     imgName,
+	}
 }
