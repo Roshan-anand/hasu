@@ -172,6 +172,8 @@ type GenerateNameRes struct {
 
 // used as uniquecontainer name and code storing path
 func generateServiceAndImgName(name string, branch string) *GenerateNameRes {
+	branch = strings.ReplaceAll(branch, "/", "-")
+
 	base := fmt.Sprintf("%s-%s", name, branch)
 	id := security.GenerateRandomID(3)
 	serviceName := fmt.Sprintf("%s-%s", base, id)
