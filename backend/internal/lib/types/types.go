@@ -22,6 +22,14 @@ const (
 	AppServiceType  ServiceType = "app"
 )
 
+type PredefServiceType string
+
+const (
+	PSQLPredefServiceType  PredefServiceType = "psql"
+	RedisPredefServiceType PredefServiceType = "redis"
+	MongoPredefServiceType PredefServiceType = "mongodb"
+)
+
 type DeploymentStatus string
 
 const (

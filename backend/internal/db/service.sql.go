@@ -121,43 +121,6 @@ func (q *Queries) CreateAppServiceBranch(ctx context.Context, arg CreateAppServi
 	return id, err
 }
 
-const createPsqlService = `-- name: CreatePsqlService :one
-INSERT INTO psql_service (id, project_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url, image_name)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id
-`
-
-type CreatePsqlServiceParams struct {
-	ID               uuid.UUID         `json:"id"`
-	ProjectID        uuid.UUID         `json:"project_id"`
-	Type             types.ServiceType `json:"type"`
-	SwarmServiceName string            `json:"swarm_service_name"`
-	Name             string            `json:"name"`
-	DbName           string            `json:"db_name"`
-	DbUser           string            `json:"db_user"`
-	DbPassword       string            `json:"db_password"`
-	InternalUrl      string            `json:"internal_url"`
-	ImageName        string            `json:"image_name"`
-}
-
-func (q *Queries) CreatePsqlService(ctx context.Context, arg CreatePsqlServiceParams) (uuid.UUID, error) {
-	row := q.db.QueryRowContext(ctx, createPsqlService,
-		arg.ID,
-		arg.ProjectID,
-		arg.Type,
-		arg.SwarmServiceName,
-		arg.Name,
-		arg.DbName,
-		arg.DbUser,
-		arg.DbPassword,
-		arg.InternalUrl,
-		arg.ImageName,
-	)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
-}
-
 const deleteAppService = `-- name: DeleteAppService :exec
 DELETE FROM app_service
 WHERE id = ?
@@ -165,16 +128,6 @@ WHERE id = ?
 
 func (q *Queries) DeleteAppService(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deleteAppService, id)
-	return err
-}
-
-const deletePsqlService = `-- name: DeletePsqlService :exec
-DELETE FROM psql_service
-WHERE id = ?
-`
-
-func (q *Queries) DeletePsqlService(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deletePsqlService, id)
 	return err
 }
 
@@ -186,7 +139,7 @@ SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
     d.id AS deployment_id, d.status AS deployment_status
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id
-JOIN deployments d ON d.branch_id = b.id AND d.is_current = 1
+JOIN deployments d ON d.branch_id = b.id AND d.is_current
 WHERE a.gh_repo_id = ? AND b.branch_name = ?
 `
 
@@ -265,7 +218,7 @@ WHERE ps.project_id = ?1
 UNION ALL
 SELECT aps.id, aps.type, aps.name, aps.gh_repo_url, aps.gh_repo_url, aps.git_provider, b.branch_name, aps.created_at
 FROM app_service aps
-JOIN app_service_branch b ON aps.id = b.service_id AND b.is_default_branch = 1
+JOIN app_service_branch b ON aps.id = b.service_id AND b.is_default_branch
 WHERE aps.project_id = ?1
 `
 
@@ -313,7 +266,7 @@ func (q *Queries) GetAllService(ctx context.Context, projectID uuid.UUID) ([]Get
 }
 
 const getAllSwarmServiceAndImagesByAppServiceId = `-- name: GetAllSwarmServiceAndImagesByAppServiceId :many
-SELECT b.swarm_service_name, d.id AS deployment_id, d.image_name
+SELECT b.swarm_service_name, d.id AS deployment_id, d.image
 FROM app_service_branch b
 JOIN deployments d ON d.branch_id = b.id
 WHERE b.service_id = ?
@@ -322,7 +275,7 @@ WHERE b.service_id = ?
 type GetAllSwarmServiceAndImagesByAppServiceIdRow struct {
 	SwarmServiceName string         `json:"swarm_service_name"`
 	DeploymentID     uuid.UUID      `json:"deployment_id"`
-	ImageName        sql.NullString `json:"image_name"`
+	Image            sql.NullString `json:"image"`
 }
 
 func (q *Queries) GetAllSwarmServiceAndImagesByAppServiceId(ctx context.Context, serviceID uuid.UUID) ([]GetAllSwarmServiceAndImagesByAppServiceIdRow, error) {
@@ -334,7 +287,7 @@ func (q *Queries) GetAllSwarmServiceAndImagesByAppServiceId(ctx context.Context,
 	var items []GetAllSwarmServiceAndImagesByAppServiceIdRow
 	for rows.Next() {
 		var i GetAllSwarmServiceAndImagesByAppServiceIdRow
-		if err := rows.Scan(&i.SwarmServiceName, &i.DeploymentID, &i.ImageName); err != nil {
+		if err := rows.Scan(&i.SwarmServiceName, &i.DeploymentID, &i.Image); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -385,7 +338,7 @@ SELECT a.id AS service_id, a.name,a.gh_repo_id, a.gh_repo_url, a.gh_app_id,
     d.id AS deployment_id, d.status AS deployment_status
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id
-JOIN deployments d ON d.branch_id = b.id AND d.is_current = 1
+JOIN deployments d ON d.branch_id = b.id AND d.is_current
 WHERE b.id = ?1
 `
 
@@ -444,8 +397,8 @@ SELECT
     d.status, d.commit_msg,
     b.id AS branch_id, b.branch_name, b.domain
 FROM app_service a
-JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch = 1
-JOIN deployments d ON d.branch_id = b.id AND d.is_current = 1
+JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch
+JOIN deployments d ON d.branch_id = b.id AND d.is_current
 WHERE a.id = ?
 `
 
@@ -550,7 +503,7 @@ func (q *Queries) GetBranchesDomainByServiceId(ctx context.Context, serviceID uu
 const getDefaultBranchByServiceId = `-- name: GetDefaultBranchByServiceId :one
 SELECT id, service_id, is_default_branch, is_public, branch_name, swarm_service_name, domain, port, created_at
 FROM app_service_branch
-WHERE service_id = ? AND is_default_branch = 1
+WHERE service_id = ? AND is_default_branch
 `
 
 func (q *Queries) GetDefaultBranchByServiceId(ctx context.Context, serviceID uuid.UUID) (AppServiceBranch, error) {
@@ -573,7 +526,7 @@ func (q *Queries) GetDefaultBranchByServiceId(ctx context.Context, serviceID uui
 const getDefaultBranchSwarmService = `-- name: GetDefaultBranchSwarmService :one
 SELECT swarm_service_name
 FROM app_service_branch
-WHERE service_id = ? AND is_default_branch = 1
+WHERE service_id = ? AND is_default_branch
 `
 
 func (q *Queries) GetDefaultBranchSwarmService(ctx context.Context, serviceID uuid.UUID) (string, error) {
@@ -581,31 +534,6 @@ func (q *Queries) GetDefaultBranchSwarmService(ctx context.Context, serviceID uu
 	var swarm_service_name string
 	err := row.Scan(&swarm_service_name)
 	return swarm_service_name, err
-}
-
-const getPsqlServiceById = `-- name: GetPsqlServiceById :one
-SELECT id, project_id, type, name, swarm_service_name, db_name, db_user, db_password, image_name, internal_url, created_at
-FROM psql_service
-WHERE id = ?
-`
-
-func (q *Queries) GetPsqlServiceById(ctx context.Context, id uuid.UUID) (PsqlService, error) {
-	row := q.db.QueryRowContext(ctx, getPsqlServiceById, id)
-	var i PsqlService
-	err := row.Scan(
-		&i.ID,
-		&i.ProjectID,
-		&i.Type,
-		&i.Name,
-		&i.SwarmServiceName,
-		&i.DbName,
-		&i.DbUser,
-		&i.DbPassword,
-		&i.ImageName,
-		&i.InternalUrl,
-		&i.CreatedAt,
-	)
-	return i, err
 }
 
 const getServiceEnv = `-- name: GetServiceEnv :one
@@ -701,34 +629,6 @@ func (q *Queries) UpdateAppServiceEnv(ctx context.Context, arg UpdateAppServiceE
 		arg.Env,
 		arg.BuildArgs,
 		arg.BuildSecrets,
-		arg.ID,
-	)
-	return err
-}
-
-const updatePsqlServiceDetails = `-- name: UpdatePsqlServiceDetails :exec
-UPDATE psql_service
-SET db_name = ?,
-    db_user = ?,
-    db_password = ?,
-    internal_url = ?
-WHERE id = ?
-`
-
-type UpdatePsqlServiceDetailsParams struct {
-	DbName      string    `json:"db_name"`
-	DbUser      string    `json:"db_user"`
-	DbPassword  string    `json:"db_password"`
-	InternalUrl string    `json:"internal_url"`
-	ID          uuid.UUID `json:"id"`
-}
-
-func (q *Queries) UpdatePsqlServiceDetails(ctx context.Context, arg UpdatePsqlServiceDetailsParams) error {
-	_, err := q.db.ExecContext(ctx, updatePsqlServiceDetails,
-		arg.DbName,
-		arg.DbUser,
-		arg.DbPassword,
-		arg.InternalUrl,
 		arg.ID,
 	)
 	return err

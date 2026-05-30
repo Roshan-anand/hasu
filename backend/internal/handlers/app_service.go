@@ -600,8 +600,8 @@ func (h *ServiceHandler) DeleteAppService(c *echo.Context) error {
 	swarmServiceNames := make(map[string]struct{})
 	for i, s := range serviceInfo {
 		dIDs[i] = s.DeploymentID
-		if s.ImageName.Valid {
-			imgs[i] = s.ImageName.String
+		if s.Image.Valid {
+			imgs[i] = s.Image.String
 		}
 		swarmServiceNames[s.SwarmServiceName] = struct{}{}
 	}

@@ -83,7 +83,7 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 			// update the deployment with the built image name
 			if err := w.Server.DB.Queries.SetDeploymentImageName(w.qCtx, db.SetDeploymentImageNameParams{
 				ID: d.DeploymentID,
-				ImageName: sql.NullString{
+				Image: sql.NullString{
 					Valid:  true,
 					String: d.ImgName,
 				},

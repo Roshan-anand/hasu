@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS deployments (
     status TEXT NOT NULL DEFAULT 'queued',
     commit_hash TEXT NOT NULL,
     commit_msg TEXT NOT NULL,
-    image_name TEXT,
+    image TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
@@ -92,7 +92,8 @@ CREATE TABLE IF NOT EXISTS psql_service (
     db_name TEXT NOT NULL,
     db_user TEXT NOT NULL,
     db_password TEXT NOT NULL,
-    image_name TEXT NOT NULL,
+    image TEXT NOT NULL,
+    volume TEXT NOT NULL, 
     internal_url TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );

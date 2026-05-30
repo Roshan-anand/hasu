@@ -52,7 +52,7 @@ type Deployment struct {
 	Status     types.DeploymentStatus `json:"status"`
 	CommitHash string                 `json:"commit_hash"`
 	CommitMsg  string                 `json:"commit_msg"`
-	ImageName  sql.NullString         `json:"image_name"`
+	Image      sql.NullString         `json:"image"`
 	CreatedAt  time.Time              `json:"created_at"`
 }
 
@@ -74,6 +74,14 @@ type Organization struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type OrphanVolume struct {
+	ID        uuid.UUID               `json:"id"`
+	ProjectID uuid.NullUUID           `json:"project_id"`
+	Volume    string                  `json:"volume"`
+	Type      types.PredefServiceType `json:"type"`
+	CreatedAt time.Time               `json:"created_at"`
+}
+
 type Project struct {
 	ID             uuid.UUID `json:"id"`
 	OrganizationID uuid.UUID `json:"organization_id"`
@@ -91,7 +99,8 @@ type PsqlService struct {
 	DbName           string            `json:"db_name"`
 	DbUser           string            `json:"db_user"`
 	DbPassword       string            `json:"db_password"`
-	ImageName        string            `json:"image_name"`
+	Image            string            `json:"image"`
+	Volume           string            `json:"volume"`
 	InternalUrl      string            `json:"internal_url"`
 	CreatedAt        time.Time         `json:"created_at"`
 }

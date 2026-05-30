@@ -22,12 +22,6 @@ type ServiceReq struct {
 	ServiceId uuid.UUID `json:"service_id" validate:"required"`
 }
 
-type PsqlServiceHandler struct {
-	Server   *config.Server
-	Validate *validator.Validate
-	qCtx     context.Context
-}
-
 type CreatePsqlServiceReq struct {
 	ProjectID  uuid.UUID `json:"project_id" validate:"required"`
 	Name       string    `json:"name" validate:"required"`
@@ -42,6 +36,17 @@ type UpdatePsqlServiceReq struct {
 	DbName     string    `json:"db_name" validate:"required"`
 	DbUser     string    `json:"db_user" validate:"required"`
 	DbPassword string    `json:"db_password" validate:"required"`
+}
+
+type DeletePsqlServiceReq struct {
+	ServiceId uuid.UUID `json:"service_id" validate:"required"`
+	KeepData  bool      `json:"keep_data"`
+}
+
+type PsqlServiceHandler struct {
+	Server   *config.Server
+	Validate *validator.Validate
+	qCtx     context.Context
 }
 
 func InitPsqlServiceHandlers(s *config.Server) *PsqlServiceHandler {
@@ -96,11 +101,13 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 	serviceName := fmt.Sprintf("%s-%s", b.Name, security.GenerateRandomID(6))
 
 	// create volume for the psql service
-	vlName := serviceName + "_pgdata"
-	docker.VolumeCreate(h.qCtx, volume.CreateOptions{
-		Name:   vlName,
+	volume, err := docker.VolumeCreate(h.qCtx, volume.CreateOptions{
+		Name:   serviceName + "_pgdata",
 		Driver: "local",
 	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create volume"})
+	}
 
 	// create network if not exist
 	if err := h.Server.Docker.CreateNetwork(network); err != nil {
@@ -126,7 +133,7 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 				Mounts: []mount.Mount{
 					{
 						Type:   mount.TypeVolume,
-						Source: vlName,
+						Source: volume.Name,
 						Target: "/var/lib/postgresql/data",
 					},
 				},
@@ -162,7 +169,8 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 		DbUser:           b.DbUser,
 		DbPassword:       b.DbPassword, // TODO : make is hased
 		InternalUrl:      internalUrl,
-		ImageName:        b.Image,
+		Image:            b.Image,
+		Volume:           volume.Name,
 	})
 	if err != nil {
 		fmt.Println("error creating service in db :", err)
@@ -274,7 +282,7 @@ func (h *ServiceHandler) DeletePsqlService(c *echo.Context) error {
 	docker := h.Server.Docker.Client
 	q := h.Server.DB.Queries
 
-	b := new(ServiceReq)
+	b := new(DeletePsqlServiceReq)
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
 		return c.JSON(http.StatusBadRequest, Res)
@@ -292,8 +300,40 @@ func (h *ServiceHandler) DeletePsqlService(c *echo.Context) error {
 		}
 	}
 
-	if err := q.DeletePsqlService(h.qCtx, b.ServiceId); err != nil {
+	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to start transaction"})
+	}
+	tq := q.WithTx(tx)
+
+	// create an orphan volume record if user wants to keep data
+	if b.KeepData {
+		if err := tq.CreateOrphanVolume(h.qCtx, db.CreateOrphanVolumeParams{
+			ID: security.GeneratePrimaryKey(),
+			ProjectID: uuid.NullUUID{
+				Valid: true,
+				UUID:  service.ProjectID,
+			},
+			Volume: service.Volume,
+			Type:   types.PSQLPredefServiceType,
+		}); err != nil {
+			tx.Rollback()
+			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create orphan volume record"})
+		}
+	} else {
+		if err := docker.VolumeRemove(context.Background(), service.Volume, true); err != nil {
+			tx.Rollback()
+			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: fmt.Sprintln("error removing volume :", err)})
+		}
+	}
+
+	if err := tq.DeletePsqlService(h.qCtx, b.ServiceId); err != nil {
+		tx.Rollback()
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
+	}
+
+	if err := tx.Commit(); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to commit transaction"})
 	}
 
 	return c.JSON(http.StatusOK, types.Res[struct{}]{

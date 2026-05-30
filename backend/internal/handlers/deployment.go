@@ -78,7 +78,7 @@ func (h *DeploymentHandler) DeleteServiceDeployment(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to delete deployment"})
 	}
 
-	h.Server.Docker.RemoveImages([]string{dyp.ImageName.String})
+	h.Server.Docker.RemoveImages([]string{dyp.Image.String})
 	h.Server.BadgerDB.DeleteAllLogsByDeploymentID([]uuid.UUID{b.DeploymentID})
 
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "deployment deleted successfully"})
@@ -300,11 +300,11 @@ func (h *DeploymentHandler) RollbackAppService(c *echo.Context) error {
 			}
 
 			// check if deployment image exists
-			if newDyp.Status != types.DeploymentPruned && newDyp.ImageName.Valid {
+			if newDyp.Status != types.DeploymentPruned && newDyp.Image.Valid {
 
 				h.Server.DeploymentQ.EnqueueRedeployJob(&deploymentqueue.RedeployJobData{
 					DeploymentID:     newDyp.ID,
-					ImgName:          newDyp.ImageName.String,
+					ImgName:          newDyp.Image.String,
 					SwarmServiceName: newDyp.SwarmServiceName,
 				})
 

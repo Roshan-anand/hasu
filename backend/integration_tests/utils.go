@@ -183,6 +183,7 @@ type TestEchoBody struct {
 	H      echo.HandlerFunc
 	Body   any
 	Query  url.Values
+	Params echo.PathValues
 	IsAuth bool
 }
 
@@ -196,6 +197,10 @@ func TestEchoHandler(te *TestEchoBody) (*httptest.ResponseRecorder, error) {
 
 	if te.Query != nil {
 		config.QueryValues = te.Query
+	}
+
+	if te.Params != nil {
+		config.PathValues = te.Params
 	}
 
 	if te.Body != nil {

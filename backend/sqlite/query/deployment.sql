@@ -11,20 +11,20 @@ WHERE b.service_id = ?
 ORDER BY d.created_at DESC;
 
 -- name: GetDeploymentsByBranchID :many
-SELECT d.id, d.is_current, d.image_name, d.status, b.swarm_service_name
+SELECT d.id, d.is_current, d.image, d.status, b.swarm_service_name
 FROM deployments d
 JOIN app_service_branch b ON d.branch_id = b.id
 WHERE d.branch_id = ?
 ORDER BY d.created_at DESC;
 
 -- name: GetAllDeploymentImgByServiceID :many
-SELECT d.id, d.image_name
+SELECT d.id, d.image
 FROM deployments d
 JOIN app_service_branch b ON d.branch_id = b.id
 WHERE b.service_id = ?;
 
 -- name: GetDeploymentImgByID :one
-SELECT d.id, d.image_name
+SELECT d.id, d.image
 FROM deployments d
 WHERE d.id = ?;
 
@@ -40,17 +40,17 @@ WHERE id = ?;
 
 -- name: DownGradeDeployment :exec
 UPDATE deployments
-SET is_current = 0, status = ?
+SET is_current = FALSE, status = ?
 WHERE id = @deployment_id;
 
 -- name: UpgradeDeployment :exec
 UPDATE deployments
-SET is_current = 1, status = ?
+SET is_current = TRUE, status = ?
 WHERE id = @deployment_id;
 
 -- name: SetDeploymentImageName :exec
 UPDATE deployments
-SET image_name = ?
+SET image = ?
 WHERE id = ?;
 
 -- name: DeleteDeploymentByID :exec

@@ -107,7 +107,7 @@ export type PsqlServiceDetails = {
 	db_name: string;
 	db_user: string;
 	db_password: string;
-	image_name: string;
+	image: string;
 	internal_url: string;
 	created_at: string;
 };

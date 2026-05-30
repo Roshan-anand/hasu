@@ -13,26 +13,43 @@ sql:
             go_type:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"
               type: "UserRole"
+
           - column: "deployments.status"
             go_type:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"
               type: "DeploymentStatus"
+
           - column: "psql_service.status"
             go_type:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"
               type: "DeploymentStatus"
+
           - column: "psql_service.type"
             go_type:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"
               type: "ServiceType"
+
           - column: "app_service.type"
             go_type:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"
               type: "ServiceType"
+
           - db_type: "uuid"
+            nullable: false
             go_type:
               import: "github.com/google/uuid"
               type: "UUID"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              import: "github.com/google/uuid"
+              type: "NullUUID"
+
           - column: app_service_branch.port
             go_type:
               type: "int32"
+              
+          - column: orphan_volume.type
+            go_type:
+              import: "github.com/Roshan-anand/godploy/internal/lib/types"
+              type: "PredefServiceType"

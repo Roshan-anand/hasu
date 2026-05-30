@@ -53,7 +53,7 @@ func (q *Queries) DeleteDeploymentByID(ctx context.Context, id uuid.UUID) error 
 
 const downGradeDeployment = `-- name: DownGradeDeployment :exec
 UPDATE deployments
-SET is_current = 0, status = ?
+SET is_current = FALSE, status = ?
 WHERE id = ?
 `
 
@@ -68,15 +68,15 @@ func (q *Queries) DownGradeDeployment(ctx context.Context, arg DownGradeDeployme
 }
 
 const getAllDeploymentImgByServiceID = `-- name: GetAllDeploymentImgByServiceID :many
-SELECT d.id, d.image_name
+SELECT d.id, d.image
 FROM deployments d
 JOIN app_service_branch b ON d.branch_id = b.id
 WHERE b.service_id = ?
 `
 
 type GetAllDeploymentImgByServiceIDRow struct {
-	ID        uuid.UUID      `json:"id"`
-	ImageName sql.NullString `json:"image_name"`
+	ID    uuid.UUID      `json:"id"`
+	Image sql.NullString `json:"image"`
 }
 
 func (q *Queries) GetAllDeploymentImgByServiceID(ctx context.Context, serviceID uuid.UUID) ([]GetAllDeploymentImgByServiceIDRow, error) {
@@ -88,7 +88,7 @@ func (q *Queries) GetAllDeploymentImgByServiceID(ctx context.Context, serviceID 
 	var items []GetAllDeploymentImgByServiceIDRow
 	for rows.Next() {
 		var i GetAllDeploymentImgByServiceIDRow
-		if err := rows.Scan(&i.ID, &i.ImageName); err != nil {
+		if err := rows.Scan(&i.ID, &i.Image); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -103,20 +103,20 @@ func (q *Queries) GetAllDeploymentImgByServiceID(ctx context.Context, serviceID 
 }
 
 const getDeploymentImgByID = `-- name: GetDeploymentImgByID :one
-SELECT d.id, d.image_name
+SELECT d.id, d.image
 FROM deployments d
 WHERE d.id = ?
 `
 
 type GetDeploymentImgByIDRow struct {
-	ID        uuid.UUID      `json:"id"`
-	ImageName sql.NullString `json:"image_name"`
+	ID    uuid.UUID      `json:"id"`
+	Image sql.NullString `json:"image"`
 }
 
 func (q *Queries) GetDeploymentImgByID(ctx context.Context, id uuid.UUID) (GetDeploymentImgByIDRow, error) {
 	row := q.db.QueryRowContext(ctx, getDeploymentImgByID, id)
 	var i GetDeploymentImgByIDRow
-	err := row.Scan(&i.ID, &i.ImageName)
+	err := row.Scan(&i.ID, &i.Image)
 	return i, err
 }
 
@@ -134,7 +134,7 @@ func (q *Queries) GetDeploymentStatus(ctx context.Context, id uuid.UUID) (types.
 }
 
 const getDeploymentsByBranchID = `-- name: GetDeploymentsByBranchID :many
-SELECT d.id, d.is_current, d.image_name, d.status, b.swarm_service_name
+SELECT d.id, d.is_current, d.image, d.status, b.swarm_service_name
 FROM deployments d
 JOIN app_service_branch b ON d.branch_id = b.id
 WHERE d.branch_id = ?
@@ -144,7 +144,7 @@ ORDER BY d.created_at DESC
 type GetDeploymentsByBranchIDRow struct {
 	ID               uuid.UUID              `json:"id"`
 	IsCurrent        bool                   `json:"is_current"`
-	ImageName        sql.NullString         `json:"image_name"`
+	Image            sql.NullString         `json:"image"`
 	Status           types.DeploymentStatus `json:"status"`
 	SwarmServiceName string                 `json:"swarm_service_name"`
 }
@@ -161,7 +161,7 @@ func (q *Queries) GetDeploymentsByBranchID(ctx context.Context, branchID uuid.UU
 		if err := rows.Scan(
 			&i.ID,
 			&i.IsCurrent,
-			&i.ImageName,
+			&i.Image,
 			&i.Status,
 			&i.SwarmServiceName,
 		); err != nil {
@@ -225,17 +225,17 @@ func (q *Queries) GetDeploymentsByServiceID(ctx context.Context, serviceID uuid.
 
 const setDeploymentImageName = `-- name: SetDeploymentImageName :exec
 UPDATE deployments
-SET image_name = ?
+SET image = ?
 WHERE id = ?
 `
 
 type SetDeploymentImageNameParams struct {
-	ImageName sql.NullString `json:"image_name"`
-	ID        uuid.UUID      `json:"id"`
+	Image sql.NullString `json:"image"`
+	ID    uuid.UUID      `json:"id"`
 }
 
 func (q *Queries) SetDeploymentImageName(ctx context.Context, arg SetDeploymentImageNameParams) error {
-	_, err := q.db.ExecContext(ctx, setDeploymentImageName, arg.ImageName, arg.ID)
+	_, err := q.db.ExecContext(ctx, setDeploymentImageName, arg.Image, arg.ID)
 	return err
 }
 
@@ -257,7 +257,7 @@ func (q *Queries) UpdateDeploymentStatus(ctx context.Context, arg UpdateDeployme
 
 const upgradeDeployment = `-- name: UpgradeDeployment :exec
 UPDATE deployments
-SET is_current = 1, status = ?
+SET is_current = TRUE, status = ?
 WHERE id = ?
 `
 

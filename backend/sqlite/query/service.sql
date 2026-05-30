@@ -5,7 +5,7 @@ WHERE ps.project_id = @project_id
 UNION ALL
 SELECT aps.id, aps.type, aps.name, aps.gh_repo_url, aps.gh_repo_url, aps.git_provider, b.branch_name, aps.created_at
 FROM app_service aps
-JOIN app_service_branch b ON aps.id = b.service_id AND b.is_default_branch = 1
+JOIN app_service_branch b ON aps.id = b.service_id AND b.is_default_branch
 WHERE aps.project_id = @project_id;
 
 -- name: ServiceNameExists :one
@@ -20,28 +20,6 @@ SELECT CAST(
         WHERE aps.project_id = @project_id AND aps.name = @name
     ))
 AS BOOLEAN);
-
--- name: CreatePsqlService :one
-INSERT INTO psql_service (id, project_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url, image_name)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id;
-
--- name: GetPsqlServiceById :one
-SELECT *
-FROM psql_service
-WHERE id = ?;
-
--- name: DeletePsqlService :exec
-DELETE FROM psql_service
-WHERE id = ?;
-
--- name: UpdatePsqlServiceDetails :exec
-UPDATE psql_service
-SET db_name = ?,
-    db_user = ?,
-    db_password = ?,
-    internal_url = ?
-WHERE id = ?;
 
 -- name: CreateAppService :one
 INSERT INTO app_service (id, project_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage)
@@ -64,8 +42,8 @@ SELECT
     d.status, d.commit_msg,
     b.id AS branch_id, b.branch_name, b.domain
 FROM app_service a
-JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch = 1
-JOIN deployments d ON d.branch_id = b.id AND d.is_current = 1
+JOIN app_service_branch b ON b.service_id = a.id AND b.is_default_branch
+JOIN deployments d ON d.branch_id = b.id AND d.is_current
 WHERE a.id = ?;
 
 -- name: DeleteAppService :exec
@@ -89,7 +67,7 @@ AS BOOLEAN);
 -- name: GetDefaultBranchByServiceId :one
 SELECT *
 FROM app_service_branch
-WHERE service_id = ? AND is_default_branch = 1;
+WHERE service_id = ? AND is_default_branch;
 
 -- name: GetAppServiceByBranchId :one
 SELECT a.id AS service_id, a.name,a.gh_repo_id, a.gh_repo_url, a.gh_app_id,
@@ -99,7 +77,7 @@ SELECT a.id AS service_id, a.name,a.gh_repo_id, a.gh_repo_url, a.gh_app_id,
     d.id AS deployment_id, d.status AS deployment_status
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id
-JOIN deployments d ON d.branch_id = b.id AND d.is_current = 1
+JOIN deployments d ON d.branch_id = b.id AND d.is_current
 WHERE b.id = @branch_id;
 
 -- name: GetAllAppServicesByRepo :many
@@ -110,7 +88,7 @@ SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
     d.id AS deployment_id, d.status AS deployment_status
 FROM app_service a
 JOIN app_service_branch b ON b.service_id = a.id
-JOIN deployments d ON d.branch_id = b.id AND d.is_current = 1
+JOIN deployments d ON d.branch_id = b.id AND d.is_current
 WHERE a.gh_repo_id = ? AND b.branch_name = ?;
 
 -- name: GetSwarmServiceByBranchId :one
@@ -119,7 +97,7 @@ FROM app_service_branch
 WHERE id = @branch_id;
 
 -- name: GetAllSwarmServiceAndImagesByAppServiceId :many
-SELECT b.swarm_service_name, d.id AS deployment_id, d.image_name
+SELECT b.swarm_service_name, d.id AS deployment_id, d.image
 FROM app_service_branch b
 JOIN deployments d ON d.branch_id = b.id
 WHERE b.service_id = ?;
@@ -132,7 +110,7 @@ WHERE service_id = ?;
 -- name: GetDefaultBranchSwarmService :one
 SELECT swarm_service_name
 FROM app_service_branch
-WHERE service_id = ? AND is_default_branch = 1;
+WHERE service_id = ? AND is_default_branch;
 
 -- name: SetDomianAndPortForBranch :exec
 UPDATE app_service_branch

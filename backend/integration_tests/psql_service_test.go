@@ -2,13 +2,13 @@ package testing
 
 import (
 	"net/http"
-	"net/url"
 	"testing"
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	"github.com/Roshan-anand/godploy/internal/handlers"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
 )
 
 func TestPsqlService(t *testing.T) {
@@ -91,9 +91,10 @@ func TestPsqlService(t *testing.T) {
 	})
 
 	t.Run("get the psql service details", func(t *testing.T) {
-		query := url.Values{}
-		query.Add("service_id", psqlServiceID.String())
-		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.GetPsqlServiceById, IsAuth: true, Query: query})
+		params := echo.PathValues{}
+		params = append(params, echo.PathValue{Name: "id", Value: psqlServiceID.String()})
+
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.GetPsqlServiceById, IsAuth: true, Params: params})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -132,9 +133,10 @@ func TestPsqlService(t *testing.T) {
 			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
 		}
 
-		query := url.Values{}
-		query.Add("service_id", psqlServiceID.String())
-		rec, err = TestEchoHandler(&TestEchoBody{T: t, H: h.Service.GetPsqlServiceById, IsAuth: true, Query: query})
+		params := echo.PathValues{}
+		params = append(params, echo.PathValue{Name: "id", Value: psqlServiceID.String()})
+
+		rec, err = TestEchoHandler(&TestEchoBody{T: t, H: h.Service.GetPsqlServiceById, IsAuth: true, Params: params})
 		if err != nil {
 			t.Fatal(err)
 		}

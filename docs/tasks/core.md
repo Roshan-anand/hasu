@@ -11,7 +11,7 @@
 - [ ] 07 — Redeploy only matching Service Branches from GitHub webhooks [easy]
 - [ ] 08 — Show deployment history with rebuild and rollback actions per Service Branch [easy]
 - [ ] 09 — Show runtime health separately from deployment status [easy]
-- [ ] 10 — Create a Postgres Predefined Database Service with an Internal URL [easy]
+- [x] 10 — Create a Postgres Predefined Database Service with an Internal URL [easy]
 - [ ] 11 — Add Redis to the Predefined Database Service flow [easy]
 - [ ] 12 — Edit a Predefined Database Service and apply changes only on redeploy [easy]
 - [ ] 13 — Preserve deleted database data as an Orphan Volume and show it in Storage [easy]
