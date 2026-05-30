@@ -11,19 +11,10 @@ Lightweight, single-binary, self-hosted alternative to Dokploy, Coolify, Netlify
 - **UI:** sveltekit (SPA, served from binary)
 
 ## Architecture :
-<img width="4375" height="6491" alt="image" src="https://github.com/user-attachments/assets/5f99c8c9-de6f-47b4-911b-893fbd93b27c" />
-
-
-## current status :
-
-check out the [Roadmap](https://github.com/Roshan-anand/godploy/blob/main/docs/mvp_roadmap.md)
-
-## Resources :
-
-check out the [Design DOCs](https://github.com/Roshan-anand/godploy/tree/main/docs/design_docs)
+![architecture](docs/architecture.png)
 
 ---
 
 ## Contribution guidelines
 
-If you are instreasted in contributing or collaborating then connect with me in [twitter](https://twitter.com/r0shan_anand) | [Discord](https://discordapp.com/users/1114575128190271530) | [Email](https://mail.google.com/mail/u/0/?fs=1&to=roshan4nand@gmail.com&tf=cm)
+If you are instreasted in contributing or collaborating then connect with me in [twitter](https://twitter.com/r0shan_anand) / [Discord](https://discordapp.com/users/1114575128190271530) / [Email](https://mail.google.com/mail/u/0/?fs=1&to=roshan4nand@gmail.com&tf=cm)
