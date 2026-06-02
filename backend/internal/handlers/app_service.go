@@ -238,7 +238,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	})
 }
 
-// TODO: under development, will be added in future PR
+// TODO : under development, will be added in future PR
 // create a new app service for a sub branch
 //
 // route: POST /api/service/app/preview
@@ -318,7 +318,7 @@ func (h *ServiceHandler) CreatePreviewAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service branch"})
 	}
 
-	// TODO: varify if passing addrs of struct is more efficient than passing 2 strings as args
+	// TODO : varify if passing addrs of struct is more efficient than passing 2 strings as args
 	// get the latest commit info of the selected branch
 	commit, err := gh.GetLatestCommit(repo.Owner, repo.Name, b.Branch)
 	if err != nil {

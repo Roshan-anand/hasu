@@ -28,8 +28,9 @@
 - [ ] rememberMe functionality for login
 - [x] make separate create page for app and DB service.
 - [ ] use tiptap SDK for editor like ui for env management. [medium, ui]
-- [ ] update the project tests to include orphan volume cases
-- [ ] API & tests for orphan volume operations
+- [x] update the project tests to include orphan volume cases
+- [x] API & tests for orphan volume operations
+- [ ] switching org dosent refetch other query like get project, gh_app etc.
 
 
 ## enhancements

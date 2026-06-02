@@ -39,7 +39,7 @@ func (s *Server) StartServer(srvErr chan error) {
 
 	// TODO : use logger to log the info
 
-	fmt.Println("starting server on port ", s.Http.Addr) // TODO: change it to env (konf)
+	fmt.Println("starting server on port ", s.Http.Addr) // TODO : change it to env (konf)
 	if err := s.Http.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		srvErr <- fmt.Errorf("listen serve error : %w", err)
 	}

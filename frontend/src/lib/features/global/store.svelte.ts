@@ -2,24 +2,20 @@ import type { Organization } from '@/features/auth/type';
 import { getContext, setContext } from 'svelte';
 
 interface UserState {
-	orgs: Organization[];
-	setOrg: (orgs: Organization[]) => void;
-	pushOrg: (orgs: Organization) => void;
+	currentOrg: Organization;
+	setOrg: (org: Organization) => void;
 }
 
 class UserStateClass implements UserState {
-	orgs = $state<Organization[]>([]);
+	currentOrg = $state<Organization>({ name: '', id: '' });
 
-	setOrg = (orgs: Organization[]) => (this.orgs = orgs);
-
-	pushOrg = (newOrg: Organization) =>
-		(this.orgs = [newOrg, ...this.orgs.filter((org) => org.id !== newOrg.id)]);
+	setOrg = (org: Organization) => (this.currentOrg = org);
 }
 
-const DEFAULT_KEY = 'user:state';
+const DEFAULT_KEY = 'org:state';
 
-export const getUserState = (key: string = DEFAULT_KEY) => getContext<UserState>(Symbol.for(key));
+export const getOrgState = (key: string = DEFAULT_KEY) => getContext<UserState>(Symbol.for(key));
 
-export const setUserState = (key: string = DEFAULT_KEY) => {
+export const setOrgState = (key: string = DEFAULT_KEY) => {
 	setContext(Symbol.for(key), new UserStateClass());
 };

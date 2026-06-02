@@ -2,15 +2,16 @@ import { api, axiosErr } from '@/axios';
 import { createMutation } from '@tanstack/svelte-query';
 import { toast } from 'svelte-sonner';
 import type { ApiRes } from '@/types';
-import { GetUserData } from '../global/query';
+import { GetUserData, setUserCurrentOrg } from '../global/query';
 import { queryClient } from '@/query';
+import type { Organization } from '@/features/auth/type';
 import type {
 	CreateProjectPayload,
 	DeleteProjectPayload,
 	ProjectListResponse,
 	DeleteVolumePayload
 } from './type';
-import { getOrgProjectsQueryKey } from './const';
+import { getOrgProjectsQueryKey, getOrgsQueryKey } from './const';
 
 export function useCreateProjectMutation() {
 	const { org_id } = GetUserData();
@@ -60,5 +61,45 @@ export function useDeleteVolumeMutation() {
 			toast.success(message || 'Volume deleted successfully');
 		},
 		onError: (error) => axiosErr(error as Error, 'Failed to delete volume')
+	}));
+}
+
+type SwitchOrgPayload = {
+	org_id: string;
+};
+
+type CreateOrgPayload = {
+	name: string;
+};
+
+export function useSwitchOrgMutation() {
+	return createMutation(() => ({
+		mutationFn: (payload: SwitchOrgPayload) =>
+			api.post<ApiRes<Organization>>('/org/switch', payload).then((res) => res.data),
+		onSuccess: ({ data, message }) => {
+			setUserCurrentOrg({
+				org_id: data.id,
+				org_name: data.name
+			});
+			toast.success(message || 'Organization switched successfully');
+		},
+		onError: (error) => axiosErr(error, 'Failed to switch organization')
+	}));
+}
+
+export function useCreateOrgMutation() {
+	const { email } = GetUserData();
+	return createMutation(() => ({
+		mutationFn: (payload: CreateOrgPayload) =>
+			api.post<ApiRes<Organization>>('/org', payload).then((res) => res.data),
+		onSuccess: ({ data, message }) => {
+			queryClient.setQueryData(getOrgsQueryKey(email), (cachedOrgs: Organization[] | undefined) => {
+				if (!cachedOrgs) return [data];
+				if (cachedOrgs.some((org) => org.id === data.id)) return cachedOrgs;
+				return [data, ...cachedOrgs];
+			});
+			toast.success(message);
+		},
+		onError: (error) => axiosErr(error, 'Failed to create organization')
 	}));
 }

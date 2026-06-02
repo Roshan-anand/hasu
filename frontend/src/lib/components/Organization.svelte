@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { api, axiosErr } from '@/axios';
 	import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 	import { Button } from '@/components/ui/button';
 	import * as Dialog from '@/components/ui/dialog';
@@ -7,86 +6,51 @@
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { queryClient } from '@/query';
-	import { createMutation, createQuery } from '@tanstack/svelte-query';
 	import { Check, ChevronsUpDown } from '@lucide/svelte';
-	import { toast } from 'svelte-sonner';
-	import { getUserState } from '@/features/global/store.svelte';
-	import type { Organization } from '@/features/auth/type';
 	import CreateBtn from './CreateBtn.svelte';
-	import { GetUserData, setUserCurrentOrg } from '@/features/global/query';
-	import type { ApiRes } from '@/types';
+	import { GetUserData } from '@/features/global/query';
+	import { useGetAllOrgsQuery } from '@/features/base/query.svelte';
+	import { useSwitchOrgMutation, useCreateOrgMutation } from '@/features/base/mutation.svelte';
 
-	const { pushOrg, setOrg, orgs } = getUserState();
-	const { email, org_id, org_name } = GetUserData();
+	const user = GetUserData();
+
+	const { currentOrgName, currentOrgID } = $derived.by(() => {
+		console.log('triggerd derived for org data');
+		if (switchOrgMutation.isSuccess) {
+			const { org_id, org_name } = GetUserData();
+			return {
+				currentOrgID: org_id,
+				currentOrgName: org_name
+			};
+		}
+
+		return {
+			currentOrgName: user.org_name,
+			currentOrgID: user.org_id
+		};
+	});
 
 	let orgMenuOpen = $state(false);
 	let createDialogOpen = $state(false);
 	let orgName = $state('');
 
-	type SwitchOrgPayload = {
-		org_id: string;
-	};
-
-	type CreateOrgPayload = {
-		name: string;
-	};
-
-	const getOrgsQueryKey = () => ['orgs', email] as const;
-
 	// Keeps current org and org list in sync with on-demand query fetch plus switch/create mutations.
-	const getAllOrgsQuery = createQuery(() => ({
-		queryKey: getOrgsQueryKey(),
-		queryFn: () => api.get<ApiRes<Organization[]>>('/org').then((res) => res.data.data),
-		enabled: false
-	}));
-
-	const switchOrgMutation = createMutation(() => ({
-		mutationFn: (payload: SwitchOrgPayload) =>
-			api.post<ApiRes<Organization>>('/org/switch', payload).then((res) => res.data),
-		onSuccess: ({ data, message }) => {
-			setUserCurrentOrg({
-				org_id: data.id,
-				org_name: data.name
-			});
-			orgMenuOpen = false;
-			toast.success(message);
-		},
-		onError: (error) => axiosErr(error, 'Failed to switch organization')
-	}));
-
-	const createOrgMutation = createMutation(() => ({
-		mutationFn: (payload: CreateOrgPayload) =>
-			api.post<ApiRes<Organization>>('/org', payload).then((res) => res.data),
-		onSuccess: ({ data, message }) => {
-			queryClient.setQueryData(getOrgsQueryKey(), (cachedOrgs: Organization[] | undefined) => {
-				if (!cachedOrgs) return [data];
-				if (cachedOrgs.some((org) => org.id === data.id)) return cachedOrgs;
-				return [data, ...cachedOrgs];
-			});
-
-			pushOrg(data);
-			orgName = '';
-			createDialogOpen = false;
-			toast.success(message);
-		},
-		onError: (error) => axiosErr(error, 'Failed to create organization')
-	}));
+	const getAllOrgsQuery = useGetAllOrgsQuery();
+	const switchOrgMutation = useSwitchOrgMutation();
+	const createOrgMutation = useCreateOrgMutation();
 
 	const canCreateOrg = $derived.by(() => orgName.trim().length >= 3);
 	const isOrgListLoading = $derived.by(() => {
 		return getAllOrgsQuery.isPending || (getAllOrgsQuery.isFetching && !getAllOrgsQuery.data);
 	});
 
-	$effect(() => {
-		if (!getAllOrgsQuery.data) return;
-		setOrg(getAllOrgsQuery.data);
-	});
-
-	$effect(() => {
-		if (!orgMenuOpen) return;
-		void getAllOrgsQuery.refetch();
-	});
+	// TODO : this cuase inifinit refetch
+	// $effect(() => {
+	// 	if (orgMenuOpen) {
+	// 		console.log('trigger reFetching org list...');
+	// 		void getAllOrgsQuery.refetch();
+	// 	}
+	// });
 
 	function getAvatarText(orgNameValue: string) {
 		const [firstWord = ''] = orgNameValue.trim().split(/\s+/);
@@ -94,13 +58,20 @@
 	}
 
 	function switchOrg(orgId: string) {
-		if (!orgId || orgId === org_id || switchOrgMutation.isPending) return;
+		if (!orgId || orgId === currentOrgID || switchOrgMutation.isPending) return;
 
-		switchOrgMutation.mutate({ org_id: orgId });
+		switchOrgMutation.mutate(
+			{ org_id: orgId },
+			{
+				onSuccess: () => {
+					orgMenuOpen = false;
+				}
+			}
+		);
 	}
 
 	function openCreateOrgDialog() {
-		orgMenuOpen = false;
+		// orgMenuOpen = false;
 		createDialogOpen = true;
 	}
 
@@ -112,20 +83,28 @@
 	function createOrg() {
 		if (!canCreateOrg || createOrgMutation.isPending) return;
 
-		createOrgMutation.mutate({
-			name: orgName.trim()
-		});
+		createOrgMutation.mutate(
+			{
+				name: orgName.trim()
+			},
+			{
+				onSuccess: () => {
+					orgName = '';
+					createDialogOpen = false;
+				}
+			}
+		);
 	}
 </script>
 
 <div class="flex w-full flex-col gap-2">
 	<div class="flex w-full items-center gap-2">
 		<Avatar>
-			<AvatarFallback>{getAvatarText(org_name)}</AvatarFallback>
+			<AvatarFallback>{getAvatarText(currentOrgName)}</AvatarFallback>
 		</Avatar>
 
 		<div class="min-w-0 flex-1">
-			<p class="truncate font-medium">{org_name || 'No organization selected'}</p>
+			<p class="truncate font-medium">{currentOrgName || 'No organization selected'}</p>
 		</div>
 
 		<DropdownMenu.Root bind:open={orgMenuOpen}>
@@ -142,15 +121,15 @@
 					<div class="p-1"><Skeleton class="h-8 w-full" /></div>
 				{:else if getAllOrgsQuery.isError}
 					<p class="text-destructive px-2 py-1 text-sm">Failed to load organizations</p>
-				{:else if orgs.length > 0}
+				{:else if getAllOrgsQuery.data && getAllOrgsQuery.data.length > 0}
 					<DropdownMenu.Group>
-						{#each orgs as org (org.id)}
+						{#each getAllOrgsQuery.data as org (org.id)}
 							<DropdownMenu.Item
 								onSelect={() => switchOrg(org.id)}
 								disabled={switchOrgMutation.isPending}
 							>
 								<span class="truncate">{org.name}</span>
-								{#if org.id === org_id}
+								{#if org.id === currentOrgID}
 									<Check class="ml-auto" />
 								{/if}
 							</DropdownMenu.Item>

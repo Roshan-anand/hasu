@@ -2,8 +2,9 @@ import { api } from '@/axios';
 import { createQuery } from '@tanstack/svelte-query';
 import { GetUserData } from '../global/query';
 import type { ApiRes } from '@/types';
+import type { Organization } from '@/features/auth/type';
 import type { OrphanVolume, ProjectListResponse } from './type';
-import { getOrphanVolumesQueryKey, getOrgProjectsQueryKey } from './const';
+import { getOrphanVolumesQueryKey, getOrgProjectsQueryKey, getOrgsQueryKey } from './const';
 
 export function useGetAllProjectsQuery() {
 	const { org_id } = GetUserData();
@@ -35,6 +36,15 @@ export function useGetOrphanVolumesQuery() {
 			enabled: org_id !== ''
 		};
 	});
+}
+
+export function useGetAllOrgsQuery() {
+	const { email } = GetUserData();
+	return createQuery(() => ({
+		queryKey: getOrgsQueryKey(email),
+		queryFn: () => api.get<ApiRes<Organization[]>>('/org').then((res) => res.data.data),
+		enabled: false
+	}));
 }
 
 // Fetch orphan volumes filtered by predefined service type (e.g. "psql").

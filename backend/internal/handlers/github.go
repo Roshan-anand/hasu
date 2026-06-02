@@ -246,7 +246,7 @@ func (h *GitHandler) SetupGithubApp(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to setup github app"})
 	}
 
-	// TODO: update the url to route to git provider page with success message
+	// TODO : update the url to route to git provider page with success message
 	return c.Redirect(http.StatusFound, h.Server.Config.WebUrl+"/#/git")
 }
 

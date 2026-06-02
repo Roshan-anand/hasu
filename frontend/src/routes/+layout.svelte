@@ -5,11 +5,8 @@
 	import { Toaster } from '@/components/ui/sonner/index';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
 	import { queryClient } from '@/query';
-	import { setUserState } from '@/features/global/store.svelte';
 
 	let { children } = $props();
-
-	setUserState();
 </script>
 
 <svelte:head>
