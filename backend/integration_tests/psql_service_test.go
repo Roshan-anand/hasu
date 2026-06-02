@@ -2,6 +2,7 @@ package testing
 
 import (
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/Roshan-anand/godploy/internal/db"
@@ -38,6 +39,7 @@ func TestPsqlService(t *testing.T) {
 	}
 
 	var psqlServiceID uuid.UUID
+	var orphanVolume string
 
 	t.Run("create psql service and get id", func(t *testing.T) {
 		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.CreatePsqlService, IsAuth: true, Body: createPsqlServiceReq})
@@ -182,9 +184,130 @@ func TestPsqlService(t *testing.T) {
 		}
 	})
 
-	t.Run("delete psql service", func(t *testing.T) {
-		deleteReq := &handlers.ServiceReq{ServiceId: psqlServiceID}
+	t.Run("delete psql service and dont keep the data", func(t *testing.T) {
+		deleteReq := &handlers.DeletePsqlServiceReq{ServiceId: psqlServiceID, KeepData: false}
 		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.DeletePsqlService, IsAuth: true, Body: deleteReq})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			msg, err := readOnly(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Log(msg)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+	})
+
+	t.Run("create psql service for keep data flow", func(t *testing.T) {
+		keepDataReq := &handlers.CreatePsqlServiceReq{
+			ProjectID:  user.ProjectID,
+			Name:       "newpsql-keep",
+			DbName:     "keepdb",
+			DbUser:     "keepuser",
+			DbPassword: "keeppass",
+			Image:      "postgres:16-alpine",
+		}
+
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.CreatePsqlService, IsAuth: true, Body: keepDataReq})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			msg, err := readOnly(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Log(msg)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var res types.Res[uuid.UUID]
+		if err := readAndUnmarshl(body, &res); err != nil {
+			t.Fatal(err)
+		}
+
+		psqlServiceID = res.Data
+	})
+
+	t.Run("delete psql service and keep data", func(t *testing.T) {
+		params := echo.PathValues{}
+		params = append(params, echo.PathValue{Name: "id", Value: psqlServiceID.String()})
+
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.GetPsqlServiceById, IsAuth: true, Params: params})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var getRes types.Res[db.PsqlService]
+		if err := readAndUnmarshl(body, &getRes); err != nil {
+			t.Fatal(err)
+		}
+		orphanVolume = getRes.Data.Volume
+
+		deleteReq := &handlers.DeletePsqlServiceReq{ServiceId: psqlServiceID, KeepData: true}
+		rec, err = TestEchoHandler(&TestEchoBody{T: t, H: h.Service.DeletePsqlService, IsAuth: true, Body: deleteReq})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body = rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			printRaw(body, t)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+	})
+
+	t.Run("get orphan volume after keeping psql data", func(t *testing.T) {
+		query := url.Values{}
+		query.Add("org_id", user.OrgId.String())
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.GetAllVolume, IsAuth: true, Query: query})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			printRaw(body, t)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var res types.Res[[]db.OrphanVolume]
+		if err := readAndUnmarshl(body, &res); err != nil {
+			t.Fatal(err)
+		}
+
+		found := false
+		for _, v := range res.Data {
+			if v.Volume == orphanVolume {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			t.Fatalf("expected orphan volume %s to be present", orphanVolume)
+		}
+	})
+
+	t.Run("delete orphan volume", func(t *testing.T) {
+		deleteReq := &handlers.DeleteVolumeReq{Volumes: []string{orphanVolume}}
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.DeleteVolume, IsAuth: true, Body: deleteReq})
 		if err != nil {
 			t.Fatal(err)
 		}

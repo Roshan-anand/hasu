@@ -3,10 +3,16 @@ INSERT INTO psql_service (id, project_id, type, swarm_service_name, name, db_nam
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id;
 
--- name: GetPsqlServiceById :one
-SELECT *
-FROM psql_service
+-- name: AssociateVolumeWithPsql :exec
+UPDATE psql_service
+SET volume = ?
 WHERE id = ?;
+
+-- name: GetPsqlServiceById :one
+SELECT ps.*, pr.organization_id
+FROM psql_service ps
+JOIN project pr ON ps.project_id = pr.id
+WHERE ps.id = ?;
 
 -- name: DeletePsqlService :exec
 DELETE FROM psql_service
@@ -21,28 +27,23 @@ SET db_name = ?,
 WHERE id = ?;
 
 -- name: CreateOrphanVolume :exec
-INSERT INTO orphan_volume (id, project_id, volume, type)
+INSERT INTO orphan_volume (id, organization_id, volume, type)
 VALUES (?, ?, ?, ?);
 
--- name: GetAllOrphanVolumes :many
+-- name: GetAllAttachableOrphanVolumes :many
 SELECT *
 FROM orphan_volume
-WHERE project_id = ? OR project_id IS NULL;
+WHERE organization_id = ?;
+
+-- name: GetAllOrphanVolumesByOrgID :many
+SELECT *
+FROM orphan_volume
+WHERE organization_id = ?;
 
 -- name: GetOrphanVolumeByType :many
 SELECT *
 FROM orphan_volume
-WHERE (project_id = ? OR project_id IS NULL) AND type = ?;
-
--- name: DisAssociateOrphanVolume :exec
-UPDATE orphan_volume
-SET project_id = NULL
-WHERE volume = ?;
-
--- name: AssociateOrphanVolume :exec
-UPDATE orphan_volume
-SET project_id = ?
-WHERE volume = ?;
+WHERE organization_id = ? AND type = ?;
 
 -- name: DeleteOrphanVolume :exec
 DELETE FROM orphan_volume

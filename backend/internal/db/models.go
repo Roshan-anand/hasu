@@ -75,11 +75,11 @@ type Organization struct {
 }
 
 type OrphanVolume struct {
-	ID        uuid.UUID               `json:"id"`
-	ProjectID uuid.NullUUID           `json:"project_id"`
-	Volume    string                  `json:"volume"`
-	Type      types.PredefServiceType `json:"type"`
-	CreatedAt time.Time               `json:"created_at"`
+	ID             uuid.UUID               `json:"id"`
+	OrganizationID uuid.UUID               `json:"organization_id"`
+	Volume         string                  `json:"volume"`
+	Type           types.PredefServiceType `json:"type"`
+	CreatedAt      time.Time               `json:"created_at"`
 }
 
 type Project struct {

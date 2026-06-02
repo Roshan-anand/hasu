@@ -7,43 +7,44 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/google/uuid"
 )
 
-const associateOrphanVolume = `-- name: AssociateOrphanVolume :exec
-UPDATE orphan_volume
-SET project_id = ?
-WHERE volume = ?
+const associateVolumeWithPsql = `-- name: AssociateVolumeWithPsql :exec
+UPDATE psql_service
+SET volume = ?
+WHERE id = ?
 `
 
-type AssociateOrphanVolumeParams struct {
-	ProjectID uuid.NullUUID `json:"project_id"`
-	Volume    string        `json:"volume"`
+type AssociateVolumeWithPsqlParams struct {
+	Volume string    `json:"volume"`
+	ID     uuid.UUID `json:"id"`
 }
 
-func (q *Queries) AssociateOrphanVolume(ctx context.Context, arg AssociateOrphanVolumeParams) error {
-	_, err := q.db.ExecContext(ctx, associateOrphanVolume, arg.ProjectID, arg.Volume)
+func (q *Queries) AssociateVolumeWithPsql(ctx context.Context, arg AssociateVolumeWithPsqlParams) error {
+	_, err := q.db.ExecContext(ctx, associateVolumeWithPsql, arg.Volume, arg.ID)
 	return err
 }
 
 const createOrphanVolume = `-- name: CreateOrphanVolume :exec
-INSERT INTO orphan_volume (id, project_id, volume, type)
+INSERT INTO orphan_volume (id, organization_id, volume, type)
 VALUES (?, ?, ?, ?)
 `
 
 type CreateOrphanVolumeParams struct {
-	ID        uuid.UUID               `json:"id"`
-	ProjectID uuid.NullUUID           `json:"project_id"`
-	Volume    string                  `json:"volume"`
-	Type      types.PredefServiceType `json:"type"`
+	ID             uuid.UUID               `json:"id"`
+	OrganizationID uuid.UUID               `json:"organization_id"`
+	Volume         string                  `json:"volume"`
+	Type           types.PredefServiceType `json:"type"`
 }
 
 func (q *Queries) CreateOrphanVolume(ctx context.Context, arg CreateOrphanVolumeParams) error {
 	_, err := q.db.ExecContext(ctx, createOrphanVolume,
 		arg.ID,
-		arg.ProjectID,
+		arg.OrganizationID,
 		arg.Volume,
 		arg.Type,
 	)
@@ -109,25 +110,14 @@ func (q *Queries) DeletePsqlService(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const disAssociateOrphanVolume = `-- name: DisAssociateOrphanVolume :exec
-UPDATE orphan_volume
-SET project_id = NULL
-WHERE volume = ?
-`
-
-func (q *Queries) DisAssociateOrphanVolume(ctx context.Context, volume string) error {
-	_, err := q.db.ExecContext(ctx, disAssociateOrphanVolume, volume)
-	return err
-}
-
-const getAllOrphanVolumes = `-- name: GetAllOrphanVolumes :many
-SELECT id, project_id, volume, type, created_at
+const getAllAttachableOrphanVolumes = `-- name: GetAllAttachableOrphanVolumes :many
+SELECT id, organization_id, volume, type, created_at
 FROM orphan_volume
-WHERE project_id = ? OR project_id IS NULL
+WHERE organization_id = ?
 `
 
-func (q *Queries) GetAllOrphanVolumes(ctx context.Context, projectID uuid.NullUUID) ([]OrphanVolume, error) {
-	rows, err := q.db.QueryContext(ctx, getAllOrphanVolumes, projectID)
+func (q *Queries) GetAllAttachableOrphanVolumes(ctx context.Context, organizationID uuid.UUID) ([]OrphanVolume, error) {
+	rows, err := q.db.QueryContext(ctx, getAllAttachableOrphanVolumes, organizationID)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +127,42 @@ func (q *Queries) GetAllOrphanVolumes(ctx context.Context, projectID uuid.NullUU
 		var i OrphanVolume
 		if err := rows.Scan(
 			&i.ID,
-			&i.ProjectID,
+			&i.OrganizationID,
+			&i.Volume,
+			&i.Type,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllOrphanVolumesByOrgID = `-- name: GetAllOrphanVolumesByOrgID :many
+SELECT id, organization_id, volume, type, created_at
+FROM orphan_volume
+WHERE organization_id = ?
+`
+
+func (q *Queries) GetAllOrphanVolumesByOrgID(ctx context.Context, organizationID uuid.UUID) ([]OrphanVolume, error) {
+	rows, err := q.db.QueryContext(ctx, getAllOrphanVolumesByOrgID, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OrphanVolume
+	for rows.Next() {
+		var i OrphanVolume
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,
@@ -156,18 +181,18 @@ func (q *Queries) GetAllOrphanVolumes(ctx context.Context, projectID uuid.NullUU
 }
 
 const getOrphanVolumeByType = `-- name: GetOrphanVolumeByType :many
-SELECT id, project_id, volume, type, created_at
+SELECT id, organization_id, volume, type, created_at
 FROM orphan_volume
-WHERE (project_id = ? OR project_id IS NULL) AND type = ?
+WHERE organization_id = ? AND type = ?
 `
 
 type GetOrphanVolumeByTypeParams struct {
-	ProjectID uuid.NullUUID           `json:"project_id"`
-	Type      types.PredefServiceType `json:"type"`
+	OrganizationID uuid.UUID               `json:"organization_id"`
+	Type           types.PredefServiceType `json:"type"`
 }
 
 func (q *Queries) GetOrphanVolumeByType(ctx context.Context, arg GetOrphanVolumeByTypeParams) ([]OrphanVolume, error) {
-	rows, err := q.db.QueryContext(ctx, getOrphanVolumeByType, arg.ProjectID, arg.Type)
+	rows, err := q.db.QueryContext(ctx, getOrphanVolumeByType, arg.OrganizationID, arg.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +202,7 @@ func (q *Queries) GetOrphanVolumeByType(ctx context.Context, arg GetOrphanVolume
 		var i OrphanVolume
 		if err := rows.Scan(
 			&i.ID,
-			&i.ProjectID,
+			&i.OrganizationID,
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,
@@ -196,14 +221,31 @@ func (q *Queries) GetOrphanVolumeByType(ctx context.Context, arg GetOrphanVolume
 }
 
 const getPsqlServiceById = `-- name: GetPsqlServiceById :one
-SELECT id, project_id, type, name, swarm_service_name, db_name, db_user, db_password, image, volume, internal_url, created_at
-FROM psql_service
-WHERE id = ?
+SELECT ps.id, ps.project_id, ps.type, ps.name, ps.swarm_service_name, ps.db_name, ps.db_user, ps.db_password, ps.image, ps.volume, ps.internal_url, ps.created_at, pr.organization_id
+FROM psql_service ps
+JOIN project pr ON ps.project_id = pr.id
+WHERE ps.id = ?
 `
 
-func (q *Queries) GetPsqlServiceById(ctx context.Context, id uuid.UUID) (PsqlService, error) {
+type GetPsqlServiceByIdRow struct {
+	ID               uuid.UUID         `json:"id"`
+	ProjectID        uuid.UUID         `json:"project_id"`
+	Type             types.ServiceType `json:"type"`
+	Name             string            `json:"name"`
+	SwarmServiceName string            `json:"swarm_service_name"`
+	DbName           string            `json:"db_name"`
+	DbUser           string            `json:"db_user"`
+	DbPassword       string            `json:"db_password"`
+	Image            string            `json:"image"`
+	Volume           string            `json:"volume"`
+	InternalUrl      string            `json:"internal_url"`
+	CreatedAt        time.Time         `json:"created_at"`
+	OrganizationID   uuid.UUID         `json:"organization_id"`
+}
+
+func (q *Queries) GetPsqlServiceById(ctx context.Context, id uuid.UUID) (GetPsqlServiceByIdRow, error) {
 	row := q.db.QueryRowContext(ctx, getPsqlServiceById, id)
-	var i PsqlService
+	var i GetPsqlServiceByIdRow
 	err := row.Scan(
 		&i.ID,
 		&i.ProjectID,
@@ -217,6 +259,7 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, id uuid.UUID) (PsqlSer
 		&i.Volume,
 		&i.InternalUrl,
 		&i.CreatedAt,
+		&i.OrganizationID,
 	)
 	return i, err
 }

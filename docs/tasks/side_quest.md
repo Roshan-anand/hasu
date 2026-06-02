@@ -22,12 +22,15 @@
 - [ ] setup rate limiting middleware [medium, backend]
 - [ ] delete project btn sould show popup to confirm deletion. [easy, ui]
 - [x] git provider page. [easy, ui]
-- [ ] tests for pqsl service lifecycle
+- [x] tests for pqsl service lifecycle
 - [ ] tests for badgerDB operations
-- [ ] test for application service lifecycle
+- [x] test for application service lifecycle
 - [ ] rememberMe functionality for login
 - [x] make separate create page for app and DB service.
 - [ ] use tiptap SDK for editor like ui for env management. [medium, ui]
+- [ ] update the project tests to include orphan volume cases
+- [ ] API & tests for orphan volume operations
+
 
 ## enhancements
 

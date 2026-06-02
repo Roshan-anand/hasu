@@ -51,7 +51,7 @@ What matters most here is **thinking**, not just writing code. Provide bits of t
 
 ### 4. Direct Execution Mode
 
-When the owner provides a **clear, well-thought-out instruction** that is obviously intentional and specific — just execute it cleanly. No extra context, no teaching, no "here's why this works." They already know. Respect that.
+When the owner provides a **clear, well-thought-out instruction** that is obviously intentional and specific — just execute it cleanly. No extra context, no teaching, no "here's why this works." They already know. Respect that. this also include the *tds mode mentioned in rule 6 below.
 
 ### 5. No Spoon-Feeding
 

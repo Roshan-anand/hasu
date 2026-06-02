@@ -2,21 +2,14 @@
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { Search, Trash2 } from '@lucide/svelte';
+	import { Search } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
-	import { useDeleteProjectMutation } from '@/features/base/mutation.svelte';
 	import { useGetAllProjectsQuery } from '@/features/base/query.svelte';
 	import CreateProject from './create-project.svelte';
-	import { Button } from '@/components/ui/button';
+	import ProjectDeletion from '@/components/conformation/project-deletion.svelte';
 
 	let searchQuery = $state('');
 	const projectsQuery = useGetAllProjectsQuery();
-	const deleteProjectMutation = useDeleteProjectMutation();
-
-	const deleteProject = (projectId: string) => {
-		if (deleteProjectMutation.isPending) return;
-		deleteProjectMutation.mutate({ project_id: projectId });
-	};
 
 	const filteredProjects = $derived.by(() => {
 		if (!projectsQuery.data) return [];
@@ -71,20 +64,7 @@
 							<h3 class="font-semibold text-lg">{project.name}</h3>
 							<p class="text-xs uppercase text-muted-foreground">Project</p>
 						</div>
-						<Button
-							variant="destructive"
-							size="sm"
-							onclick={() => deleteProject(project.id)}
-							disabled={deleteProjectMutation.isPending}
-							class="z-20"
-						>
-							{#if deleteProjectMutation.isPending}
-								Deleting...
-							{:else}
-								<Trash2 />
-								Delete
-							{/if}
-						</Button>
+						<ProjectDeletion projectId={project.id} name={project.name} />
 					</div>
 				</div>
 			{/each}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
@@ -197,7 +198,7 @@ func (h *ServiceHandler) GetPsqlServiceById(c *echo.Context) error {
 		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
 	}
 
-	return c.JSON(http.StatusOK, types.Res[db.PsqlService]{
+	return c.JSON(http.StatusOK, types.Res[db.GetPsqlServiceByIdRow]{
 		Message: "",
 		Data:    service,
 	})
@@ -309,22 +310,28 @@ func (h *ServiceHandler) DeletePsqlService(c *echo.Context) error {
 	// create an orphan volume record if user wants to keep data
 	if b.KeepData {
 		if err := tq.CreateOrphanVolume(h.qCtx, db.CreateOrphanVolumeParams{
-			ID: security.GeneratePrimaryKey(),
-			ProjectID: uuid.NullUUID{
-				Valid: true,
-				UUID:  service.ProjectID,
-			},
-			Volume: service.Volume,
-			Type:   types.PSQLPredefServiceType,
+			ID:             security.GeneratePrimaryKey(),
+			OrganizationID: service.OrganizationID,
+			Volume:         service.Volume,
+			Type:           types.PSQLPredefServiceType,
 		}); err != nil {
 			tx.Rollback()
+			fmt.Println("err ", err)
 			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create orphan volume record"})
 		}
 	} else {
-		if err := docker.VolumeRemove(context.Background(), service.Volume, true); err != nil {
-			tx.Rollback()
-			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: fmt.Sprintln("error removing volume :", err)})
-		}
+		go func(volumeName string) {
+			// incase service removal task is still in progress so retry every 7 sec to remove the volume
+			for i := 0; i < 10; i++ {
+				time.Sleep(8 * time.Second)
+				if err := docker.VolumeRemove(context.Background(), volumeName, true); err != nil {
+					fmt.Println("error removing volume in background:", err)
+				} else {
+					fmt.Println("successfully removed volume in background:", volumeName)
+					break
+				}
+			}
+		}(service.Volume)
 	}
 
 	if err := tq.DeletePsqlService(h.qCtx, b.ServiceId); err != nil {

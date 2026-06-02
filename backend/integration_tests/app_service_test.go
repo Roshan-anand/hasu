@@ -45,6 +45,7 @@ func TestAppService(t *testing.T) {
 		defer body.Close()
 
 		if rec.Code != http.StatusOK {
+			printRaw(body, t)
 			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
 		}
 
@@ -71,6 +72,7 @@ func TestAppService(t *testing.T) {
 		defer body.Close()
 
 		if rec.Code != http.StatusOK {
+			printRaw(body, t)
 			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
 		}
 
@@ -96,11 +98,7 @@ func TestAppService(t *testing.T) {
 		defer body.Close()
 
 		if rec.Code != http.StatusOK {
-			msg, err := readOnly(body)
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Log(msg)
+			printRaw(body, t)
 			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
 		}
 
@@ -122,6 +120,7 @@ func TestAppService(t *testing.T) {
 		defer body.Close()
 
 		if rec.Code != http.StatusOK {
+			printRaw(body, t)
 			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
 		}
 
@@ -138,13 +137,43 @@ func TestAppService(t *testing.T) {
 		t.Log("deployemnt :", deploymentID)
 	})
 
-	// TODO : write propoer test for sse and delete app service
-	// t.Run("wait till SSE ends", func(t *testing.T) {
-	// 	query := url.Values{}
-	// 	query.Add("deployment_id", deploymentID.String())
-	// 	_, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Deployment.SubscribeServiceDeploymentLogs, IsAuth: true, Query: query})
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// })
+	t.Run("delete app service", func(t *testing.T) {
+		deleteReq := &handlers.ServiceReq{ServiceId: appServiceID}
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.DeleteAppService, IsAuth: true, Body: deleteReq})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			printRaw(body, t)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		query := url.Values{}
+		query.Add("project_id", user.ProjectID.String())
+		rec, err = TestEchoHandler(&TestEchoBody{T: t, H: h.Service.GetAllServices, IsAuth: true, Query: query})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body = rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			printRaw(body, t)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var res types.Res[[]db.GetAllServiceRow]
+		if err := readAndUnmarshl(body, &res); err != nil {
+			t.Fatal(err)
+		}
+
+		for _, service := range res.Data {
+			if service.ID == appServiceID {
+				t.Fatalf("expected app service %s to be deleted", appServiceID)
+			}
+		}
+	})
 }

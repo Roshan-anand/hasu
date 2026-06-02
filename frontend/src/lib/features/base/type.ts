@@ -13,4 +13,16 @@ export type CreateProjectPayload = {
 
 export type DeleteProjectPayload = {
 	project_id: string;
+	volumes: string[];
+};
+
+export type DeleteVolumePayload = {
+	volumes: string[];
+};
+
+export type OrphanVolume = {
+	id: string;
+	volume: string;
+	type: string;
+	created_at: string;
 };

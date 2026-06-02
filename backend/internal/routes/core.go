@@ -54,6 +54,10 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	project.POST("", h.Project.CreateProject)
 	project.DELETE("", h.Project.DeleteProject)
 
+	volume := protected.Group("/volume")
+	volume.GET("", h.Service.GetAllVolume)
+	volume.DELETE("", h.Service.DeleteVolume)
+
 	// initialize service api routes
 	service := protected.Group("/service")
 	service.GET("", h.Service.GetAllServices)

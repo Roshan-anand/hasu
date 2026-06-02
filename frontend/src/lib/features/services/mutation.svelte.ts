@@ -3,7 +3,6 @@ import { createMutation } from '@tanstack/svelte-query';
 import { toast } from 'svelte-sonner';
 import type {
 	CreateServicePayload,
-	DeleteServicePayload,
 	GetReposPayload,
 	GithubRepo,
 	CreatePsqlServicePayload,
@@ -11,7 +10,9 @@ import type {
 	ServiceListResponse,
 	UpdateBranchDomainPayload,
 	UpdateEnvPayload,
-	UpdatePsqlServicePayload
+	UpdatePsqlServicePayload,
+	DeleteAppServicePayload,
+	DeletePsqlServicePayload
 } from './type';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
@@ -64,14 +65,11 @@ export function useCreatePsqlServiceMutation() {
 	}));
 }
 
-export function useDeleteServiceMutation(getProjectId: () => string) {
+export function useDeleteAppServiceMutation(getProjectId: () => string) {
 	const projectId = getProjectId();
 	return createMutation(() => ({
-		mutationFn: async ({ service_id, type }: DeleteServicePayload) => {
-			const url = type === 'psql' ? '/service/psql' : '/service/app';
-			return api.delete<ApiRes<null>>(url, { data: { service_id } }).then((res) => res.data);
-		},
-
+		mutationFn: async (payload: DeleteAppServicePayload) =>
+			api.delete<ApiRes<null>>('/service/app', { data: payload }).then((res) => res.data),
 		onSuccess: ({ message }, { service_id }) => {
 			queryClient.setQueryData(
 				getProjectServicesQueryKey(projectId),
@@ -80,9 +78,28 @@ export function useDeleteServiceMutation(getProjectId: () => string) {
 					return cachedRows.filter((row) => row.id !== service_id);
 				}
 			);
-			toast.success(message || 'Service deleted successfully');
+			toast.success(message || 'Application deleted successfully');
 		},
-		onError: (error) => axiosErr(error as Error, 'Failed to delete service')
+		onError: (error) => axiosErr(error as Error, 'Failed to delete Application')
+	}));
+}
+
+export function useDeletePsqlServiceMutation(getProjectId: () => string) {
+	const projectId = getProjectId();
+	return createMutation(() => ({
+		mutationFn: async (payload: DeletePsqlServicePayload) =>
+			api.delete<ApiRes<null>>('/service/psql', { data: payload }).then((res) => res.data),
+		onSuccess: ({ message }, { service_id }) => {
+			queryClient.setQueryData(
+				getProjectServicesQueryKey(projectId),
+				(cachedRows: ServiceListResponse[] | undefined) => {
+					if (!cachedRows) return [];
+					return cachedRows.filter((row) => row.id !== service_id);
+				}
+			);
+			toast.success(message || 'psql deleted successfully');
+		},
+		onError: (error) => axiosErr(error as Error, 'Failed to delete psql')
 	}));
 }
 

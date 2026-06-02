@@ -99,6 +99,14 @@ func readOnly(body io.ReadCloser) (string, error) {
 	return string(b), nil
 }
 
+func printRaw(body io.ReadCloser, t *testing.T) {
+	msg, err := readOnly(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(msg)
+}
+
 // check if cookies exists
 func hasCookie(c []*http.Cookie, cfg *config.Config) bool {
 	for _, cookie := range c {

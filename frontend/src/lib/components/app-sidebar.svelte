@@ -13,7 +13,7 @@
 		SidebarMenuItem,
 		SidebarRail
 	} from '@/components/ui/sidebar';
-	import { Blocks, Users, GitBranch } from '@lucide/svelte';
+	import { Blocks, Users, GitBranch, Database } from '@lucide/svelte';
 	import Organization from './Organization.svelte';
 </script>
 
@@ -47,6 +47,12 @@
 						<SidebarMenuButton onclick={() => goto(resolve('/(protected)/(core)/git'))}>
 							<GitBranch />
 							<span>Git</span>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+					<SidebarMenuItem>
+						<SidebarMenuButton onclick={() => goto(resolve('/(protected)/(core)/storage'))}>
+							<Database />
+							<span>Storage</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>

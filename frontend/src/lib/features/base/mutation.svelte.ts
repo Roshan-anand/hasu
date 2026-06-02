@@ -4,7 +4,12 @@ import { toast } from 'svelte-sonner';
 import type { ApiRes } from '@/types';
 import { GetUserData } from '../global/query';
 import { queryClient } from '@/query';
-import type { CreateProjectPayload, DeleteProjectPayload, ProjectListResponse } from './type';
+import type {
+	CreateProjectPayload,
+	DeleteProjectPayload,
+	ProjectListResponse,
+	DeleteVolumePayload
+} from './type';
 import { getOrgProjectsQueryKey } from './const';
 
 export function useCreateProjectMutation() {
@@ -43,5 +48,17 @@ export function useDeleteProjectMutation() {
 			toast.success(message || 'Project deleted successfully');
 		},
 		onError: (error) => axiosErr(error as Error, 'Failed to delete project')
+	}));
+}
+
+export function useDeleteVolumeMutation() {
+	return createMutation(() => ({
+		mutationFn: async (payload: DeleteVolumePayload) =>
+			api.delete<ApiRes<null>>('/volume', { data: payload }).then((res) => res.data),
+		onSuccess: ({ message }) => {
+			queryClient.invalidateQueries({ queryKey: ['orphan-volumes'] });
+			toast.success(message || 'Volume deleted successfully');
+		},
+		onError: (error) => axiosErr(error as Error, 'Failed to delete volume')
 	}));
 }

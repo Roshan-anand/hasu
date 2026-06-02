@@ -28,6 +28,10 @@ type ProjectReq struct {
 	ProjectID uuid.UUID `json:"project_id" validate:"required"`
 }
 
+type DeleteProjectReq struct {
+	ProjectID uuid.UUID `json:"project_id" validate:"required"`
+}
+
 func InitProjectHandlers(s *config.Server) *ProjectHandler {
 	return &ProjectHandler{
 		Server:   s,
@@ -110,8 +114,9 @@ func (h *ProjectHandler) GetAllProject(c *echo.Context) error {
 //
 // route: DELETE /api/project
 func (h *ProjectHandler) DeleteProject(c *echo.Context) error {
-	b := new(ProjectReq)
+	b := new(DeleteProjectReq)
 	q := h.Server.DB.Queries
+	docker := h.Server.Docker.Client
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
 		return c.JSON(http.StatusBadRequest, Res)
@@ -130,7 +135,7 @@ func (h *ProjectHandler) DeleteProject(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get project network"})
 	}
 
-	if err := h.Server.Docker.Client.NetworkRemove(h.qCtx, networkName); err != nil {
+	if err := docker.NetworkRemove(h.qCtx, networkName); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to delete project network"})
 	}
 

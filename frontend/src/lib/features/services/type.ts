@@ -24,9 +24,13 @@ export type ServiceListResponse =
 			branch_name: string;
 	  });
 
-export type DeleteServicePayload = {
+type DeleteServicePayload = {
 	service_id: string;
-	type: ServiceType;
+};
+
+export type DeleteAppServicePayload = DeleteServicePayload;
+export type DeletePsqlServicePayload = DeleteServicePayload & {
+	keep_data: boolean;
 };
 
 export type GitProviderKey = 'github' | 'gitlab' | 'bitbucket';

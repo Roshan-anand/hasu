@@ -3,28 +3,22 @@
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { useDeleteServiceMutation } from '@/features/services/mutation.svelte';
-	import type { ServiceType } from '@/types';
-	import { Search, Trash2 } from '@lucide/svelte';
+	import { Search } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { ChevronDown } from '@lucide/svelte';
 	import { useGetAllServicesQuery } from '@/features/services/query.svelte';
+	import AppDeletion from '@/components/conformation/app-deletion.svelte';
+	import DbDeletion from '@/components/conformation/db-deletion.svelte';
 
 	let searchQuery = $state('');
 
 	const { data } = $props();
 	const projectId = $derived(data.project_id);
 	const servicesQuery = useGetAllServicesQuery(() => projectId);
-	const deleteServiceMutation = useDeleteServiceMutation(() => projectId);
 
 	const getProjectID = () => projectId;
-
-	const deleteService = (serviceId: string, type: ServiceType) => {
-		if (deleteServiceMutation.isPending) return;
-		deleteServiceMutation.mutate({ service_id: serviceId, type });
-	};
 
 	// to filter services based on search input
 	const filteredServices = $derived.by(() => {
@@ -116,20 +110,11 @@
 							<h3 class="font-semibold text-lg">{service.name}</h3>
 							<p class="text-xs uppercase text-muted-foreground">{service.type}</p>
 						</div>
-						<Button
-							variant="destructive"
-							size="sm"
-							onclick={() => deleteService(service.id, service.type)}
-							disabled={deleteServiceMutation.isPending}
-							class="z-20"
-						>
-							{#if deleteServiceMutation.isPending}
-								Deleting...
-							{:else}
-								<Trash2 />
-								Delete
-							{/if}
-						</Button>
+						{#if service.type === 'app'}
+							<AppDeletion {projectId} serviceId={service.id} name={service.name} />
+						{:else if service.type === 'psql'}
+							<DbDeletion {projectId} serviceId={service.id} name={service.name} />
+						{/if}
 					</div>
 				</div>
 			{/each}
