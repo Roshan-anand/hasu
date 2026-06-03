@@ -3,7 +3,7 @@
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { Search } from '@lucide/svelte';
+	import { Grid2x2Plus, Search } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
@@ -120,8 +120,10 @@
 			{/each}
 		</div>
 	{:else}
-		<h3 class="text-muted-foreground size-full flex flex-col items-center justify-center gap-2">
-			No services found
-		</h3>
+		<div class="size-full flex flex-col items-center justify-center gap-2">
+			<Grid2x2Plus class="text-primary" />
+			<h1>New Project</h1>
+			<p class="text-muted-foreground text-sm">deploy your project</p>
+		</div>
 	{/if}
 </section>

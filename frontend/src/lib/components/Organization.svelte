@@ -6,8 +6,7 @@
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { Check, ChevronsUpDown } from '@lucide/svelte';
-	import CreateBtn from './CreateBtn.svelte';
+	import { Check, ChevronsUpDown, Plus } from '@lucide/svelte';
 	import { GetUserData } from '@/features/global/query';
 	import { useGetAllOrgsQuery } from '@/features/base/query.svelte';
 	import { useSwitchOrgMutation, useCreateOrgMutation } from '@/features/base/mutation.svelte';
@@ -107,7 +106,14 @@
 
 		<DropdownMenu.Separator />
 		<div class="p-1">
-			<CreateBtn onclick={() => (createDialogOpen = true)} disabled={createOrgMutation.isPending} />
+			<Button
+				variant="secondary"
+				onclick={() => (createDialogOpen = true)}
+				disabled={createOrgMutation.isPending}
+			>
+				<Plus />
+				<p>Create</p>
+			</Button>
 		</div>
 	</DropdownMenu.Content>
 </DropdownMenu.Root>

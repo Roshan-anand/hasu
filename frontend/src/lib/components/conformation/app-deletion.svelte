@@ -63,7 +63,7 @@
 					Cancel
 				</Button>
 				<Button
-					variant="destructive"
+					variant="destructivesolid"
 					type="button"
 					onclick={deleteService}
 					disabled={deleteAppServiceMutation.isPending}

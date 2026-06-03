@@ -14,7 +14,7 @@
 <Sidebar.Provider>
 	<AppSidebar />
 	<Sidebar.Inset>
-		<header class="flex justify-between items-center p-2">
+		<header class="flex justify-between items-center p-2 border-b border-stroke">
 			<Sidebar.Trigger />
 			<ModeToggle />
 		</header>

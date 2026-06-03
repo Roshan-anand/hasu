@@ -394,13 +394,35 @@
 
 @layer base {
 	* {
-		@apply border-border outline-ring/50;
+		@apply border-stroke ring-ring outline-ring;
 	}
 	body {
 		@apply bg-background text-foreground;
 	}
 	html {
 		@apply font-sans;
+	}
+
+	h1,
+	h2,
+	h3 {
+		@apply uppercase;
+		font-size: 1.25rem !important;
+		line-height: 1.25rem !important;
+		font-weight: 700 !important;
+	}
+
+	h4,
+	h5,
+	h6 {
+		@apply uppercase;
+		font-size: 1rem !important;
+		line-height: 1.25rem !important;
+		font-weight: 700 !important;
+	}
+
+	.font-mono {
+		@apply !tracking-[0%];
 	}
 }
 

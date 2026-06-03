@@ -24,14 +24,14 @@
 </script>
 
 <nav class="flex gap-4">
-	<div class="flex-1 flex relative">
+	<div class="flex-1 flex items-center border">
+		<Label class="opacity-75 border p-1 h-full bg-secondary" for="project-search"><Search /></Label>
 		<Input
 			id="project-search"
 			placeholder="Search for projects"
-			class="p-2"
+			class="p-2 h-full"
 			bind:value={searchQuery}
 		/>
-		<Label class="absolute top-0 right-0 m-1 opacity-75" for="project-search"><Search /></Label>
 	</div>
 	<CreateProject />
 </nav>

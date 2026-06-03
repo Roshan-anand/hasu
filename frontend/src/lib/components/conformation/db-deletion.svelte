@@ -81,7 +81,7 @@
 					Cancel
 				</Button>
 				<Button
-					variant="destructive"
+					variant="destructivesolid"
 					type="button"
 					onclick={deleteService}
 					disabled={deletePsqlServiceMutation.isPending}

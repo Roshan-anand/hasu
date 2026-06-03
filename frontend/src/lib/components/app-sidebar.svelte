@@ -19,23 +19,28 @@
 	import Organization from './Organization.svelte';
 
 	type AppSidebarItem = {
-		hash: string;
+		hash: RegExp;
 		route: ResolvedPathname;
 		name: string;
 		icon: typeof Blocks;
 	};
 
 	const sidebarItems: AppSidebarItem[] = [
-		{ hash: '#/', route: resolve('/(protected)/(core)'), name: 'Projects', icon: Blocks },
 		{
-			hash: '#/members',
+			hash: /^(?!#\/(?:members|git|storage)$).+/,
+			route: resolve('/(protected)/(core)'),
+			name: 'Projects',
+			icon: Blocks
+		},
+		{
+			hash: /^#\/members$/,
 			route: resolve('/(protected)/(core)/members'),
 			name: 'Members',
 			icon: Users
 		},
-		{ hash: '#/git', route: resolve('/(protected)/(core)/git'), name: 'Git', icon: GitBranch },
+		{ hash: /^#\/git$/, route: resolve('/(protected)/(core)/git'), name: 'Git', icon: GitBranch },
 		{
-			hash: '#/storage',
+			hash: /^#\/storage$/,
 			route: resolve('/(protected)/(core)/storage'),
 			name: 'Storage',
 			icon: Database
@@ -59,7 +64,7 @@
 						<SidebarMenuItem>
 							<!-- eslint-disable svelte/no-navigation-without-resolve -->
 							<SidebarMenuButton
-								class={`${page.url.hash === hash && 'bg-sidebar-accent text-sidebar-primary hover:text-sidebar-primary'}`}
+								class={`${hash.test(page.url.hash) && 'bg-sidebar-accent text-sidebar-primary hover:text-sidebar-primary'}`}
 								onclick={() => goto(route)}
 							>
 								<Icon />

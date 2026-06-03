@@ -33,7 +33,7 @@
 	}
 </script>
 
-<Button onclick={openDialog}>Create</Button>
+<Button onclick={openDialog} class="h-full">Create</Button>
 
 <Dialog.Root bind:open={dialogOpen}>
 	<Dialog.Portal>

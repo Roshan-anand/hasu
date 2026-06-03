@@ -65,7 +65,7 @@
 					Cancel
 				</Button>
 				<Button
-					variant="destructive"
+					variant="destructivesolid"
 					type="button"
 					onclick={deleteProject}
 					disabled={deleteProjectMutation.isPending}
