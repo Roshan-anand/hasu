@@ -15,13 +15,13 @@ import { getOrgProjectsQueryKey, getOrgsQueryKey } from './const';
 import { getCurrentOrgState } from '../global/store.svelte';
 
 export function useCreateProjectMutation() {
-	const { org_id } = GetUserData();
+	const currentOrg = getCurrentOrgState();
 	return createMutation(() => ({
 		mutationFn: async (payload: CreateProjectPayload) =>
 			api.post<ApiRes<ProjectListResponse>>('/project', payload).then((res) => res.data),
 		onSuccess: ({ data, message }) => {
 			queryClient.setQueryData(
-				getOrgProjectsQueryKey(org_id),
+				getOrgProjectsQueryKey(currentOrg.id),
 				(cachedRows: ProjectListResponse[] | undefined) => {
 					if (!cachedRows) return [data];
 					if (cachedRows.some((row) => row.id === data.id)) return cachedRows;
@@ -35,13 +35,13 @@ export function useCreateProjectMutation() {
 }
 
 export function useDeleteProjectMutation() {
-	const { org_id } = GetUserData();
+	const currentOrg = getCurrentOrgState();
 	return createMutation(() => ({
 		mutationFn: async (payload: DeleteProjectPayload) =>
 			api.delete<ApiRes<null>>('/project', { data: payload }).then((res) => res.data),
 		onSuccess: ({ message }, { project_id }) => {
 			queryClient.setQueryData(
-				getOrgProjectsQueryKey(org_id),
+				getOrgProjectsQueryKey(currentOrg.id),
 				(cachedRows: ProjectListResponse[] | undefined) => {
 					if (!cachedRows) return [];
 					return cachedRows.filter((row) => row.id !== project_id);

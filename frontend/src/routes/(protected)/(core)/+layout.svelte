@@ -18,7 +18,7 @@
 			<Sidebar.Trigger />
 			<ModeToggle />
 		</header>
-		<main class="p-2 flex-1 flex flex-col">
+		<main class="p-2 flex-1 flex gap-5 flex-col">
 			{@render children()}
 		</main>
 	</Sidebar.Inset>

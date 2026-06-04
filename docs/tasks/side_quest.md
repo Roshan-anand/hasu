@@ -20,7 +20,7 @@
 ## application
 
 - [ ] setup rate limiting middleware [medium, backend]
-- [ ] delete project btn sould show popup to confirm deletion. [easy, ui]
+- [x] delete project btn sould show popup to confirm deletion. [easy, ui]
 - [x] git provider page. [easy, ui]
 - [x] tests for pqsl service lifecycle
 - [ ] tests for badgerDB operations
@@ -30,7 +30,7 @@
 - [ ] use tiptap SDK for editor like ui for env management. [medium, ui]
 - [x] update the project tests to include orphan volume cases
 - [x] API & tests for orphan volume operations
-- [ ] switching org dosent refetch other query like get project, gh_app etc.
+- [x] switching org dosent refetch other query like get project, gh_app etc.
 
 ## enhancements
 

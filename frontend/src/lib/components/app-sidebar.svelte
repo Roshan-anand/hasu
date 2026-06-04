@@ -27,7 +27,7 @@
 
 	const sidebarItems: AppSidebarItem[] = [
 		{
-			hash: /^(?!#\/(?:members|git|storage)$).+/,
+			hash: /^(?!#\/(?:members|git|storage)$).*$/,
 			route: resolve('/(protected)/(core)'),
 			name: 'Projects',
 			icon: Blocks

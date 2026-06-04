@@ -1,16 +1,16 @@
 import { api } from '@/axios';
 import { createQuery } from '@tanstack/svelte-query';
 import type { GithubApp } from './type';
-import { GetUserData } from '../global/query';
 import type { ApiRes } from '@/types';
+import { getCurrentOrgState } from '../global/store.svelte';
 
 export const getGithubAppsQueryKey = (orgId: string) => ['github-apps', orgId] as const;
 export function useGithubAppsQuery() {
-	const { org_id } = GetUserData();
+	const currentOrg = getCurrentOrgState();
 	return createQuery(() => ({
-		queryKey: getGithubAppsQueryKey(org_id),
+		queryKey: getGithubAppsQueryKey(currentOrg.id),
 		queryFn: () =>
 			api.get<ApiRes<GithubApp[] | null>>('/provider/github/app/list').then((res) => res.data.data),
-		enabled: org_id != ''
+		enabled: currentOrg.id != ''
 	}));
 }

@@ -34,7 +34,7 @@
 	<CreateProject />
 </nav>
 
-<section class="flex-1 p-2">
+<section class="flex-1">
 	{#if projectsQuery.isPending}
 		<div class="size-full flex items-center justify-center">
 			<DotmSquare size={65} dotSize={8} />
