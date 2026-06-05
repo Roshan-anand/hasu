@@ -34,3 +34,6 @@
 - [ ] destructive actions with optional data retention
   - confirmation dialogs for project/app/db deletion
   - how `keep_data` and orphan volume selection map to delete payloads
+
+- if project -> <type> -> service
+  - the network should be in <type> scope?

@@ -1,21 +1,23 @@
 ## Problem Statement
 
-Godploy's MVP already proves the core deployment loop for an application **Service**, but V1 still lacks the product shape and hardening needed for a reliable demo-stable release. The current gaps are centered around four areas:
+Godploy's MVP already proves the core deployment loop for an application **Service**, but the current multi-branch approach is flawed for realistic preview testing. Branch deploys currently behave like extra runtimes inside the same project shape, which means a user testing a branch or pull request can still depend on production-connected sibling services and production-like shared topology.
 
-- the product model needs to consistently operate as **Organization -> Project -> Service**
-- application **Services** need a cleaner multi-branch model through **Service Branches**
-- **Predefined Database Services** are not yet implemented as a first-class product capability
-- installation, frontend completeness, runtime health visibility, and operational edge cases still need to be tightened before V1
+The V1 gaps are now centered around four areas:
 
-From the user's perspective, V1 should let them install Godploy on an Ubuntu VPS, create a **Project**, deploy application **Services** with multiple **Service Branches**, create internal **Predefined Database Services** such as Postgres and Redis inside the same **Project Network**, and manage the product through a polished UI with fewer demo-breaking bugs.
+- the product model needs to consistently operate as **Organization -> Project -> Project Instance -> Service**
+- preview deployments need full-instance isolation instead of runtime-level branch clones under one application service
+- **Predefined Database Services** still need to exist as a first-class product capability inside each instance
+- installation, frontend completeness, runtime visibility, and GitHub automation still need to be tightened before a reliable demo-stable release
+
+From the user's perspective, V1 should let them install Godploy on an Ubuntu VPS, create a **Project**, get a default production **Project Instance**, create isolated preview **Project Instances** from branches or pull requests, run internal **Predefined Database Services** such as Postgres and Redis inside each instance, and manage the product through a polished UI with fewer demo-breaking surprises.
 
 ## Solution
 
-V1 will turn Godploy into a demo-stable self-hosted PaaS centered on **Projects** as the grouping and network boundary for **Services**. Each **Project** will own a **Project Network** used for private service-to-service communication through **Internal URL** values.
+V1 will turn Godploy into a demo-stable self-hosted PaaS centered on **Projects** as the long-lived grouping boundary and **Project Instances** as the runtime boundary. Every **Project** owns exactly one production **Project Instance** by default, and may also own multiple preview **Project Instances** created from a selected branch or pull request. Each **Project Instance** owns its own private network, cloned service set, runtime state, deployment history, and routing.
 
-Application **Services** will support one or more **Service Branches**. A branch is a separately deployable instance under the same application **Service**. Branches share application-level configuration such as repository, build settings, environment, and **Exposure Mode**, while each branch has its own deployable runtime, routing state, deployment history, and branch domain.
+Application **Services** no longer use runtime-level **Service Branches** as the preview model. Instead, each application **Service** inside an instance points to a **Git Source**. A **Git Source** may be the inherited production branch, a manually selected branch, or a pull request. Preview creation snapshots the current production instance, clones all services into a new preview instance, rebuilds only the services selected by the chosen **Git Source** rules, and reuses pinned ready images for the unchanged application services.
 
-**Predefined Database Services** will be implemented through a backend-managed **Predefined Service Template** catalog for Postgres and Redis. Users will choose a template, select an allowed **Template Version**, edit a safe subset of fields, deploy the service inside the **Project Network**, and use the generated **Internal URL** manually in their application configuration.
+**Predefined Database Services** continue to be implemented through a backend-managed **Predefined Service Template** catalog for Postgres and Redis, but they are now instance-scoped. Preview instances always get fresh isolated stateful services and fresh volumes rather than sharing production data.
 
 Godploy itself will be distributed for V1 as a single core Go server component packaged as a container image from GHCR, alongside Traefik as the ingress proxy. Installation will target Ubuntu VPS environments through an `install.sh` flow that installs Docker if missing, initializes swarm mode, pulls the required GHCR images, provisions persistence for Godploy metadata, and starts the runtime with the required Docker and Traefik configuration.
 
@@ -23,65 +25,101 @@ Godploy itself will be distributed for V1 as a single core Go server component p
 
 1. As a solo operator, I want to install Godploy on an Ubuntu VPS with one script, so that I can start using the platform quickly.
 2. As a solo operator, I want Godploy to pull its runtime images from GHCR, so that I can install the product from a predictable registry.
-3. As a logged-in user, I want to create a **Project** inside my **Organization**, so that I can group related **Services**.
-4. As a logged-in user, I want every **Project** to provide a private **Project Network**, so that **Services** in the same **Project** can communicate internally.
-5. As a logged-in user, I want to create an application **Service** inside a **Project**, so that it is isolated with the right grouping and network boundary.
-6. As a logged-in user, I want to choose the initial repository branch when creating an application **Service**, so that the first **Service Branch** matches my intended deploy target.
-7. As a logged-in user, I want application **Services** to have a single **Exposure Mode**, so that all of their **Service Branches** follow the same public or internal access behavior.
-8. As a logged-in user, I want to create a public application **Service**, so that its **Service Branches** can be reached from the web through Traefik.
-9. As a logged-in user, I want to create an internal application **Service**, so that only other **Services** on the same **Project Network** can reach it.
-10. As a logged-in user, I want to add a new **Service Branch** to an application **Service**, so that I can deploy another branch as a separate instance.
-11. As a logged-in user, I want a new public **Service Branch** to receive an auto-generated branch domain based on the main domain, so that preview-style routing is created automatically.
-12. As a logged-in user, I want to manually edit a branch domain, so that I can override the generated routing when needed.
-13. As a logged-in user, I want generated branch domains to follow the main branch when the base domain changes, while manually edited domains stay untouched, so that I keep convenience without losing explicit overrides.
-14. As a logged-in user, I want to delete a non-default **Service Branch**, so that I can remove temporary or obsolete deploy targets without deleting the whole application **Service**.
-15. As a logged-in user, I want to promote another **Service Branch** to be the default before deleting the old default, so that the application **Service** always has a stable default branch.
-16. As a logged-in user, I want webhook-triggered deploys to rebuild only tracked branches for the matching repository and branch, so that unrelated **Service Branches** are not redeployed.
-17. As a logged-in user, I want to create a Postgres **Predefined Database Service** from a built-in template, so that I can run a database without manual container setup.
-18. As a logged-in user, I want to create a Redis **Predefined Database Service** from a built-in template, so that I can run internal caching or queue infrastructure easily.
-19. As a logged-in user, I want template fields to be prefilled but editable, so that I can move quickly while still customizing service name, credentials, and version.
-20. As a logged-in user, I want every **Predefined Database Service** to remain internal-only, so that databases are never exposed publicly by mistake.
-21. As a logged-in user, I want Godploy to show me the full **Internal URL** for a **Predefined Database Service**, so that I can manually wire it into an application **Service**.
-22. As a logged-in user, I want editing a **Predefined Database Service** to require an explicit redeploy before runtime changes apply, so that stateful changes do not happen unexpectedly.
-23. As a logged-in user, I want to delete a **Predefined Database Service** with an optional data deletion checkbox, so that I can choose between removing runtime only or removing runtime plus data.
-24. As a logged-in user, I want preserved database data to become an **Orphan Volume**, so that I can reuse it later instead of losing it.
-25. As a logged-in user, I want a **Storage** area listing **Orphan Volumes**, so that I can understand which preserved volumes still exist.
-26. As a logged-in user, I want a new **Predefined Database Service** to optionally attach a compatible **Orphan Volume** from the current **Project** or the unassigned pool, so that I can restore previously preserved data.
-27. As a logged-in user, I want project deletion to warn me about associated **Orphan Volumes**, so that I make an explicit choice about preserving or removing detached data.
-28. As a logged-in user, I want to view deployment history per **Service Branch**, so that I can understand what was deployed and when.
-29. As a logged-in user, I want rebuild and rollback actions to be visible and safer around edge cases, so that I can recover or redeploy without demo-breaking surprises.
-30. As a logged-in user, I want service detail pages to show both deployment progress and runtime health, so that I can distinguish build/deploy state from live container state.
-31. As a logged-in user, I want runtime health to come from container health checks when present, so that the status reflects the actual running service.
-32. As a logged-in user, I want runtime health to fall back to running or stopped state when no health check is defined, so that every **Service** still has useful visibility.
-33. As a logged-in user, I want the UI to include loaders, confirmation dialogs, and responsive layouts for all core flows, so that the product feels complete enough for demos.
-34. As a logged-in user, I want UI coverage for all backend-triggered operations, so that I do not need to leave the dashboard for normal workflows.
-35. As a future team-based operator, I want Git provider connections to stay **Organization**-scoped, so that projects consume shared provider integrations consistently.
+3. As a logged-in user, I want to create a **Project** inside my **Organization**, so that I can group related deployable systems.
+4. As a logged-in user, I want each new **Project** to automatically create one production **Project Instance**, so that I can start from a stable default runtime.
+5. As a logged-in user, I want every **Project Instance** to provide its own private instance network, so that services inside one instance are isolated from services in other instances.
+6. As a logged-in user, I want to create an application **Service** inside the production **Project Instance**, so that it becomes part of the project's primary runtime.
+7. As a logged-in user, I want to choose the initial repository branch when creating an application **Service**, so that its first production **Git Source** matches my intended deploy target.
+8. As a logged-in user, I want application **Services** to keep one **Exposure Mode**, so that each cloned copy of that service inside an instance inherits the same public or internal behavior.
+9. As a logged-in user, I want to create a public application **Service**, so that its instance-local runtime can be reached from the web through Traefik.
+10. As a logged-in user, I want to create an internal application **Service**, so that only other services inside the same **Project Instance** can reach it.
+11. As a logged-in user, I want to create a preview **Project Instance** from a branch, so that I can test a branch in an isolated copy of the production topology.
+12. As a logged-in user, I want to create a preview **Project Instance** from a pull request, so that I can test proposed changes without risking the production instance.
+13. As a logged-in user, I want preview creation to clone the whole production instance snapshot, so that sibling services and stateful dependencies are isolated too.
+14. As a logged-in user, I want only the services affected by the selected branch or pull request to rebuild from source, so that preview creation is faster and still faithful to the changed code.
+15. As a logged-in user, I want unchanged application services in a preview to reuse pinned ready images from production, so that the preview stays reproducible without unnecessary rebuilds.
+16. As a logged-in user, I want preview database and cache services to start with fresh isolated state, so that testing cannot corrupt production data.
+17. As a logged-in user, I want the preview flow to offer copying production env and secrets with an explicit warning and inline editing, so that I can balance convenience and safety.
+18. As a logged-in user, I want public preview services to receive generated preview domains, so that I can access isolated preview instances externally.
+19. As a logged-in user, I want to manually edit a preview service domain, so that I can override generated routing when needed.
+20. As a logged-in user, I want GitHub webhook events to keep preview pull request metadata in SQLite while the PR is open, so that the dashboard can surface available previews.
+21. As a logged-in user, I want pull request and push events to redeploy only the matching services for the matching instance, repository, and watched paths, so that unrelated services are not rebuilt.
+22. As a logged-in user, I want monorepo watch paths to decide which services switch to a pull request or branch source, so that one repo can back multiple services safely.
+23. As a logged-in user, I want a preview instance to be updated in place when new commits arrive for its tracked branch or pull request, so that I keep one stable preview URL and history per source.
+24. As a logged-in user, I want a pull request preview to be removed automatically when the PR is closed or merged, so that temporary runtime state does not accumulate.
+25. As a logged-in user, I want branch previews to support manual deletion and TTL-based cleanup, so that temporary environments can be reclaimed automatically when desired.
+26. As a logged-in user, I want preview deletion to clean up all cloned services, deployments, networks, and volumes, so that removing a preview fully removes its isolated runtime.
+27. As a logged-in user, I want to create a Postgres **Predefined Database Service** from a built-in template, so that I can run a database without manual container setup.
+28. As a logged-in user, I want to create a Redis **Predefined Database Service** from a built-in template, so that I can run internal caching or queue infrastructure easily.
+29. As a logged-in user, I want template fields to be prefilled but editable, so that I can move quickly while still customizing service name, credentials, and version.
+30. As a logged-in user, I want every **Predefined Database Service** to remain internal-only, so that databases are never exposed publicly by mistake.
+31. As a logged-in user, I want Godploy to show me the full **Internal URL** for a **Predefined Database Service**, so that I can manually wire it into an application **Service**.
+32. As a logged-in user, I want editing a **Predefined Database Service** to require an explicit redeploy before runtime changes apply, so that stateful changes do not happen unexpectedly.
+33. As a logged-in user, I want to delete a **Predefined Database Service** with an optional data deletion checkbox, so that I can choose between removing runtime only or removing runtime plus data.
+34. As a logged-in user, I want preserved database data to become an **Orphan Volume**, so that I can reuse it later instead of losing it.
+35. As a logged-in user, I want a **Storage** area listing **Orphan Volumes**, so that I can understand which preserved volumes still exist.
+36. As a logged-in user, I want a new **Predefined Database Service** to optionally attach a compatible **Orphan Volume** from the current **Project** or the unassigned pool, so that I can restore previously preserved data.
+37. As a logged-in user, I want project deletion to warn me about associated **Orphan Volumes**, so that I make an explicit choice about preserving or removing detached data.
+38. As a logged-in user, I want to view deployment history per service inside an instance, so that I can understand what was deployed and when.
+39. As a logged-in user, I want rebuild and rollback actions to be visible and safer around edge cases, so that I can recover or redeploy without demo-breaking surprises.
+40. As a logged-in user, I want service detail pages to show both deployment progress and runtime health, so that I can distinguish build/deploy state from live container state.
+41. As a logged-in user, I want runtime health to come from container health checks when present, so that the status reflects the actual running service.
+42. As a logged-in user, I want runtime health to fall back to running or stopped state when no health check is defined, so that every **Service** still has useful visibility.
+43. As a logged-in user, I want the project dashboard to let me switch between production and preview instances before viewing services, so that the instance boundary is obvious in the UI.
+44. As a logged-in user, I want the UI to include loaders, confirmation dialogs, and responsive layouts for all core flows, so that the product feels complete enough for demos.
+45. As a logged-in user, I want UI coverage for all backend-triggered operations, so that I do not need to leave the dashboard for normal workflows.
+46. As a future team-based operator, I want Git provider connections to stay **Organization**-scoped, so that projects consume shared provider integrations consistently.
 
 ## Implementation Decisions
 
-- V1 standardizes the domain model around **Organization -> Project -> Service**.
-- A **Project** is both a grouping boundary and a **Project Network** boundary.
-- Application **Services** and **Predefined Database Services** both belong to a **Project**.
-- Application **Services** may contain multiple **Service Branches**.
-- A **Service Branch** is the unit of separate deploy runtime, deployment history, domain assignment, and branch-level lifecycle operations.
-- **Exposure Mode** belongs to the application **Service**, not to each **Service Branch**. All branches under the same application **Service** are either public or internal together.
-- Public application **Services** join both the global ingress network and the **Project Network**.
-- Internal application **Services** join only the **Project Network**.
+- V1 standardizes the domain model around **Organization -> Project -> Project Instance -> Service**.
+- Every **Project** owns exactly one production **Project Instance**.
+- Preview **Project Instances** are explicit records rather than implicit branch runtimes.
+- A **Project Instance** is the runtime boundary for services, routing, deployments, and private networking.
+- A **Project** remains the long-lived grouping boundary and ownership boundary.
+- Application **Services** and **Predefined Database Services** are both instance-scoped at runtime.
+- Production is the source topology used when creating preview instances.
+- Creating a preview instance snapshots the current production instance and clones all services into the preview.
+- Preview services are fully separate runtime records and keep backlinks to their production-origin services for traceability.
+- Preview resources are fully owned by the preview instance with no shared service, deployment, network, or volume ownership.
+- Existing previews remain pinned to the production snapshot taken at creation time; they do not drift forward when production later changes.
+- Production env and secrets are copied into a preview at creation time when chosen; they are never live-linked.
+- Application **Services** no longer use runtime-level **Service Branches** as the preview model.
+- **Git Source** is the runtime-facing source selection for an application service inside an instance.
+- A **Git Source** may point to the production branch, a manually selected branch, or a pull request.
+- The initial production application **Service** creation flow includes selecting the **Project**, Git provider, repository, initial branch, and **Exposure Mode**.
+- Repository, provider, build configuration, watch path, and **Exposure Mode** stay at the application-service definition level and are copied into preview instances.
+- Monorepo change targeting is determined by `repo_id` plus `watch_path` matching.
+- Preview creation rebuilds only the services selected by the chosen branch or pull request rules.
+- Unchanged application services in a preview reuse the exact pinned ready images from the production snapshot.
+- Preview creation fails if any required production service lacks a usable ready deployment image.
+- Preview creation fails if the production topology contains unsupported service types.
+- Preview stateful services always get fresh isolated volumes in V1; production data is never mounted into previews.
+- Public and internal behavior is inherited from the production service definition into each cloned service.
+- Public preview routing uses a generated domain pattern of `<service>.<preview>.<base_domain>`.
+- Source names remain user-visible in their original form, but deploy-safe sanitized slugs are used for runtime naming and generated domains.
+- Preview service domains are editable and any edit is local to that preview service only.
+- Manual branch previews may be created from any branch even if no webhook record exists for that branch.
+- At most one active preview exists per `project + pull_request_number`.
+- At most one active preview exists per `project + repo_id + branch_name` for manual branch previews.
+- Pull request previews are limited to pull requests accessible through the installed repository app flow in V1.
+- GitHub remains the source of truth for branches and pull requests.
+- SQLite stores open pull request metadata surfaced by webhooks so the dashboard can show available preview candidates.
+- Pull request rows are added on PR open or reopen and removed on PR close or merge.
+- Webhook-driven update behavior is scoped by instance, repository, source, and watched paths.
+- Pull request updates re-evaluate changed files against all relevant services in the instance and may expand which services rebuild from PR source.
+- Once a service in a preview switches to a selected branch or pull request source, it stays on that preview snapshot's chosen source until the preview is deleted or updated intentionally.
+- Pull request previews are updated in place on new commits rather than creating replacement preview instances.
+- Auto-cleanup on PR close or merge should be executed asynchronously through workers.
+- Branch previews support both manual deletion and TTL-based cleanup.
+- Preview deletion removes all cloned services, deployments, networks, and volumes.
+- Preview cleanup failures should leave the preview instance in a recoverable async state such as deleting or error rather than disappearing silently.
+- Preview instances have their own lifecycle status separate from per-service deployment status.
+- V1 allows deleting services inside preview instances even though preview creation itself always starts from a full production clone.
+- V1 does not support adding new services only inside a preview instance through a separate topology workflow.
 - **Predefined Database Services** are always internal-only.
-- The initial application **Service** creation flow includes selecting the **Project**, Git provider, repository, initial branch, and **Exposure Mode**.
-- Repository/provider/build configuration stays at the application **Service** level and is inherited by all **Service Branches** under that service.
-- Creating a new **Service Branch** immediately schedules a deployment job rather than creating an idle branch record.
-- Branch names remain user-visible in their original form, but deploy/runtime-safe sanitized slugs are used for branch-derived domain names and swarm runtime naming.
-- Public branch routing uses a generated domain pattern of `<branch_name>.<base_domain>`.
-- The default branch keeps the base domain, while non-default branches get generated subdomains.
-- Branch domains are editable after generation.
-- Generated branch domains auto-update when the base domain changes, but manually edited branch domains remain unchanged.
-- Branch deletion is supported for non-default branches.
-- A default branch cannot be deleted until another branch is promoted as the default.
-- Promoting a new default branch is part of V1, but remains a low-priority item within the V1 sequence.
-- Webhook-triggered rebuilds match by repository and branch so that only the relevant tracked **Service Branches** are redeployed.
-- Predefined services are modeled as a shared **Predefined Service Template** system rather than separate one-off product flows.
 - V1 ships two predefined templates only: Postgres and Redis.
+- Predefined services are modeled as a shared **Predefined Service Template** system rather than separate one-off product flows.
 - The backend owns the predefined template catalog and sends template metadata to the client.
 - Each predefined template includes image selection rules, allowed **Template Versions**, default configuration values, volume behavior, internal connection information, and operational defaults.
 - User-editable predefined fields for V1 include service name, credentials, logical database name where relevant, and allowed **Template Version**.
@@ -100,10 +138,10 @@ Godploy itself will be distributed for V1 as a single core Go server component p
 - Project deletion warns about associated **Orphan Volumes** and lets the user choose whether preserved data should remain detached or be removed.
 - Runtime status is modeled separately from deployment status.
 - Deployment status continues to represent deploy workflow state such as queued, building, ready, error, inactive, and pruned.
-- Runtime status represents the live branch-level runtime state such as running, stopped, or unhealthy.
+- Runtime status represents the live service-level runtime state such as running, stopped, or unhealthy.
 - Runtime status prefers container health checks when they exist and falls back to running or stopped when no health check is defined.
 - Observability scope for V1 includes logs, deployment history, and health/status views. Broader CPU, memory, or exporter-based metrics are deferred.
-- Frontend work for V1 is a first-class workstream, not a thin finishing pass. It includes complete UI coverage for backend actions, responsiveness, loaders, confirmations, and overall UX cleanup.
+- Frontend work for V1 is a first-class workstream, not a thin finishing pass. It includes complete UI coverage for backend actions, instance switching, responsiveness, loaders, confirmations, and overall UX cleanup.
 - Installation targets Ubuntu VPS environments only.
 - The V1 installer is an `install.sh` flow.
 - The installer installs Docker when missing, initializes swarm mode, pulls GHCR images for Godploy and Traefik, provisions persistence for Godploy metadata, and starts the required runtime resources.
@@ -115,25 +153,27 @@ Godploy itself will be distributed for V1 as a single core Go server component p
 
 ### Major Modules
 
-- **Project Topology Module**: owns the normalized **Project** lifecycle and **Project Network** rules for all **Services**.
-- **Application Service Module**: owns application **Service** creation, application-level configuration, and **Exposure Mode**.
-- **Service Branch Orchestrator**: owns branch creation, default-branch promotion, deletion rules, branch deploy scheduling, and branch routing metadata.
-- **Branch Routing Policy Module**: owns generated branch domains, manual override tracking, public/internal routing behavior, and Traefik label generation rules.
+- **Project Topology Module**: owns the normalized **Project** lifecycle and production-instance bootstrap rules.
+- **Project Instance Orchestrator**: owns production and preview instance lifecycle, snapshot creation, lifecycle status, TTL cleanup, and async deletion behavior.
+- **Application Service Module**: owns application service creation, application-level configuration, watch paths, and **Exposure Mode**.
+- **Git Source Resolution Module**: owns source selection for branches and pull requests plus repo and watch-path matching behavior.
+- **Preview Routing Policy Module**: owns generated preview domains, manual overrides, public/internal routing behavior, and Traefik label generation rules.
 - **Predefined Service Template Catalog**: exposes template definitions, allowed versions, safe editable fields, and runtime defaults for Postgres and Redis.
 - **Predefined Database Lifecycle Module**: owns create, update, redeploy, stop, and delete behavior for predefined databases plus **Internal URL** generation.
 - **Storage Module**: owns **Orphan Volume** persistence, visibility, compatibility checks, and reattachment workflows.
-- **Status Aggregation Module**: owns separation and presentation of deployment status vs runtime health.
-- **Installer Bootstrap Module**: owns Ubuntu installation behavior, GHCR image pulls, Docker/swarm bootstrap, and Godploy runtime startup.
-- **Frontend Experience Module**: owns dashboard flows for projects, application services, service branches, predefined services, storage, confirmations, and responsive UI polish.
+- **Status Aggregation Module**: owns separation and presentation of instance status, deployment status, and runtime health.
+- **GitHub Event Intake Module**: owns webhook verification, open-PR cache updates, and deploy-target expansion rules.
+- **Installer Bootstrap Module**: owns Ubuntu installation behavior, GHCR image pulls, Docker and swarm bootstrap, and Godploy runtime startup.
+- **Frontend Experience Module**: owns dashboard flows for projects, instance switching, preview creation, service details, predefined services, storage, confirmations, and responsive UI polish.
 
-These modules should be kept deep where possible: the template catalog, service branch orchestration, storage/orphan-volume management, branch routing policy, and status aggregation are the clearest opportunities to encapsulate complex behavior behind stable interfaces.
+These modules should be kept deep where possible: the project-instance orchestrator, Git source resolution, preview routing policy, template catalog, storage or orphan-volume management, and status aggregation are the clearest opportunities to encapsulate complex behavior behind stable interfaces.
 
 ## Testing Decisions
 
 - Good tests should validate externally observable behavior rather than internal implementation details.
-- The most valuable tests for V1 are the flows where product meaning and runtime behavior meet: project topology, application service creation, branch creation, webhook-triggered deploys, rebuild/rollback behavior, predefined database lifecycle, and orphan-volume reattachment.
-- Deep modules should get isolated tests where possible, especially the predefined template catalog, branch routing policy, storage/orphan-volume compatibility rules, and status aggregation behavior.
-- End-to-end or handler-level integration tests should continue to cover critical user-visible workflows across database state, deployment metadata, and API responses.
+- The most valuable tests for V1 are the flows where product meaning and runtime behavior meet: production instance bootstrap, application service creation, preview instance creation, webhook-driven preview updates, rebuild and rollback behavior, predefined database lifecycle, and orphan-volume reattachment.
+- Deep modules should get isolated tests where possible, especially the project-instance orchestrator, Git source resolution rules, preview routing policy, storage or orphan-volume compatibility rules, and status aggregation behavior.
+- End-to-end or handler-level integration tests should continue to cover critical user-visible workflows across database state, deployment metadata, instance lifecycle, and API responses.
 - Prior art already exists in the codebase through backend integration tests around authentication, organization behavior, and project behavior, plus small focused unit tests for security and auth utilities.
 - V1 planning does not require the full test suite to be resolved immediately, but the testing conversation must remain an explicit follow-up workstream rather than an implicit future cleanup.
 
@@ -148,6 +188,9 @@ These modules should be kept deep where possible: the template catalog, service 
 - Swarm replicas or true replication topology for Postgres or Redis.
 - Additional predefined templates beyond Postgres and Redis.
 - Custom user-defined predefined-service templates.
+- Automated seeded preview data or production-data snapshot cloning into previews.
+- Promote preview instance to production.
+- Dedicated V1 topology-edit workflows that add new services only inside a preview instance.
 - Broad resource metrics, Prometheus-style observability, or exporter-driven monitoring.
 - Upgrade automation as part of the V1 installer.
 - Multi-distro installer support beyond Ubuntu.
@@ -157,6 +200,6 @@ These modules should be kept deep where possible: the template catalog, service 
 ### TODO
 
 - Review the GitHub App manifest webhook endpoint behavior against the currently implemented webhook endpoint.
-- Review the Godploy public server URL/runtime scheme alignment used for GitHub redirects and webhook flows.
+- Review the Godploy public server URL and runtime scheme alignment used for GitHub redirects and webhook flows.
 - Finalize the V1 testing strategy and task breakdown for critical flows.
 - Finalize the rate-limiting plan for route classes and Traefik-level user-configurable service limits.

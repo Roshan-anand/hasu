@@ -12,13 +12,17 @@ _Avoid_: Org account, tenant
 A grouping inside an organization that contains related services.
 _Avoid_: App, workspace, repo group
 
+**Project Instance**:
+An isolated runtime copy of a project, such as the default production instance or a temporary preview instance.
+_Avoid_: Environment, workspace clone, branch runtime
+
 **Service**:
-A deployable runtime unit that belongs to exactly one project.
+A deployable runtime unit that belongs to exactly one project instance.
 _Avoid_: App, container
 
-**Service Branch**:
-A separately deployable branch instance of an application service.
-_Avoid_: Environment, clone, duplicate service
+**Git Source**:
+The selected repository source used by an application service in an instance, such as a branch or pull request.
+_Avoid_: Service branch, deploy branch, runtime branch
 
 **Predefined Database Service**:
 A service created from a built-in database template such as Postgres or Redis.
@@ -40,12 +44,12 @@ _Avoid_: Lost volume, dangling data
 The product area where preserved detached volumes are listed and managed.
 _Avoid_: Disk, filesystem view
 
-**Project Network**:
-The private network shared by services in the same project.
-_Avoid_: Org network, cluster network
+**Instance Network**:
+The private network shared by services in the same project instance.
+_Avoid_: Project network, org network, cluster network
 
 **Internal URL**:
-The private connection URL used by a service to reach another service inside the same project network; for predefined databases this is a full connection string.
+The private connection URL used by a service to reach another service inside the same instance network; for predefined databases this is a full connection string.
 _Avoid_: Public URL, domain
 
 **Public Service**:
@@ -53,7 +57,7 @@ A service exposed through Traefik so it can receive external traffic.
 _Avoid_: Internet app, external container
 
 **Internal Service**:
-A service reachable only from other services on the same project network.
+A service reachable only from other services on the same project instance network.
 _Avoid_: Hidden app, background container
 
 **Exposure Mode**:
@@ -64,10 +68,13 @@ _Avoid_: Network mode, visibility
 
 - An **Organization** contains one or more **Projects**
 - A **Project** belongs to exactly one **Organization**
-- A **Project** contains one or more **Services**
-- A **Service** belongs to exactly one **Project**
-- An application **Service** may contain one or more **Service Branches**
-- A **Project** provides exactly one **Project Network** for its **Services**
+- A **Project** contains one or more **Project Instances**
+- A **Project** provides exactly one production **Project Instance**
+- A **Project Instance** belongs to exactly one **Project**
+- A **Project Instance** contains one or more **Services**
+- A **Service** belongs to exactly one **Project Instance**
+- An application **Service** uses exactly one active **Git Source** inside an instance
+- A **Project Instance** provides exactly one **Instance Network** for its **Services**
 - A **Predefined Database Service** is a kind of **Service**
 - A **Predefined Database Service** is created from exactly one **Predefined Service Template**
 - A **Predefined Database Service** selects exactly one **Template Version** from its template's allowed versions
@@ -75,15 +82,14 @@ _Avoid_: Network mode, visibility
 - An **Orphan Volume** may belong to a **Project** or be unassigned
 - **Storage** contains zero or more **Orphan Volumes**
 - Reattaching a preserved volume removes it from **Storage** and assigns it back to a compatible **Predefined Database Service**
-- A **Public Service** joins the **Project Network** and the global ingress network
-- An **Internal Service** joins only the **Project Network**
-- An application **Service** has exactly one **Exposure Mode** shared by all its **Service Branches**
-- A **Service** may use an **Internal URL** to communicate with another **Service** in the same **Project**
+- A **Public Service** joins the **Instance Network** and the global ingress network
+- An **Internal Service** joins only the **Instance Network**
+- A **Service** may use an **Internal URL** to communicate with another **Service** in the same **Project Instance**
 
 ## Example dialogue
 
 > **Dev:** "If I create a Postgres database for this backend, does it belong to the organization or the project?"
-> **Domain expert:** "It belongs to the **Project**, and the other **Services** in that **Project** can reach it through its **Internal URL**."
+> **Domain expert:** "It belongs to a **Project Instance**, and the other **Services** in that same instance can reach it through its **Internal URL**."
 
 > **Dev:** "Can an application service be private too, or are only databases private?"
 > **Domain expert:** "Any **Service** can be internal-only; a **Public Service** is the one that also gets external ingress."
@@ -91,18 +97,18 @@ _Avoid_: Network mode, visibility
 > **Dev:** "How much can the user change when creating Postgres?"
 > **Domain expert:** "They choose from a **Predefined Service Template**, then edit safe fields like name, credentials, and the allowed **Template Version**."
 
-> **Dev:** "If I deploy another git branch, is that a new service?"
-> **Domain expert:** "No, it is another **Service Branch** under the same application **Service**."
+> **Dev:** "If I create a preview from a pull request, is that just another branch under the same service?"
+> **Domain expert:** "No, it is a separate **Project Instance** with its own cloned **Services** and its own **Instance Network**."
 
-> **Dev:** "Can one branch be public and another branch be internal?"
-> **Domain expert:** "No, **Exposure Mode** belongs to the application **Service**, so all its **Service Branches** follow the same access mode."
+> **Dev:** "How does one app service know what code to run in production versus preview?"
+> **Domain expert:** "Each application **Service** points to one **Git Source** inside its current instance."
 
 > **Dev:** "What happens to database data when I delete the service but keep the data?"
 > **Domain expert:** "The data becomes an **Orphan Volume** and can later be managed from **Storage** or attached again to a compatible database service."
 
 ## Flagged ambiguities
 
-- `service` was previously discussed as belonging directly to an **Organization**; resolved: a **Service** belongs to a **Project**, and a **Project** belongs to an **Organization**.
+- `service` was previously discussed as belonging directly to an **Organization**; resolved: a **Service** belongs to a **Project Instance**, and that instance belongs to a **Project**.
 - `application` was previously used to imply public access; resolved: an application may be either a **Public Service** or an **Internal Service**.
-- `network` was used to describe service visibility; resolved: use **Exposure Mode** for public vs internal, and **Project Network** for the private network itself.
-- `exposure` was previously discussed as branch-specific; resolved: **Exposure Mode** belongs to the application **Service** and is shared by its **Service Branches**.
+- `network` was used to describe service visibility; resolved: use **Exposure Mode** for public vs internal, and **Instance Network** for the private network itself.
+- `branch` was previously used as the runtime deployment boundary; resolved: use **Project Instance** for runtime isolation and **Git Source** for repository branch or pull request selection.

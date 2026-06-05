@@ -55,6 +55,7 @@
   - [ ] automaticcally delete deployments img if max exceeds
 - [ ] modify the bg workers to production level setup.
 - [ ] when sidebar collapse the organization button avatar is oddly placed, fix by keeping it in center. [easy, ui]
+- [ ] if app service is internal then ask for port so in backend it automanically create internal url for internal communication between services.
 
 ## Potential bugs
 

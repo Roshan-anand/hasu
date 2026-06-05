@@ -32,18 +32,18 @@
 			name: 'Projects',
 			icon: Blocks
 		},
-		{
-			hash: /^#\/members$/,
-			route: resolve('/(protected)/(core)/members'),
-			name: 'Members',
-			icon: Users
-		},
 		{ hash: /^#\/git$/, route: resolve('/(protected)/(core)/git'), name: 'Git', icon: GitBranch },
 		{
 			hash: /^#\/storage$/,
 			route: resolve('/(protected)/(core)/storage'),
 			name: 'Storage',
 			icon: Database
+		},
+		{
+			hash: /^#\/members$/,
+			route: resolve('/(protected)/(core)/members'),
+			name: 'Members',
+			icon: Users
 		}
 	];
 </script>
