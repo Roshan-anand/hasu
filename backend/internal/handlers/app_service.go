@@ -14,7 +14,6 @@ import (
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/Roshan-anand/godploy/internal/lib/utils"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/google/go-github/v84/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 )
@@ -26,7 +25,7 @@ type DockerBuildReq struct {
 }
 
 type CreateAppServiceReq struct {
-	ProjectID     uuid.UUID       `json:"project_id" validate:"required"`
+	InstanceID    uuid.UUID       `json:"instance_id" validate:"required"`
 	Name          string          `json:"name" validate:"required,min=3,max=50"`
 	GitProvider   string          `json:"git_provider" validate:"required"`
 	GhAppID       int64           `json:"gh_app_id" validate:"required"`
@@ -47,9 +46,9 @@ type CreatePreviewAppServiceReq struct {
 }
 
 type UpdateDomainReq struct {
-	BranchID uuid.UUID `json:"branch_id" validate:"required"`
-	Domain   string    `json:"domain" validate:"required"`
-	Port     int32     `json:"port" validate:"required"`
+	ServiceID uuid.UUID `json:"service_id" validate:"required"`
+	Domain    string    `json:"domain" validate:"required"`
+	Port      int32     `json:"port" validate:"required"`
 }
 
 type UpdateEnvReq struct {
@@ -66,11 +65,11 @@ type GetEnvRes struct {
 }
 
 type RebuildServiceReq struct {
-	BranchID uuid.UUID `json:"branch_id" validate:"required"`
+	ServiceID uuid.UUID `json:"service_id" validate:"required"`
 }
 
 type RoolbackServiceReq struct {
-	BranchID uuid.UUID `json:"branch_id" validate:"required"`
+	ServiceID uuid.UUID `json:"service_id" validate:"required"`
 }
 
 type ScaleAppServiceReq struct {
@@ -91,8 +90,8 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 
 	// check if service name already exists in the organization
 	if exists, err := q.ServiceNameExists(h.qCtx, db.ServiceNameExistsParams{
-		Name:      b.Name,
-		ProjectID: b.ProjectID,
+		Name:       b.Name,
+		InstanceID: b.InstanceID,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to check service name"})
 	} else if exists {
@@ -153,7 +152,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	// create a new service
 	service, err := tq.CreateAppService(h.qCtx, db.CreateAppServiceParams{
 		ID:                security.GeneratePrimaryKey(),
-		ProjectID:         b.ProjectID,
+		InstanceID:        b.InstanceID,
 		Type:              types.AppServiceType,
 		Name:              b.Name,
 		GitProvider:       b.GitProvider,
@@ -169,30 +168,19 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		DockerFilepath:    b.DockerBuild.FilePath,
 		DockerContextpath: b.DockerBuild.ContextPath,
 		DockerBuildstage:  b.DockerBuild.BuildStage,
+		IsPublic:          b.Public,
+		Branch:            b.DefaultBranch,
+		SwarmService:      unique.ServiceName,
 	})
 	if err != nil {
 		tx.Rollback()
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
 
-	// create a new branch for the app service
-	branchID, err := tq.CreateAppServiceBranch(h.qCtx, db.CreateAppServiceBranchParams{
-		ID:               security.GeneratePrimaryKey(),
-		IsDefaultBranch:  true,
-		IsPublic:         b.Public,
-		BranchName:       b.DefaultBranch,
-		SwarmServiceName: unique.ServiceName,
-		ServiceID:        service.ID,
-	})
-	if err != nil {
-		tx.Rollback()
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service branch"})
-	}
-
 	// create a new deployment for the app service
 	dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 		ID:         security.GeneratePrimaryKey(),
-		BranchID:   branchID,
+		ServiceID:  service.ID,
 		CommitHash: commit.Hash,
 		CommitMsg:  commit.Message,
 		IsCurrent:  true,
@@ -202,8 +190,8 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
 	}
 
-	// get project network
-	network, err := tq.GetProjectNetwork(h.qCtx, b.ProjectID)
+	// get instance network
+	network, err := tq.GetInstanceNetwork(h.qCtx, b.InstanceID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get project network"})
 	}
@@ -219,7 +207,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		Token:             gh.Token,
 		Url:               url,
 		Branch:            b.DefaultBranch,
-		SwarmServiceName:  unique.ServiceName,
+		SwarmService:      unique.ServiceName,
 		BuildPath:         b.BuildPath,
 		DockerFilePath:    b.DockerBuild.FilePath,
 		DockerContextPath: b.DockerBuild.ContextPath,
@@ -232,158 +220,9 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		NetworkName:       network,
 	})
 
-	return c.JSON(http.StatusOK, types.Res[uuid.UUID]{
+	return c.JSON(http.StatusOK, types.Res[db.CreateAppServiceRow]{
 		Message: "",
-		Data:    service.ID,
-	})
-}
-
-// TODO : under development, will be added in future PR
-// create a new app service for a sub branch
-//
-// route: POST /api/service/app/preview
-func (h *ServiceHandler) CreatePreviewAppService(c *echo.Context) error {
-	b := new(CreatePreviewAppServiceReq)
-	q := h.Server.DB.Queries
-
-	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
-		return c.JSON(http.StatusBadRequest, Res)
-	}
-
-	service, err := q.GetAppServiceById(h.qCtx, b.ServiceID)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
-	}
-
-	// create a new github client
-	gh, err := ghservice.New(q, service.GhAppID)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github client"})
-	}
-
-	// get the github repository details
-	repo, err := gh.GetRepo(service.GhRepoID)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch repository info from github"})
-	}
-
-	// varify if it is a valid branch
-	branches, _, err := gh.Client.Repositories.ListBranches(context.Background(), repo.Owner, repo.Name, &github.BranchListOptions{})
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch branches from github"})
-	}
-
-	isValidBranch := false
-	for _, branch := range branches {
-		if branch.GetName() == b.Branch {
-			isValidBranch = true
-			break
-		}
-	}
-
-	if !isValidBranch {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid branch name"})
-	}
-
-	// check if branch with same name already in deployment
-	if exists, err := q.CheckBranchExists(h.qCtx, db.CheckBranchExistsParams{
-		ServiceID:  service.ID,
-		BranchName: b.Branch,
-	}); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to check branch name"})
-	} else if exists {
-		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Branch with same name already exists"})
-	}
-
-	// used as unique image and service name
-	unique := generateServiceAndImgName(service.Name, b.Branch)
-
-	// start a new db transaction
-	tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
-	}
-	tq := q.WithTx(tx)
-
-	// create a new branch for the app service
-	branchID, err := tq.CreateAppServiceBranch(h.qCtx, db.CreateAppServiceBranchParams{
-		ID:               security.GeneratePrimaryKey(),
-		IsDefaultBranch:  true,
-		BranchName:       b.Branch,
-		SwarmServiceName: unique.ServiceName,
-		ServiceID:        service.ID,
-	})
-	if err != nil {
-		tx.Rollback()
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service branch"})
-	}
-
-	// TODO : varify if passing addrs of struct is more efficient than passing 2 strings as args
-	// get the latest commit info of the selected branch
-	commit, err := gh.GetLatestCommit(repo.Owner, repo.Name, b.Branch)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch latest commit info from github"})
-	}
-
-	// create a new deployment for the app service
-	dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
-		ID:         security.GeneratePrimaryKey(),
-		BranchID:   branchID,
-		CommitHash: commit.Hash,
-		CommitMsg:  commit.Message,
-		IsCurrent:  true,
-	})
-	if err != nil {
-		tx.Rollback()
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
-	}
-
-	network, err := tq.GetProjectNetwork(h.qCtx, service.ProjectID)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get project network"})
-	}
-
-	branch, err := tq.GetDefaultBranchByServiceId(h.qCtx, service.ID)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch info"})
-	}
-
-	if err := tx.Commit(); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
-	}
-
-	envArray, err := UnmarshalServiceEnv(&ServiceEnvByte{
-		Env:          service.Env,
-		BuildArgs:    service.BuildArgs,
-		BuildSecrets: service.BuildSecrets,
-	})
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
-	}
-
-	// push a new deployment job to the queue
-	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
-		Type:              deploymentqueue.DeployJob,
-		DeploymentID:      dID,
-		Token:             gh.Token,
-		Url:               service.GhRepoUrl,
-		Branch:            b.Branch,
-		SwarmServiceName:  unique.ServiceName,
-		BuildPath:         service.BuildPath,
-		DockerFilePath:    service.DockerFilepath,
-		DockerContextPath: service.DockerContextpath,
-		DockerBuildStage:  service.DockerBuildstage,
-		ImgName:           unique.ImgName,
-		Env:               envArray.Env,
-		BuildArgs:         envArray.BuildArgs,
-		BuildSecrets:      envArray.BuildSecrets,
-		IsPublic:          branch.IsPublic,
-		NetworkName:       network,
-	})
-
-	return c.JSON(http.StatusOK, types.Res[uuid.UUID]{
-		Message: "",
-		Data:    service.ID,
+		Data:    service,
 	})
 }
 
@@ -407,10 +246,10 @@ func (h *ServiceHandler) GetAppServiceById(c *echo.Context) error {
 	})
 }
 
-// get branch domain and port by service id
+// get domain and port of the service
 //
 // route: GET /api/service/app/domain?service_id
-func (h *ServiceHandler) GetBranchDomain(c *echo.Context) error {
+func (h *ServiceHandler) GetDomainPort(c *echo.Context) error {
 	q := h.Server.DB.Queries
 
 	serviceID, err := uuid.Parse(c.QueryParam("service_id"))
@@ -418,12 +257,12 @@ func (h *ServiceHandler) GetBranchDomain(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid service_id"})
 	}
 
-	branches, err := q.GetBranchesDomainByServiceId(h.qCtx, serviceID)
+	branches, err := q.GetDomainAndPortByServiceId(h.qCtx, serviceID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch domain"})
 	}
 
-	return c.JSON(http.StatusOK, types.Res[[]db.GetBranchesDomainByServiceIdRow]{
+	return c.JSON(http.StatusOK, types.Res[db.GetDomainAndPortByServiceIdRow]{
 		Message: "",
 		Data:    branches,
 	})
@@ -481,7 +320,7 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid domain"})
 	}
 
-	swarmService, err := q.GetSwarmServiceByBranchId(h.qCtx, b.BranchID)
+	swarmService, err := q.GetSwarmServiceByServiceId(h.qCtx, b.ServiceID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get swarm service"})
 	}
@@ -504,10 +343,10 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 	}
 
 	// update the branch table
-	if err := q.SetDomianAndPortForBranch(h.qCtx, db.SetDomianAndPortForBranchParams{
-		Domain: b.Domain,
-		Port:   b.Port,
-		ID:     b.BranchID,
+	if err := q.UpdateDomianAndPort(h.qCtx, db.UpdateDomianAndPortParams{
+		Domain:    b.Domain,
+		Port:      b.Port,
+		ServiceID: b.ServiceID,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update domain and port"})
 	}
@@ -515,7 +354,7 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "Successfully updated domain and port"})
 }
 
-// update domain and port
+// update env
 //
 // route: PUT /api/service/app/env
 func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
@@ -528,26 +367,23 @@ func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
 	}
 
 	// get all swarm service of avalable branches
-	swarmServices, err := q.GetAllSwarmServiceByAppServiceId(h.qCtx, b.ServiceID)
+	swarmService, err := q.GetSwarmServiceByServiceId(h.qCtx, b.ServiceID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get all swarm service"})
 	}
 
-	// update env in all the service
-	for _, serviceName := range swarmServices {
-		// get service spec to update the labels
-		inspectRes, _, err := docker.ServiceInspectWithRaw(context.Background(), serviceName, swarm.ServiceInspectOptions{})
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to inspect swarm service"})
-		}
-		serviceV := inspectRes.Version
-		spec := inspectRes.Spec
-		spec.TaskTemplate.ContainerSpec.Env = b.Env
+	// update env of the service
+	inspectRes, _, err := docker.ServiceInspectWithRaw(context.Background(), swarmService, swarm.ServiceInspectOptions{})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to inspect swarm service"})
+	}
+	serviceV := inspectRes.Version
+	spec := inspectRes.Spec
+	spec.TaskTemplate.ContainerSpec.Env = b.Env
 
-		// update the swarm service
-		if _, err := docker.ServiceUpdate(context.Background(), serviceName, serviceV, spec, swarm.ServiceUpdateOptions{}); err != nil {
-			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update swarm service"})
-		}
+	// update the swarm service
+	if _, err := docker.ServiceUpdate(context.Background(), swarmService, serviceV, spec, swarm.ServiceUpdateOptions{}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update swarm service"})
 	}
 
 	// clear the evnironment array
@@ -586,7 +422,18 @@ func (h *ServiceHandler) ScaleAppService(c *echo.Context) error {
 	q := h.Server.DB.Queries
 	docker := h.Server.Docker.Client
 
-	swarmName, err := q.GetDefaultBranchSwarmService(h.qCtx, b.ServiceId)
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	// check if service is part of production instance
+	if isProduction, err := q.CheckServiceIsProduction(h.qCtx, b.ServiceId); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error checking service instance"})
+	} else if !isProduction {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "service is not part of production instance"})
+	}
+
+	swarmName, err := q.GetSwarmServiceByServiceId(h.qCtx, b.ServiceId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error getting default branch service"})
 	}
@@ -618,7 +465,7 @@ func (h *ServiceHandler) DeleteAppService(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
-	serviceInfo, err := q.GetAllSwarmServiceAndImagesByAppServiceId(h.qCtx, b.ServiceId)
+	serviceInfo, err := q.GetAllSwarmServiceAndImgByAppServiceId(h.qCtx, b.ServiceId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get deployments"})
 	}
@@ -626,18 +473,21 @@ func (h *ServiceHandler) DeleteAppService(c *echo.Context) error {
 	// arrange all ids and imgs sepratly for easy access
 	dIDs := make([]uuid.UUID, len(serviceInfo))
 	imgs := make([]string, len(serviceInfo))
-	swarmServiceNames := make(map[string]struct{})
+	SwarmServices := make(map[string]struct{})
+
+	// because all the deployment image have same parent swarm service
+	SwarmServices[serviceInfo[0].SwarmService] = struct{}{}
+
 	for i, s := range serviceInfo {
 		dIDs[i] = s.DeploymentID
 		if s.Image.Valid {
 			imgs[i] = s.Image.String
 		}
-		swarmServiceNames[s.SwarmServiceName] = struct{}{}
 	}
 
 	// stop all the services running and remove all the images
 	go func() {
-		h.Server.Docker.RemoveServices(swarmServiceNames)
+		h.Server.Docker.RemoveServices(SwarmServices)
 		h.Server.Docker.RemoveImages(imgs)
 	}()
 

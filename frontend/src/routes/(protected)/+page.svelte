@@ -7,6 +7,8 @@
 	import CreateProject from './create-project.svelte';
 	import ProjectDeletion from '@/components/conformation/project-deletion.svelte';
 	import { DotmSquare } from '@/components/loader';
+	import { goto } from '$app/navigation';
+	import { Button } from '@/components/ui/button';
 
 	let searchQuery = $state('');
 	const projectsQuery = useGetAllProjectsQuery();
@@ -42,23 +44,25 @@
 	{:else if projectsQuery.isError}
 		<p class="text-red-500">Failed to load projects</p>
 	{:else if filteredProjects.length > 0}
-		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-			{#each filteredProjects as project (project.id)}
+		<div class="flex flex-wrap">
+			{#each filteredProjects as { id, name } (id)}
 				<div
-					class="rounded-lg border bg-card text-card-foreground shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer relative"
+					class="rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow cursor-pointer relative h-fit w-[30vw] min-w-25 max-w-75 flex"
 				>
-					<a
-						href={resolve(`/(protected)/(core)/project/[project_id]`, { project_id: project.id })}
-						class="absolute z-10 size-full inset-0 text-transparent"
-						title="open project"
-					></a>
-					<div class="flex items-start justify-between gap-2">
-						<div>
-							<h3 class="font-semibold text-lg">{project.name}</h3>
-							<p class="text-xs uppercase text-muted-foreground">Project</p>
-						</div>
-						<ProjectDeletion projectId={project.id} name={project.name} />
-					</div>
+					<Button
+						variant="none"
+						onclick={() =>
+							goto(
+								resolve('/(protected)/[project]', {
+									project: name
+								})
+							)}
+						class="flex-col items-start p-4 py-8 flex-1"
+					>
+						<h3 class="font-semibold text-lg">{name}</h3>
+						<p class="text-xs uppercase text-muted-foreground">Project</p>
+					</Button>
+					<ProjectDeletion projectId={id} {name} />
 				</div>
 			{/each}
 		</div>

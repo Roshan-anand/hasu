@@ -24,7 +24,7 @@ func TestAppService(t *testing.T) {
 	}
 
 	createAppServiceReq := &handlers.CreateAppServiceReq{
-		ProjectID:   user.ProjectID,
+		InstanceID:  user.InstanceID,
 		Name:        "newapp",
 		GitProvider: "github",
 		Public:      true,
@@ -102,11 +102,11 @@ func TestAppService(t *testing.T) {
 			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
 		}
 
-		var res types.Res[uuid.UUID]
+		var res types.Res[db.CreateAppServiceRow]
 		if err := readAndUnmarshl(body, &res); err != nil {
 			t.Fatal(err)
 		}
-		appServiceID = res.Data
+		appServiceID = res.Data.ID
 	})
 
 	t.Run("get all deployments", func(t *testing.T) {
@@ -152,7 +152,7 @@ func TestAppService(t *testing.T) {
 		}
 
 		query := url.Values{}
-		query.Add("project_id", user.ProjectID.String())
+		query.Add("instance_id", user.InstanceID.String())
 		rec, err = TestEchoHandler(&TestEchoBody{T: t, H: h.Service.GetAllServices, IsAuth: true, Query: query})
 		if err != nil {
 			t.Fatal(err)

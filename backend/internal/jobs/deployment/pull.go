@@ -37,7 +37,7 @@ func (w *worker) PullWorker(ctx context.Context, data chan *deploymentqueue.Pull
 				fmt.Printf("PullWorker: error updating deployment status: %v\n", err)
 			}
 
-			outputPath := path.Join(w.Server.Config.CodeStoreDir, d.SwarmServiceName)
+			outputPath := path.Join(w.Server.Config.CodeStoreDir, d.SwarmService)
 			repoUrl := fmt.Sprintf("https://oauth2:%s@%s", d.Token, d.Url)
 			cmd := exec.Command("git", "clone", "--branch", d.Branch, "--depth", "1", repoUrl, outputPath)
 
@@ -55,7 +55,7 @@ func (w *worker) PullWorker(ctx context.Context, data chan *deploymentqueue.Pull
 				Type:              d.Type,
 				DeploymentID:      d.DeploymentID,
 				BuildPath:         d.BuildPath,
-				SwarmServiceName:  d.SwarmServiceName,
+				SwarmService:      d.SwarmService,
 				StorePath:         outputPath,
 				DockerFilePath:    d.DockerFilePath,
 				DockerContextPath: d.DockerContextPath,

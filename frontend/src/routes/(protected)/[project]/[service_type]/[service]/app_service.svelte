@@ -8,7 +8,12 @@
 	import type { ServiceTab } from '@/features/services/type';
 	import AppEnv from '@/components/services/app/app-env.svelte';
 
-	const { serviceId, tab }: { serviceId: string; tab: ServiceTab } = $props();
+	const {
+		serviceID,
+		serviceName,
+		tab,
+		projectName
+	}: { serviceName: string; tab: ServiceTab; projectName: string; serviceID: string } = $props();
 </script>
 
 <section class="p-2 flex-1">
@@ -18,9 +23,10 @@
 				{#each NavItems as item (item.label)}
 					<NavigationMenu.Item>
 						<NavigationMenu.Link
-							href={resolve(`/(protected)/(core)/[service_type]/[service_id]?tab=${item.tab}`, {
+							href={resolve(`/(protected)/[project]/[service_type]/[service]?tab=${item.tab}`, {
 								service_type: 'app',
-								service_id: serviceId
+								project: projectName,
+								service: serviceName
 							})}
 							data-active={tab == item.tab || (tab == undefined && item.tab == '')}
 							class="cursor-pointer px-3 py-2"
@@ -33,16 +39,16 @@
 		</NavigationMenu.Root>
 	</div>
 
-	{#if serviceId === ''}
-		<p class="text-muted-foreground">Missing service id in URL</p>
+	{#if serviceName === ''}
+		<p class="text-muted-foreground">Missing service in URL</p>
 	{:else if tab === 'deployment'}
-		<AppDeployments {serviceId} />
+		<AppDeployments {serviceID} />
 	{:else if tab === 'env'}
 		<p class="text-muted-foreground">Environment variables tab content goes here</p>
-		<AppEnv {serviceId} />
+		<AppEnv {serviceID} />
 	{:else if tab === 'domains'}
-		<AppDomain {serviceId} />
+		<AppDomain {serviceID} />
 	{:else}
-		<AppHome {serviceId} />
+		<AppHome {serviceID} project={projectName} />
 	{/if}
 </section>

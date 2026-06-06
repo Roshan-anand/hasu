@@ -1,31 +1,39 @@
 import { getContext, setContext } from 'svelte';
+import type { Organization } from '../auth/type';
 
-interface OrgState {
-	name: string;
+export type Instance = {
 	id: string;
-	setOrg: (id: string, name: string) => void;
+	name: string;
+};
+
+interface BaseState {
+	currentOrg: Organization;
+	currentInstance: Instance;
+	setCurrentOrg: (id: string, name: string) => void;
+	setCurrentInstance: (id: string, name: string) => void;
 }
 
-class OrgStateClass implements OrgState {
+class BaseStateClass implements BaseState {
 	constructor(id: string, name: string) {
-		this.id = id;
-		this.name = name;
+		this.currentOrg = { id, name };
 	}
 
-	id = $state('');
-	name = $state('');
+	currentOrg: Organization = $state({ id: '', name: '' });
+	currentInstance: Instance = $state({ id: '', name: '' });
 
-	setOrg = (id: string, name: string) => {
-		this.id = id;
-		this.name = name;
+	setCurrentOrg = (id: string, name: string) => {
+		this.currentOrg = { id, name };
+	};
+
+	setCurrentInstance = (id: string, name: string) => {
+		this.currentInstance = { id, name };
 	};
 }
 
 const DEFAULT_KEY = 'org:state';
 
-export const getCurrentOrgState = (key: string = DEFAULT_KEY) =>
-	getContext<OrgState>(Symbol.for(key));
+export const getBaseState = (key: string = DEFAULT_KEY) => getContext<BaseState>(Symbol.for(key));
 
-export const setCurrentOrgState = (id: string, name: string, key: string = DEFAULT_KEY) => {
-	setContext(Symbol.for(key), new OrgStateClass(id, name));
+export const setBaseState = (id: string, name: string, key: string = DEFAULT_KEY) => {
+	setContext(Symbol.for(key), new BaseStateClass(id, name));
 };

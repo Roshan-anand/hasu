@@ -12,6 +12,7 @@ type Handler struct {
 	Project     *ProjectHandler
 	Deployment  *DeploymentHandler
 	Volume      *VolumeHandler
+	Instance    *InstanceHandler
 }
 
 func NewHandeler(srv *config.Server) *Handler {
@@ -25,5 +26,6 @@ func NewHandeler(srv *config.Server) *Handler {
 		Project:     InitProjectHandlers(srv),
 		Deployment:  InitDeploymentHandlers(srv),
 		Volume:      InitVolumeHandlers(srv),
+		Instance:    InitInstanceHandlers(srv),
 	}
 }

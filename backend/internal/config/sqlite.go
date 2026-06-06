@@ -73,7 +73,6 @@ func InitDb(dir string) (*DataBase, error) {
 	}
 
 	p := filepath.Join(dir, "base.db")
-	// TODO : replace path with config value
 	dsn := "file:" + p +
 		"?_pragma=journal_mode(WAL)" +
 		"&_foreign_keys=1" +

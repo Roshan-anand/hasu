@@ -1,11 +1,10 @@
-// Project types map backend project responses for UI usage.
-export type ProjectListResponse = {
+export type ProjectResponse = {
 	id: string;
-	organization_id: string;
 	name: string;
-	network_name: string;
 	created_at: string;
 };
+
+export type ProjectListResponse = ProjectResponse[];
 
 export type CreateProjectPayload = {
 	name: string;
@@ -25,4 +24,12 @@ export type OrphanVolume = {
 	volume: string;
 	type: string;
 	created_at: string;
+};
+
+export type SwitchOrgPayload = {
+	org_id: string;
+};
+
+export type CreateOrgPayload = {
+	name: string;
 };

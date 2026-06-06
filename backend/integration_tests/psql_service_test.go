@@ -25,7 +25,7 @@ func TestPsqlService(t *testing.T) {
 	}
 
 	createPsqlServiceReq := &handlers.CreatePsqlServiceReq{
-		ProjectID:  user.ProjectID,
+		InstanceID: user.InstanceID,
 		Name:       "newpsql",
 		DbName:     "testdb",
 		DbUser:     "testuser",
@@ -55,15 +55,15 @@ func TestPsqlService(t *testing.T) {
 			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
 		}
 
-		var res types.Res[uuid.UUID]
+		var res types.Res[db.CreatePsqlServiceRow]
 		if err := readAndUnmarshl(body, &res); err != nil {
 			t.Fatal(err)
 		}
 
-		if res.Data == uuid.Nil {
-			t.Fatal("expected non-empty service id")
+		if res.Data.Name == "" {
+			t.Fatal("expected non-empty service ")
 		}
-		psqlServiceID = res.Data
+		psqlServiceID = res.Data.ID
 	})
 
 	t.Run("create duplicate psql service", func(t *testing.T) {
@@ -202,7 +202,7 @@ func TestPsqlService(t *testing.T) {
 
 	t.Run("create psql service for keep data flow", func(t *testing.T) {
 		keepDataReq := &handlers.CreatePsqlServiceReq{
-			ProjectID:  user.ProjectID,
+			InstanceID: user.InstanceID,
 			Name:       "newpsql-keep",
 			DbName:     "keepdb",
 			DbUser:     "keepuser",
@@ -226,12 +226,12 @@ func TestPsqlService(t *testing.T) {
 			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
 		}
 
-		var res types.Res[uuid.UUID]
+		var res types.Res[db.CreatePsqlServiceRow]
 		if err := readAndUnmarshl(body, &res); err != nil {
 			t.Fatal(err)
 		}
 
-		psqlServiceID = res.Data
+		psqlServiceID = res.Data.ID
 	})
 
 	t.Run("delete psql service and keep data", func(t *testing.T) {

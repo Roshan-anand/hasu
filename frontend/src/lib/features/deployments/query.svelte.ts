@@ -6,15 +6,18 @@ export const getDeploymentsQueryKey = (serviceId: string) =>
 	['service-deployments', serviceId] as const;
 
 export function useServiceDeploymentsQuery(getServiceId: () => string) {
-	return createQuery(() => ({
-		queryKey: getDeploymentsQueryKey(getServiceId()),
-		queryFn: async () => {
-			return api
-				.get<ApiRes<ServiceDeployment[]>>('/service/deployment', {
-					params: { service_id: getServiceId() }
-				})
-				.then((res) => res.data.data);
-		},
-		enabled: getServiceId() !== ''
-	}));
+	return createQuery(() => {
+		const serviceId = getServiceId();
+		return {
+			queryKey: getDeploymentsQueryKey(serviceId),
+			queryFn: async () => {
+				return api
+					.get<ApiRes<ServiceDeployment[]>>('/service/deployment', {
+						params: { service_id: serviceId }
+					})
+					.then((res) => res.data.data);
+			},
+			enabled: serviceId !== ''
+		};
+	});
 }

@@ -4,18 +4,18 @@
 	import { useUpdateEnvMutation } from '@/features/services/mutation.svelte';
 	import { useGetServiceEnvQuery } from '@/features/services/query.svelte';
 
-	let { serviceId }: { serviceId: string } = $props();
+	let { serviceID }: { serviceID: string } = $props();
 
 	let env = $state<string>('');
 	let buildArgs = $state<string>('');
 	let buildSecrets = $state<string>('');
 
-	const getEnvQuery = useGetServiceEnvQuery(() => serviceId);
-	const updateEnv = useUpdateEnvMutation(() => serviceId);
+	const getEnvQuery = useGetServiceEnvQuery(() => serviceID);
+	const updateEnv = useUpdateEnvMutation(() => serviceID);
 
 	const handleUpdateEnv = () => {
 		updateEnv.mutate({
-			service_id: serviceId,
+			service_id: serviceID,
 			env: env.split('\n'),
 			build_args: buildArgs.split('\n'),
 			build_secrets: buildSecrets.split('\n')

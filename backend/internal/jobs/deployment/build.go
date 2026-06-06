@@ -104,22 +104,22 @@ func (w *worker) BuildWorker(ctx context.Context, data chan *deploymentqueue.Bui
 			case deploymentqueue.DeployJob:
 				// set a deploy worker
 				w.Server.DeploymentQ.EnqueueDeployJob(&deploymentqueue.DeployJobData{
-					DeploymentID:     d.DeploymentID,
-					SwarmServiceName: d.SwarmServiceName,
-					ImgName:          d.ImgName,
-					Env:              d.Env,
-					IsPublic:         d.IsPublic,
-					NetworkName:      d.NetworkName,
+					DeploymentID: d.DeploymentID,
+					SwarmService: d.SwarmService,
+					ImgName:      d.ImgName,
+					Env:          d.Env,
+					IsPublic:     d.IsPublic,
+					NetworkName:  d.NetworkName,
 				})
 
 			case deploymentqueue.RebuildJob:
 				w.Server.DeploymentQ.EnqueueRedeployJob(&deploymentqueue.RedeployJobData{
-					DeploymentID:     d.DeploymentID,
-					SwarmServiceName: d.SwarmServiceName,
-					ImgName:          d.ImgName,
-					Env:              d.Env,
-					IsPublic:         d.IsPublic,
-					NetworkName:      d.NetworkName,
+					DeploymentID: d.DeploymentID,
+					SwarmService: d.SwarmService,
+					ImgName:      d.ImgName,
+					Env:          d.Env,
+					IsPublic:     d.IsPublic,
+					NetworkName:  d.NetworkName,
 				})
 			default:
 				fmt.Printf("BuildWorker: unknown job type: %v\n", d.Type)

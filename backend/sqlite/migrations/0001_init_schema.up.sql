@@ -33,13 +33,21 @@ CREATE TABLE IF NOT EXISTS project(
     id uuid PRIMARY KEY,
     organization_id uuid NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    network_name TEXT NOT NULL UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS instance(
+    id uuid PRIMARY KEY,
+    project_id uuid NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    is_production BOOLEAN NOT NULL,
+    name TEXT NOT NULL,
+    network TEXT NOT NULL UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS app_service (
     id uuid PRIMARY KEY,
-    project_id uuid NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    instance_id uuid NOT NULL REFERENCES instance(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
     name TEXT NOT NULL,
     git_provider TEXT NOT NULL,
@@ -57,16 +65,10 @@ CREATE TABLE IF NOT EXISTS app_service (
     env BLOB,
     build_args BLOB,
     build_secrets BLOB,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS app_service_branch (
-    id uuid PRIMARY KEY,
-    service_id uuid NOT NULL REFERENCES app_service(id) ON DELETE CASCADE,
-    is_default_branch BOOLEAN NOT NULL,
+    -- swarm related column
     is_public BOOLEAN NOT NULL,
-    branch_name TEXT NOT NULL,
-    swarm_service_name TEXT NOT NULL,
+    branch TEXT NOT NULL,
+    swarm_service TEXT NOT NULL,
     domain TEXT NOT NULL DEFAULT '',
     port INTEGER NOT NULL DEFAULT 80,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -75,7 +77,7 @@ CREATE TABLE IF NOT EXISTS app_service_branch (
 CREATE TABLE IF NOT EXISTS deployments (
     id uuid PRIMARY KEY,
     is_current BOOLEAN NOT NULL,
-    branch_id uuid NOT NULL REFERENCES app_service_branch(id) ON DELETE CASCADE,
+    service_id uuid NOT NULL REFERENCES app_service(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'queued',
     commit_hash TEXT NOT NULL,
     commit_msg TEXT NOT NULL,
@@ -85,15 +87,15 @@ CREATE TABLE IF NOT EXISTS deployments (
 
 CREATE TABLE IF NOT EXISTS psql_service (
     id uuid PRIMARY KEY,
-    project_id uuid NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    instance_id uuid NOT NULL REFERENCES instance(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
     name TEXT NOT NULL,
-    swarm_service_name TEXT NOT NULL,
+    swarm_service TEXT NOT NULL,
     db_name TEXT NOT NULL,
     db_user TEXT NOT NULL,
     db_password TEXT NOT NULL,
     image TEXT NOT NULL,
-    volume TEXT NOT NULL, 
+    volume TEXT NOT NULL,
     internal_url TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );

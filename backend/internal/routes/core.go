@@ -54,6 +54,9 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	project.POST("", h.Project.CreateProject)
 	project.DELETE("", h.Project.DeleteProject)
 
+	instance := protected.Group("/instance")
+	instance.GET("", h.Instance.GetAllInstance)
+
 	volume := protected.Group("/volume")
 	volume.GET("", h.Service.GetAllVolume)
 	volume.GET("/:type", h.Service.GetAllVolumeByType)
@@ -61,7 +64,8 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 
 	// initialize service api routes
 	service := protected.Group("/service")
-	service.GET("", h.Service.GetAllServices)
+	service.GET("/all", h.Service.GetAllServices)
+	service.GET("/:name", h.Service.GetServiceID)
 	service.GET("/deployment", h.Deployment.GetServiceDeployments)
 	service.DELETE("/deployment", h.Deployment.DeleteServiceDeployment)
 	service.GET("/deployment/logs", h.Deployment.SubscribeServiceDeploymentLogs)
@@ -78,7 +82,7 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	app.GET("/:id", h.Service.GetAppServiceById)
 	app.POST("", h.Service.CreateAppService)
 	app.DELETE("", h.Service.DeleteAppService)
-	app.GET("/domain", h.Service.GetBranchDomain)
+	app.GET("/domain", h.Service.GetDomainPort)
 	app.PUT("/domain", h.Service.UpdateAppServiceDomain)
 	app.GET("/env", h.Service.GetServiceEnv)
 	app.PUT("/env", h.Service.UpdateAppServiceEnv)

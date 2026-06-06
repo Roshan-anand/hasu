@@ -15,6 +15,12 @@ export type Organization = {
 	name: string;
 };
 
+export type Instance = {
+	id: string;
+	name: string;
+	is_production: boolean;
+};
+
 export type AuthResponse = {
 	name: string;
 	email: string;

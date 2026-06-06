@@ -14,7 +14,7 @@ import (
 
 type AppService struct {
 	ID                uuid.UUID         `json:"id"`
-	ProjectID         uuid.UUID         `json:"project_id"`
+	InstanceID        uuid.UUID         `json:"instance_id"`
 	Type              types.ServiceType `json:"type"`
 	Name              string            `json:"name"`
 	GitProvider       string            `json:"git_provider"`
@@ -30,25 +30,18 @@ type AppService struct {
 	Env               []byte            `json:"env"`
 	BuildArgs         []byte            `json:"build_args"`
 	BuildSecrets      []byte            `json:"build_secrets"`
+	IsPublic          bool              `json:"is_public"`
+	Branch            string            `json:"branch"`
+	SwarmService      string            `json:"swarm_service"`
+	Domain            string            `json:"domain"`
+	Port              int32             `json:"port"`
 	CreatedAt         time.Time         `json:"created_at"`
-}
-
-type AppServiceBranch struct {
-	ID               uuid.UUID `json:"id"`
-	ServiceID        uuid.UUID `json:"service_id"`
-	IsDefaultBranch  bool      `json:"is_default_branch"`
-	IsPublic         bool      `json:"is_public"`
-	BranchName       string    `json:"branch_name"`
-	SwarmServiceName string    `json:"swarm_service_name"`
-	Domain           string    `json:"domain"`
-	Port             int32     `json:"port"`
-	CreatedAt        time.Time `json:"created_at"`
 }
 
 type Deployment struct {
 	ID         uuid.UUID              `json:"id"`
 	IsCurrent  bool                   `json:"is_current"`
-	BranchID   uuid.UUID              `json:"branch_id"`
+	ServiceID  uuid.UUID              `json:"service_id"`
 	Status     types.DeploymentStatus `json:"status"`
 	CommitHash string                 `json:"commit_hash"`
 	CommitMsg  string                 `json:"commit_msg"`
@@ -66,6 +59,15 @@ type GithubApp struct {
 	WebhookSecret  string        `json:"webhook_secret"`
 	CreatedAt      time.Time     `json:"created_at"`
 	UpdatedAt      time.Time     `json:"updated_at"`
+}
+
+type Instance struct {
+	ID           uuid.UUID `json:"id"`
+	ProjectID    uuid.UUID `json:"project_id"`
+	IsProduction bool      `json:"is_production"`
+	Name         string    `json:"name"`
+	Network      string    `json:"network"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type Organization struct {
@@ -86,23 +88,22 @@ type Project struct {
 	ID             uuid.UUID `json:"id"`
 	OrganizationID uuid.UUID `json:"organization_id"`
 	Name           string    `json:"name"`
-	NetworkName    string    `json:"network_name"`
 	CreatedAt      time.Time `json:"created_at"`
 }
 
 type PsqlService struct {
-	ID               uuid.UUID         `json:"id"`
-	ProjectID        uuid.UUID         `json:"project_id"`
-	Type             types.ServiceType `json:"type"`
-	Name             string            `json:"name"`
-	SwarmServiceName string            `json:"swarm_service_name"`
-	DbName           string            `json:"db_name"`
-	DbUser           string            `json:"db_user"`
-	DbPassword       string            `json:"db_password"`
-	Image            string            `json:"image"`
-	Volume           string            `json:"volume"`
-	InternalUrl      string            `json:"internal_url"`
-	CreatedAt        time.Time         `json:"created_at"`
+	ID           uuid.UUID         `json:"id"`
+	InstanceID   uuid.UUID         `json:"instance_id"`
+	Type         types.ServiceType `json:"type"`
+	Name         string            `json:"name"`
+	SwarmService string            `json:"swarm_service"`
+	DbName       string            `json:"db_name"`
+	DbUser       string            `json:"db_user"`
+	DbPassword   string            `json:"db_password"`
+	Image        string            `json:"image"`
+	Volume       string            `json:"volume"`
+	InternalUrl  string            `json:"internal_url"`
+	CreatedAt    time.Time         `json:"created_at"`
 }
 
 type RedirectSession struct {

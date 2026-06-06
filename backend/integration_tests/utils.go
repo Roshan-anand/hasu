@@ -247,11 +247,12 @@ var registerBody = &handlers.RegisterReq{
 }
 
 type MockUser struct {
-	Name      string
-	Email     string
-	OrgId     uuid.UUID
-	OrgName   string
-	ProjectID uuid.UUID
+	Name       string
+	Email      string
+	OrgId      uuid.UUID
+	OrgName    string
+	ProjectID  uuid.UUID
+	InstanceID uuid.UUID
 }
 
 // mock a new logined user
@@ -333,7 +334,40 @@ func mockUserRejister(h *handlers.Handler, t *testing.T, project bool) *MockUser
 		}
 
 		mockUser.ProjectID = res.Data.ID
+
+		// get the instance
+		query := url.Values{}
+		query.Add("project", res.Data.Name)
+		query.Add("org_id", mockUser.OrgId.String())
+		rec, err = TestEchoHandler(&TestEchoBody{
+			T:      t,
+			H:      h.Instance.GetAllInstance,
+			Body:   &handlers.CreateProjectReq{Name: "newbe"},
+			Query:  query,
+			IsAuth: true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body = rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var instanceRes types.Res[[]db.GetAllInstanceRow]
+		if err := readAndUnmarshl(body, &instanceRes); err != nil {
+			t.Fatal(err)
+		}
+
+		if len(instanceRes.Data) == 0 {
+			t.Fatal("expected at least one instance, got 0")
+		}
+
+		mockUser.InstanceID = instanceRes.Data[0].ID
 	}
 
+	// mockUser.InstanceID = res.Data.InstanceID
 	return mockUser
 }

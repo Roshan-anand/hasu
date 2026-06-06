@@ -8,70 +8,100 @@ import type {
 	ServiceListResponse
 } from './type';
 import type { ApiRes } from '@/types';
+import { getBaseState } from '../global/store.svelte';
 
-export const getProjectServicesQueryKey = (projectId: string) =>
-	['services-list', 'project', projectId] as const;
+export const getInstanceServicesQueryKey = (instanceID: string) =>
+	['services-list', instanceID] as const;
 
-export function useGetAllServicesQuery(getProjectId: () => string) {
-	const projectId = getProjectId();
-	return createQuery(() => ({
-		queryKey: getProjectServicesQueryKey(projectId),
-		queryFn: async () =>
-			api
-				.get<ApiRes<ServiceListResponse[]>>('/service', {
-					params: { project_id: projectId }
-				})
-				.then((res) => res.data.data),
-		enabled: projectId !== ''
-	}));
+export function useGetAllServicesQuery() {
+	return createQuery(() => {
+		const base = getBaseState();
+		return {
+			queryKey: getInstanceServicesQueryKey(base.currentInstance.id),
+			queryFn: async () =>
+				api
+					.get<ApiRes<ServiceListResponse[]>>('/service/all', {
+						params: { instance_id: base.currentInstance.id }
+					})
+					.then((res) => res.data.data),
+			enabled: base.currentInstance.id !== ''
+		};
+	});
+}
+
+export function useGetServiceIDQuery(getServiceName: () => string) {
+	return createQuery(() => {
+		const base = getBaseState();
+		const serviceName = getServiceName();
+		return {
+			queryKey: getInstanceServicesQueryKey(base.currentInstance.id),
+			queryFn: async () =>
+				api
+					.get<ApiRes<string>>(`/service/${serviceName}`, {
+						params: { instance_id: base.currentInstance.id }
+					})
+					.then((res) => res.data.data),
+			enabled: base.currentInstance.id !== ''
+		};
+	});
 }
 
 export function useGetAppServiceDetailsQuery(getID: () => string) {
-	const serviceId = getID();
-	return createQuery(() => ({
-		queryKey: ['service-details', serviceId],
-		queryFn: async () =>
-			api.get<ApiRes<AppServiceDetails>>(`/service/app/${serviceId}`).then((res) => res.data.data),
-		enabled: serviceId !== ''
-	}));
+	return createQuery(() => {
+		const serviceId = getID();
+		return {
+			queryKey: ['service-details', serviceId],
+			queryFn: async () =>
+				api
+					.get<ApiRes<AppServiceDetails>>(`/service/app/${serviceId}`)
+					.then((res) => res.data.data),
+			enabled: serviceId !== ''
+		};
+	});
 }
 
 export function useGetBranchDomainQuery(getServiceId: () => string) {
-	const serviceId = getServiceId();
-	return createQuery(() => ({
-		queryKey: ['branch-domain', serviceId],
-		queryFn: async () =>
-			api
-				.get<ApiRes<GetBranchDomainRes>>('/service/app/domain', {
-					params: { service_id: serviceId }
-				})
-				.then((res) => res.data.data),
-		enabled: serviceId !== ''
-	}));
+	return createQuery(() => {
+		const serviceId = getServiceId();
+		return {
+			queryKey: ['branch-domain', serviceId],
+			queryFn: async () =>
+				api
+					.get<ApiRes<GetBranchDomainRes>>('/service/app/domain', {
+						params: { service_id: serviceId }
+					})
+					.then((res) => res.data.data),
+			enabled: serviceId !== ''
+		};
+	});
 }
 
 export function useGetServiceEnvQuery(getServiceId: () => string) {
-	const serviceId = getServiceId();
-	return createQuery(() => ({
-		queryKey: ['service-env', serviceId],
-		queryFn: async () =>
-			api
-				.get<ApiRes<GetEnvRes>>('/service/app/env', {
-					params: { service_id: serviceId }
-				})
-				.then((res) => res.data.data),
-		enabled: serviceId !== ''
-	}));
+	return createQuery(() => {
+		const serviceId = getServiceId();
+		return {
+			queryKey: ['service-env', serviceId],
+			queryFn: async () =>
+				api
+					.get<ApiRes<GetEnvRes>>('/service/app/env', {
+						params: { service_id: serviceId }
+					})
+					.then((res) => res.data.data),
+			enabled: serviceId !== ''
+		};
+	});
 }
 
 export function useGetPsqlServiceDetailsQuery(getID: () => string) {
-	const serviceId = getID();
-	return createQuery(() => ({
-		queryKey: ['psql-service-details', serviceId],
-		queryFn: async () =>
-			api
-				.get<ApiRes<PsqlServiceDetails>>(`/service/psql/${serviceId}`)
-				.then((res) => res.data.data),
-		enabled: serviceId !== ''
-	}));
+	return createQuery(() => {
+		const serviceId = getID();
+		return {
+			queryKey: ['psql-service-details', serviceId],
+			queryFn: async () =>
+				api
+					.get<ApiRes<PsqlServiceDetails>>(`/service/psql/${serviceId}`)
+					.then((res) => res.data.data),
+			enabled: serviceId !== ''
+		};
+	});
 }

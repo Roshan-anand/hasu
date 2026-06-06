@@ -11,11 +11,13 @@
 		useRollbackServiceMutation
 	} from '@/features/deployments/mutation.svelte';
 	import { useGetAppServiceDetailsQuery } from '@/features/services/query.svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import type { ServiceType } from '@/types';
 
-	let { serviceId }: { serviceId: string } = $props();
+	let { serviceID, project }: { serviceID: string; project: string } = $props();
 
-	// query to fetch service details based on service type and id
-	const serviceQuery = useGetAppServiceDetailsQuery(() => serviceId);
+	const serviceQuery = useGetAppServiceDetailsQuery(() => serviceID);
 	const rebuildService = useRebuildServiceMutation();
 	const rollBackService = useRollbackServiceMutation();
 
@@ -30,7 +32,7 @@
 {:else if serviceQuery.isError}
 	<p class="text-red-500">Failed to load service details</p>
 {:else if serviceQuery.data}
-	{@const { name, branch_name, gh_repo_name, created_at, commit_msg, status, branch_id, domain } =
+	{@const { name, branch, gh_repo_name, created_at, commit_msg, status, domain } =
 		serviceQuery.data}
 	<Card class="flex-1 mb-5">
 		<CardContent>
@@ -46,16 +48,29 @@
 
 					<div>
 						<Button
+							disabled={rebuildService.isPending}
 							onclick={() =>
-								rebuildService.mutate({
-									branch_id
-								})}
-							disabled={rebuildService.isPending}>Redeploy</Button
+								rebuildService.mutate(
+									{
+										service_id: serviceID
+									},
+									{
+										onSuccess: ({ data }) => {
+											goto(
+												resolve('/(protected)/[project]/[service_type]/[service]?tab=deployment', {
+													service_type: 'app' as ServiceType,
+													project,
+													service: data
+												})
+											);
+										}
+									}
+								)}>Redeploy</Button
 						>
 						<Button
 							onclick={() =>
 								rollBackService.mutate({
-									branch_id
+									service_id: serviceID
 								})}
 							disabled={rollBackService.isPending}>Rollback</Button
 						>
@@ -64,7 +79,7 @@
 				<p class="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
 					<Icon icon="mingcute:git-branch-line" />
 					<span>{gh_repo_name}</span>
-					<span>{branch_name}</span>
+					<span>{branch}</span>
 					{#if domain === ''}
 						<span>No domain specified</span>
 					{:else}
@@ -101,7 +116,7 @@
 					<span> application logs </span>
 				</Collapsible.Trigger>
 				<Collapsible.Content>
-					<AppLogs branchId={branch_id} {open} />
+					<AppLogs {serviceID} {open} />
 				</Collapsible.Content>
 			</Collapsible.Root>
 		</CardContent>

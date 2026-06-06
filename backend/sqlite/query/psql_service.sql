@@ -1,7 +1,7 @@
 -- name: CreatePsqlService :one
-INSERT INTO psql_service (id, project_id, type, swarm_service_name, name, db_name, db_user, db_password, internal_url, image, volume)
+INSERT INTO psql_service (id, instance_id, type, swarm_service, name, db_name, db_user, db_password, internal_url, image, volume)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id;
+RETURNING id, name, type;
 
 -- name: AssociateVolumeWithPsql :exec
 UPDATE psql_service
@@ -9,10 +9,11 @@ SET volume = ?
 WHERE id = ?;
 
 -- name: GetPsqlServiceById :one
-SELECT ps.*, pr.organization_id
+SELECT ps.*, p.organization_id
 FROM psql_service ps
-JOIN project pr ON ps.project_id = pr.id
-WHERE ps.id = ?;
+JOIN instance i ON i.id = ps.instance_id
+JOIN project p ON p.id = i.project_id
+WHERE ps.id = @service_id;
 
 -- name: DeletePsqlService :exec
 DELETE FROM psql_service

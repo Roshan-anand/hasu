@@ -25,7 +25,7 @@ func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.De
 
 			l.PublishLog(&logbrokerqueue.PubData{
 				ID:  d.DeploymentID,
-				Msg: getTitle("Deploying  the service " + d.SwarmServiceName),
+				Msg: getTitle("Deploying  the service " + d.SwarmService),
 			})
 
 			// create network if not exist
@@ -40,7 +40,7 @@ func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.De
 			}
 
 			// get the service spec
-			spec := getBaseSpec(d.ImgName, d.NetworkName, d.SwarmServiceName, d.Env, d.IsPublic)
+			spec := getBaseSpec(d.ImgName, d.NetworkName, d.SwarmService, d.Env, d.IsPublic)
 
 			_, err := docker.ServiceCreate(context.Background(), *spec, swarm.ServiceCreateOptions{})
 			if err != nil {
@@ -53,7 +53,7 @@ func (w *worker) DeployWorker(ctx context.Context, data chan *deploymentqueue.De
 				continue
 			}
 
-			fmt.Println("finished deploying :", d.SwarmServiceName)
+			fmt.Println("finished deploying :", d.SwarmService)
 			// end the logs
 			l.EndLogs(&logbrokerqueue.EndLogData{
 				DeploymentID: d.DeploymentID,

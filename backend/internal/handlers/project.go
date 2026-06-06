@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/Roshan-anand/godploy/internal/config"
@@ -45,7 +46,7 @@ func InitProjectHandlers(s *config.Server) *ProjectHandler {
 // route: POST /api/project
 func (h *ProjectHandler) CreateProject(c *echo.Context) error {
 	u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
-	b := new(CreateOrgReq)
+	b := new(CreateProjectReq)
 	q := h.Server.DB.Queries
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
@@ -67,22 +68,44 @@ func (h *ProjectHandler) CreateProject(c *echo.Context) error {
 		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Project with this name already exists in the organization"})
 	}
 
-	networkName := b.Name + "_network"
-
-	// create a network
-	if err := h.Server.Docker.CreateNetwork(networkName); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create network for project"})
+	tx, err := h.Server.DB.Pool.BeginTx(h.qCtx, nil)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to start database transaction"})
 	}
+	tq := q.WithTx(tx)
 
 	// create a new project
-	project, err := q.CreateProject(h.qCtx, db.CreateProjectParams{
+	project, err := tq.CreateProject(h.qCtx, db.CreateProjectParams{
 		ID:             security.GeneratePrimaryKey(),
 		Name:           b.Name,
-		NetworkName:    networkName,
 		OrganizationID: org.ID,
 	})
 	if err != nil {
+		tx.Rollback()
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create project"})
+	}
+
+	// create a network
+	networkName := b.Name + "_network"
+	if err := h.Server.Docker.CreateNetwork(networkName); err != nil {
+		tx.Rollback()
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create network for project"})
+	}
+
+	// create a default production instance
+	if err := tq.CreateInstance(h.qCtx, db.CreateInstanceParams{
+		ID:           security.GeneratePrimaryKey(),
+		Name:         "production",
+		ProjectID:    project.ID,
+		Network:      networkName,
+		IsProduction: true,
+	}); err != nil {
+		tx.Rollback()
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create default instance for project"})
+	}
+
+	if err := tx.Commit(); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to commit database transaction"})
 	}
 
 	return c.JSON(http.StatusOK, types.Res[db.CreateProjectRow]{Message: "", Data: project})
@@ -99,12 +122,13 @@ func (h *ProjectHandler) GetAllProject(c *echo.Context) error {
 
 	projects, err := h.Server.DB.Queries.GetAllProjects(h.qCtx, orgID)
 	if err != nil {
+		fmt.Println("Error fetching projects:", err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{
 			Message: "internal server error",
 		})
 	}
 
-	return c.JSON(http.StatusOK, types.Res[[]db.Project]{
+	return c.JSON(http.StatusOK, types.Res[[]db.GetAllProjectsRow]{
 		Message: "",
 		Data:    projects,
 	})
@@ -116,32 +140,35 @@ func (h *ProjectHandler) GetAllProject(c *echo.Context) error {
 func (h *ProjectHandler) DeleteProject(c *echo.Context) error {
 	b := new(DeleteProjectReq)
 	q := h.Server.DB.Queries
-	docker := h.Server.Docker.Client
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
 	// check if project has any services running
-	if exists, err := q.CheckProjectHasServices(h.qCtx, b.ProjectID); err != nil {
+	if exists, err := q.CheckProjectHasService(h.qCtx, b.ProjectID); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "internal server error"})
 	} else if exists {
-		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Cannot delete project with active services"})
+		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Cannot delete project with active instance"})
 	}
 
 	// delete the project network
-	networkName, err := q.GetProjectNetwork(h.qCtx, b.ProjectID)
+	networks, err := q.GetAllNetworksByProjectId(h.qCtx, b.ProjectID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get project network"})
 	}
 
-	if err := docker.NetworkRemove(h.qCtx, networkName); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to delete project network"})
-	}
+	go h.Server.Docker.RemoveNetwork(networks)
 
 	if err := q.DeleteProject(h.qCtx, b.ProjectID); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to delete project"})
 	}
 
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "project deleted successfully"})
+}
+
+// TODO : make route to shut down an instance
+// by remving all the services,swarm service, volumes etc
+func (h *ProjectHandler) ShutDownInstance(c *echo.Context) error {
+	return nil
 }

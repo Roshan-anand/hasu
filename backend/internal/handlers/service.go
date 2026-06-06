@@ -37,16 +37,17 @@ func InitServiceHandlers(s *config.Server) *ServiceHandler {
 
 // get all services of a project
 //
-// route: GET /api/service?project_id=
+// route: GET /api/service/all?instace_id=
 func (h *ServiceHandler) GetAllServices(c *echo.Context) error {
 	q := h.Server.DB.Queries
 
-	projectID, err := uuid.Parse(c.QueryParam("project_id"))
+	instanceID, err := uuid.Parse(c.QueryParam("instance_id"))
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid project_id"})
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid instance_id"})
 	}
 
-	services, err := q.GetAllService(h.qCtx, projectID)
+	// get all services of the project
+	services, err := q.GetAllService(h.qCtx, instanceID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to get services"})
 	}
@@ -57,18 +58,49 @@ func (h *ServiceHandler) GetAllServices(c *echo.Context) error {
 	})
 }
 
+// get all services of a project
+//
+// route: GET /api/service/:name?instance_id=
+func (h *ServiceHandler) GetServiceID(c *echo.Context) error {
+	q := h.Server.DB.Queries
+
+	name := c.Param("name")
+	if name == "" {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "service name is required"})
+	}
+
+	instanceID, err := uuid.Parse(c.QueryParam("instance_id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid project_id"})
+	}
+
+	// get all services of the project
+	serviceID, err := q.GetServiceID(h.qCtx, db.GetServiceIDParams{
+		InstanceID: instanceID,
+		Name:       name,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to get services"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res[uuid.UUID]{
+		Message: "",
+		Data:    serviceID,
+	})
+}
+
 // get service logs
 //
-// route: GET /api/service/logs?branch_id
+// route: GET /api/service/logs?service_id
 func (h *ServiceHandler) GetServiceLogs(c *echo.Context) error {
 	q := h.Server.DB.Queries
 
-	branchID, err := uuid.Parse(c.QueryParam("branch_id"))
+	serviceID, err := uuid.Parse(c.QueryParam("service_id"))
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid branch_id"})
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid service id"})
 	}
 
-	swarmService, err := q.GetSwarmServiceByBranchId(h.qCtx, branchID)
+	swarmService, err := q.GetSwarmServiceByServiceId(h.qCtx, serviceID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to get swarm service"})
 	}

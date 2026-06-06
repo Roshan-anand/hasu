@@ -5,12 +5,12 @@
 	import { useServiceDeploymentsQuery } from '@/features/deployments/query.svelte';
 	import DeployementLogs from './deployement_logs.svelte';
 
-	let { serviceId }: { serviceId: string } = $props();
+	let { serviceID }: { serviceID: string } = $props();
 
 	// so the list updates immediately without waiting for a refetch.
-	const deploymentsQuery = useServiceDeploymentsQuery(() => serviceId);
+	const deploymentsQuery = useServiceDeploymentsQuery(() => serviceID);
 
-	const deleteDeploymentMutation = useDeleteDeploymentMutation(() => serviceId);
+	const deleteDeploymentMutation = useDeleteDeploymentMutation(() => serviceID);
 
 	function deleteDeployment(deploymentId: string) {
 		if (deleteDeploymentMutation.isPending) return;

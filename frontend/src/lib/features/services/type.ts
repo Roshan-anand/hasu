@@ -1,11 +1,6 @@
 import type { AppServiceName, PsqlServiceName, ServiceType } from '@/types';
 import type { DeploymentStatus } from '../deployments/type';
 
-export type CreateServiceResponse = {
-	id: string;
-	type: ServiceType;
-};
-
 type ServiceListBase = {
 	id: string;
 	name: string;
@@ -62,6 +57,11 @@ export type GithubRepo = {
 
 export type GetReposPayload = { provider: GitProviderOption; appId: number };
 
+export type CreateServiceResponse = {
+	name: string;
+	type: ServiceType;
+};
+
 export type CreateAppServiceBody = {
 	name: string;
 	git_provider: GitProviderKey;
@@ -89,7 +89,7 @@ export type CreateServicePayload = CreateAppServiceBody & {
 	env: string[];
 	build_args: string[];
 	build_secrets: string[];
-	project_id: string;
+	instance_id: string;
 };
 
 export type CreatePsqlServiceBody = {
@@ -103,13 +103,13 @@ export type CreatePsqlServiceBody = {
 };
 
 export type CreatePsqlServicePayload = CreatePsqlServiceBody & {
-	project_id: string;
+	instance_id: string;
 };
 
 export type PsqlServiceDetails = {
 	id: string;
 	name: string;
-	swarm_service_name: string;
+	swarm_service: string;
 	db_name: string;
 	db_user: string;
 	db_password: string;
@@ -136,23 +136,29 @@ export type AppServiceDetails = {
 	gh_repo_url: string;
 	status: DeploymentStatus;
 	commit_msg: string;
-	branch_id: string;
-	branch_name: string;
+	branch: string;
+	swarm_service: string;
 	domain: string;
 	created_at: string;
 };
 
 // branch domain types
 export type BranchDomainDetails = {
-	branch_id: string;
-	branch_name: string;
+	service_id: string;
 	domain: string;
 	port: number;
 };
 
-export type UpdateBranchDomainPayload = Omit<BranchDomainDetails, 'branch_name'>;
+export type UpdateBranchDomainPayload = {
+	service_id: string;
+	domain: string;
+	port: number;
+};
 
-export type GetBranchDomainRes = BranchDomainDetails[];
+export type GetBranchDomainRes = {
+	domain: string;
+	port: number;
+};
 
 // service env types
 export type UpdateEnvPayload = {

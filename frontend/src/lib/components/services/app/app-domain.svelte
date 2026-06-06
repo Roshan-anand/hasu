@@ -7,17 +7,28 @@
 	import { useGetBranchDomainQuery } from '@/features/services/query.svelte';
 	import { useUpdateBranchDomainMutation } from '@/features/services/mutation.svelte';
 
-	let { serviceId }: { serviceId: string } = $props();
+	let { serviceID }: { serviceID: string } = $props();
 
-	const branchQuery = useGetBranchDomainQuery(() => serviceId);
-	const updateDomainMutation = useUpdateBranchDomainMutation(() => serviceId);
+	const domainQuery = useGetBranchDomainQuery(() => serviceID);
+	const updateDomainMutation = useUpdateBranchDomainMutation(() => serviceID);
 
-	function submitDomain(branchId: string, domain: string, port: number) {
-		if (updateDomainMutation.isPending || branchId === '' || domain === '' || Number.isNaN(port))
-			return;
+	let domainInput = $state('');
+	let portInput = $state('');
+
+	$effect(() => {
+		if (domainQuery.data) {
+			domainInput = domainQuery.data.domain;
+			portInput = domainQuery.data.port.toString();
+		}
+	});
+
+	function submitDomain() {
+		const domain = domainInput.trim();
+		const port = Number(portInput);
+		if (updateDomainMutation.isPending || domain === '' || Number.isNaN(port)) return;
 
 		updateDomainMutation.mutate({
-			branch_id: branchId,
+			service_id: serviceID,
 			domain,
 			port
 		});
@@ -29,76 +40,50 @@
 		<CardTitle>Domain</CardTitle>
 	</CardHeader>
 	<CardContent>
-		{#if branchQuery.isPending}
+		{#if domainQuery.isPending}
 			<div class="flex flex-col gap-3">
 				<Skeleton class="h-9 w-full" />
 				<Skeleton class="h-9 w-full" />
 			</div>
-		{:else if branchQuery.isError}
+		{:else if domainQuery.isError}
 			<p class="text-sm text-red-500">Failed to load domain details</p>
-		{:else if !branchQuery.data || branchQuery.data.length === 0}
-			<p class="text-sm text-muted-foreground">No branches found for this service</p>
-		{:else}
-			<div class="flex flex-col gap-4">
-				{#each branchQuery.data as branch (branch.branch_id)}
-					{@const portId = `port-${branch.branch_id}`}
-					{@const domainId = `domain-${branch.branch_id}`}
-					<Card class="border-muted">
-						<CardHeader>
-							<CardTitle class="text-base">{branch.branch_name}</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<form
-								class="flex flex-col gap-4"
-								onsubmit={(e) => {
-									e.preventDefault();
-									const form = e.currentTarget as HTMLFormElement;
-									const formData = new FormData(form);
-									const domain = formData.get(domainId);
-									const port = formData.get(portId);
+		{:else if domainQuery.data}
+			<form
+				class="flex flex-col gap-4"
+				onsubmit={(e) => {
+					e.preventDefault();
+					submitDomain();
+				}}
+			>
+				<div class="space-y-1.5">
+					<Label for="domain-input">Domain</Label>
+					<Input
+						id="domain-input"
+						placeholder="example.com"
+						bind:value={domainInput}
+						required
+						disabled={updateDomainMutation.isPending}
+					/>
+				</div>
 
-									console.log('btn branch is :', branch.branch_id);
-									if (!domain || !port || !branch.branch_id) return;
-									const portnum = Number(port);
+				<div class="space-y-1.5">
+					<Label for="port-input">Port</Label>
+					<Input
+						id="port-input"
+						placeholder="80"
+						required
+						type="number"
+						bind:value={portInput}
+						disabled={updateDomainMutation.isPending}
+					/>
+				</div>
 
-									submitDomain(branch.branch_id, domain as string, portnum);
-								}}
-							>
-								<div class="space-y-1.5">
-									<Label for={domainId}>Domain</Label>
-									<Input
-										id={domainId}
-										name={domainId}
-										placeholder="example.com"
-										defaultValue={branch.domain}
-										required
-										disabled={updateDomainMutation.isPending}
-									/>
-								</div>
-
-								<div class="space-y-1.5">
-									<Label for={portId}>Port</Label>
-									<Input
-										id={portId}
-										name={portId}
-										placeholder="80"
-										required
-										type="number"
-										defaultValue={branch.port}
-										disabled={updateDomainMutation.isPending}
-									/>
-								</div>
-
-								<div class="flex items-center justify-end">
-									<Button type="submit" disabled={updateDomainMutation.isPending}>
-										{updateDomainMutation.isPending ? 'Updating...' : 'Update'}
-									</Button>
-								</div>
-							</form>
-						</CardContent>
-					</Card>
-				{/each}
-			</div>
+				<div class="flex items-center justify-end">
+					<Button type="submit" disabled={updateDomainMutation.isPending}>
+						{updateDomainMutation.isPending ? 'Updating...' : 'Update'}
+					</Button>
+				</div>
+			</form>
 		{/if}
 	</CardContent>
 </Card>

@@ -25,11 +25,11 @@ func (w *worker) ReDeployWorker(ctx context.Context, data chan *deploymentqueue.
 
 			l.PublishLog(&logbrokerqueue.PubData{
 				ID:  d.DeploymentID,
-				Msg: "Redeploying  the service " + d.SwarmServiceName,
+				Msg: "Redeploying  the service " + d.SwarmService,
 			})
 
 			// get the swarm service spec
-			res, _, err := docker.ServiceInspectWithRaw(w.qCtx, d.SwarmServiceName, swarm.ServiceInspectOptions{})
+			res, _, err := docker.ServiceInspectWithRaw(w.qCtx, d.SwarmService, swarm.ServiceInspectOptions{})
 			if err != nil {
 				fmt.Printf("DeployWorker: error inspecting service: %v\n", err)
 				l.EndLogs(&logbrokerqueue.EndLogData{
@@ -49,7 +49,7 @@ func (w *worker) ReDeployWorker(ctx context.Context, data chan *deploymentqueue.
 			}
 
 			// update the service with the new spec
-			if _, err := docker.ServiceUpdate(w.qCtx, d.SwarmServiceName, version, spec, swarm.ServiceUpdateOptions{}); err != nil {
+			if _, err := docker.ServiceUpdate(w.qCtx, d.SwarmService, version, spec, swarm.ServiceUpdateOptions{}); err != nil {
 				fmt.Printf("DeployWorker: error updating service: %v\n", err)
 				l.EndLogs(&logbrokerqueue.EndLogData{
 					DeploymentID: d.DeploymentID,

@@ -246,7 +246,6 @@ func (h *GitHandler) SetupGithubApp(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to setup github app"})
 	}
 
-	// TODO : update the url to route to git provider page with success message
 	return c.Redirect(http.StatusFound, h.Server.Config.WebUrl+"/#/git")
 }
 
@@ -464,8 +463,8 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 		branch := strings.TrimPrefix(pushEvent.GetRef(), "refs/heads/")
 
 		services, err := q.GetAllAppServicesByRepo(h.qCtx, db.GetAllAppServicesByRepoParams{
-			GhRepoID:   repo.GetID(),
-			BranchName: branch,
+			GhRepoID: repo.GetID(),
+			Branch:   branch,
 		})
 		if err != nil {
 			return nil
@@ -473,7 +472,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 
 		// TODO : make downgraddeployment, creatdeployment, generting gh token, unmarshiling env actions inside the worker as it is a redundant process
 		for _, s := range services {
-			fmt.Println("starting webhook job for :", s.Name, s.BranchName)
+			fmt.Println("starting webhook job for :", s.Name, s.Branch)
 			// TODO : check if watch path matches the pushed code commit
 
 			// start a new db transaction
@@ -504,7 +503,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 			// create a new deployment
 			dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 				ID:         security.GeneratePrimaryKey(),
-				BranchID:   s.BranchID,
+				ServiceID:  s.ServiceID,
 				CommitHash: pushEvent.GetAfter(),
 				CommitMsg:  pushEvent.GetHeadCommit().GetMessage(),
 				IsCurrent:  true,
@@ -524,7 +523,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 			}
 
 			// used as unique image and service name
-			unique := generateServiceAndImgName(s.Name, s.BranchName)
+			unique := generateServiceAndImgName(s.Name, s.Branch)
 
 			envStr, err := UnmarshalServiceEnv(&ServiceEnvByte{
 				Env:          s.Env,
@@ -547,8 +546,8 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 				DeploymentID:      dID,
 				Token:             gh.Token,
 				Url:               s.GhRepoUrl,
-				Branch:            s.BranchName,
-				SwarmServiceName:  s.SwarmServiceName,
+				Branch:            s.Branch,
+				SwarmService:      s.SwarmService,
 				BuildPath:         s.BuildPath,
 				DockerFilePath:    s.DockerFilepath,
 				DockerContextPath: s.DockerContextpath,

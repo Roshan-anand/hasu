@@ -76,14 +76,15 @@ func (d *DockerClient) RemoveImages(imgs []string) {
 }
 
 // helper function to remove multiple services
-func (d *DockerClient) RemoveServices(swarmServiceNames map[string]struct{}) {
-	for s := range swarmServiceNames {
+func (d *DockerClient) RemoveServices(SwarmService map[string]struct{}) {
+	for s := range SwarmService {
 		if err := d.Client.ServiceRemove(context.Background(), s); err != nil {
 			fmt.Printf("failed to remove service %s : %v\n", s, err)
 		}
 	}
 }
 
+// helper function to create network if not exist
 func (d *DockerClient) CreateNetwork(networkName string) error {
 	_, err := d.Client.NetworkInspect(context.Background(), networkName, network.InspectOptions{})
 	if err != nil {
@@ -104,4 +105,13 @@ func (d *DockerClient) CreateNetwork(networkName string) error {
 		}
 	}
 	return nil
+}
+
+// helper function to remove networks
+func (d *DockerClient) RemoveNetwork(networks []string) {
+	for _, n := range networks {
+		if err := d.Client.NetworkRemove(context.Background(), n); err != nil {
+			fmt.Printf("failed to remove network %s : %v\n", n, err)
+		}
+	}
 }

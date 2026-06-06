@@ -45,7 +45,7 @@ sql:
               import: "github.com/google/uuid"
               type: "NullUUID"
 
-          - column: app_service_branch.port
+          - column: app_service.port
             go_type:
               type: "int32"
               

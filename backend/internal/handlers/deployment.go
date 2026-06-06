@@ -138,20 +138,20 @@ func (h *DeploymentHandler) SubscribeServiceDeploymentLogs(c *echo.Context) erro
 //
 // route: POST /api/service/app/rebuild
 func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
-	b := new(RebuildServiceReq)
+	b := new(ServiceReq)
 	q := h.Server.DB.Queries
 
 	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
-	service, err := q.GetAppServiceByBranchId(h.qCtx, b.BranchID)
+	s, err := q.GetAppServiceById(h.qCtx, b.ServiceId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch"})
 	}
 
 	var newStatus types.DeploymentStatus
-	switch service.DeploymentStatus {
+	switch s.DeploymentStatus {
 	case types.DeploymentQueued, types.DeploymentBuilding:
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Deployment is in progress, cannot rebuild now"})
 	case types.DeploymentReady:
@@ -169,7 +169,7 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 
 	// update the previous deployment is_latest to false
 	if err := tq.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
-		DeploymentID: service.DeploymentID,
+		DeploymentID: s.DeploymentID,
 		Status:       newStatus,
 	}); err != nil {
 		tx.Rollback()
@@ -177,22 +177,22 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 	}
 
 	// create a new github client
-	gh, err := ghservice.New(tq, service.GhAppID)
+	gh, err := ghservice.New(tq, s.GhAppID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: fmt.Sprintf("github app with app id %d not found", service.GhAppID)})
+			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: fmt.Sprintf("github app with app id %d not found", s.GhAppID)})
 		}
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github client"})
 	}
 
 	// get the github repository details
-	repo, err := gh.GetRepo(service.GhRepoID)
+	repo, err := gh.GetRepo(s.GhRepoID)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch repository info from github"})
 	}
 
 	// get the latest commit info of the default branch
-	commit, err := gh.GetLatestCommit(repo.Owner, repo.Name, service.BranchName)
+	commit, err := gh.GetLatestCommit(repo.Owner, repo.Name, s.Branch)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch latest commit info from github"})
 	}
@@ -200,7 +200,7 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 	// create a new deployment for the app service
 	dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 		ID:         security.GeneratePrimaryKey(),
-		BranchID:   service.BranchID,
+		ServiceID:  s.ID,
 		CommitMsg:  commit.Message,
 		CommitHash: commit.Hash,
 		IsCurrent:  true,
@@ -211,12 +211,12 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 	}
 
 	// used as unique image and service name
-	unique := generateServiceAndImgName(service.Name, service.BranchName)
+	unique := generateServiceAndImgName(s.Name, s.Branch)
 
 	envStr, err := UnmarshalServiceEnv(&ServiceEnvByte{
-		Env:          service.Env,
-		BuildArgs:    service.BuildArgs,
-		BuildSecrets: service.BuildSecrets,
+		Env:          s.Env,
+		BuildArgs:    s.BuildArgs,
+		BuildSecrets: s.BuildSecrets,
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch domain"})
@@ -232,20 +232,20 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 		Type:              deploymentqueue.RebuildJob,
 		DeploymentID:      dID,
 		Token:             gh.Token,
-		Url:               service.GhRepoUrl,
-		Branch:            service.BranchName,
-		SwarmServiceName:  service.SwarmServiceName,
-		BuildPath:         service.BuildPath,
-		DockerFilePath:    service.DockerFilepath,
-		DockerContextPath: service.DockerContextpath,
-		DockerBuildStage:  service.DockerBuildstage,
+		Url:               s.GhRepoUrl,
+		Branch:            s.Branch,
+		SwarmService:      s.SwarmService,
+		BuildPath:         s.BuildPath,
+		DockerFilePath:    s.DockerFilepath,
+		DockerContextPath: s.DockerContextpath,
+		DockerBuildStage:  s.DockerBuildstage,
 		ImgName:           unique.ImgName,
 		Env:               envStr.Env,
 		BuildArgs:         envStr.BuildArgs,
 		BuildSecrets:      envStr.BuildSecrets,
 	})
 
-	return c.JSON(http.StatusOK, types.Res[uuid.UUID]{Message: "Successfully updated env", Data: service.ServiceID})
+	return c.JSON(http.StatusOK, types.Res[string]{Message: "Successfully updated env", Data: s.Name})
 }
 
 // rollback app service to previous deployment
@@ -260,7 +260,7 @@ func (h *DeploymentHandler) RollbackAppService(c *echo.Context) error {
 	}
 
 	// get all deployments
-	deployments, err := q.GetDeploymentsByBranchID(h.qCtx, b.BranchID)
+	deployments, err := q.GetDeploymentsByServiceID(h.qCtx, b.ServiceID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get deployments"})
 	}
@@ -303,9 +303,9 @@ func (h *DeploymentHandler) RollbackAppService(c *echo.Context) error {
 			if newDyp.Status != types.DeploymentPruned && newDyp.Image.Valid {
 
 				h.Server.DeploymentQ.EnqueueRedeployJob(&deploymentqueue.RedeployJobData{
-					DeploymentID:     newDyp.ID,
-					ImgName:          newDyp.Image.String,
-					SwarmServiceName: newDyp.SwarmServiceName,
+					DeploymentID: newDyp.ID,
+					ImgName:      newDyp.Image.String,
+					SwarmService: newDyp.SwarmService,
 				})
 
 			} else {

@@ -15,10 +15,9 @@
 	let searchQuery = $state('');
 
 	const { data } = $props();
-	const projectId = $derived(data.project_id);
-	const servicesQuery = useGetAllServicesQuery(() => projectId);
+	const servicesQuery = useGetAllServicesQuery();
 
-	const getProjectID = () => projectId;
+	const getProjectName = () => data.projectName;
 
 	// to filter services based on search input
 	const filteredServices = $derived.by(() => {
@@ -33,14 +32,14 @@
 	const createOptions = [
 		{
 			name: 'Application',
-			link: resolve('/(protected)/(core)/project/[project_id]/new/app', {
-				project_id: getProjectID()
+			link: resolve('/(protected)/[project]/new/app', {
+				project: getProjectName()
 			})
 		},
 		{
 			name: 'DB',
-			link: resolve('/(protected)/(core)/project/[project_id]/new/db', {
-				project_id: getProjectID()
+			link: resolve('/(protected)/[project]/new/db', {
+				project: getProjectName()
 			})
 		}
 	];
@@ -91,9 +90,10 @@
 					class="rounded-lg border bg-card text-card-foreground shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer relative"
 				>
 					<a
-						href={resolve('/(protected)/(core)/[service_type]/[service_id]', {
+						href={resolve('/(protected)/[project]/[service_type]/[service]', {
 							service_type: service.type,
-							service_id: service.id
+							service: service.id,
+							project: getProjectName()
 						})}
 						class="absolute z-10 size-full inset-0 text-transparent"
 						title="open service"
@@ -104,9 +104,9 @@
 							<p class="text-xs uppercase text-muted-foreground">{service.type}</p>
 						</div>
 						{#if service.type === 'app'}
-							<AppDeletion {projectId} serviceId={service.id} name={service.name} />
+							<AppDeletion serviceId={service.id} name={service.name} />
 						{:else if service.type === 'psql'}
-							<DbDeletion {projectId} serviceId={service.id} name={service.name} />
+							<DbDeletion serviceId={service.id} name={service.name} />
 						{/if}
 					</div>
 				</div>

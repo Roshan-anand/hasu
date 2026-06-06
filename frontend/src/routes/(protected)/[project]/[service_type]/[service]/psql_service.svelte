@@ -15,24 +15,24 @@
 	import FormError from '@/components/services/FormError.svelte';
 	import type { UpdatePsqlServicePayload } from '@/features/services/type';
 
-	const { serviceId }: { serviceId: string } = $props();
+	const { serviceID }: { serviceID: string } = $props();
 
-	const serviceQuery = useGetPsqlServiceDetailsQuery(() => serviceId);
-	const updatePsqlService = useUpdatePsqlServiceMutation(() => serviceId);
+	const serviceQuery = useGetPsqlServiceDetailsQuery(() => serviceID);
+	const updatePsqlService = useUpdatePsqlServiceMutation(() => serviceID);
 	const redeployPsqlService = useRedeployPsqlServiceMutation();
 
 	let isPasswordVisible = $state(false);
 
 	const form = createForm(() => ({
 		defaultValues: {
-			service_id: serviceId,
+			service_id: serviceID,
 			db_name: '',
 			db_user: '',
 			db_password: ''
 		} as UpdatePsqlServicePayload,
 		onSubmit: ({ value }) => {
 			updatePsqlService.mutate({
-				service_id: serviceId,
+				service_id: serviceID,
 				db_name: value.db_name.trim(),
 				db_user: value.db_user.trim(),
 				db_password: value.db_password
@@ -73,7 +73,7 @@
 					</div>
 					<Button
 						variant="outline"
-						onclick={() => redeployPsqlService.mutate({ service_id: serviceId })}
+						onclick={() => redeployPsqlService.mutate({ service_id: serviceID })}
 						disabled={redeployPsqlService.isPending}
 					>
 						{redeployPsqlService.isPending ? 'Redeploying...' : 'Redeploy'}

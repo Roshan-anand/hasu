@@ -46,19 +46,14 @@ SELECT CAST(EXISTS(
 ) AS BOOLEAN);
 
 -- name: CreateProject :one
-INSERT INTO project (id, organization_id, name, network_name)
-VALUES (?, ?, ?, ?)
-RETURNING id, name;
+INSERT INTO project (id, organization_id, name)
+VALUES (?, ?, ?)
+RETURNING id, name, created_at;
 
 -- name: GetAllProjects :many
-SELECT *
+SELECT id, name, created_at
 FROM project
 WHERE organization_id = ?;
-
--- name: GetProjectNetwork :one
-SELECT network_name
-FROM project
-WHERE id = @project_id;
 
 -- name: CheckProjectExists :one
 SELECT CAST(EXISTS(
@@ -67,17 +62,55 @@ SELECT CAST(EXISTS(
     WHERE organization_id = ? AND name = @project_name
 ) AS BOOLEAN);
 
--- name: CheckProjectHasServices :one
+-- name: CheckProjectHasInstance :one
 SELECT CAST(EXISTS(
     SELECT 1
-    FROM app_service aps
-    WHERE aps.project_id = @project_id
-    UNION ALL
-    SELECT 1
-    FROM psql_service ps
-    WHERE ps.project_id = @project_id
+    FROM instance
+    WHERE project_id = ?
 ) AS BOOLEAN);
 
 -- name: DeleteProject :exec
 DELETE FROM project
 WHERE id = ?;
+
+-- name: CreateInstance :exec
+INSERT INTO instance (id, project_id, is_production, name, network)
+VALUES (?, ?, ?, ?, ?);
+
+-- name: GetAllInstance :many
+SELECT i.id, i.name, i.is_production
+FROM instance i
+JOIN project p ON i.project_id = p.id
+WHERE p.organization_id = ? AND p.name = @project;
+
+-- name: CheckInstanceExists :one
+SELECT CAST(EXISTS(
+    SELECT 1
+    FROM instance
+    WHERE project_id = ? AND name = @instance_name
+) AS BOOLEAN);
+
+-- name: CheckInstanceHasServices :one
+SELECT CAST(EXISTS(
+    SELECT 1
+    FROM app_service aps
+    WHERE aps.instance_id = @instance_id
+    UNION ALL
+    SELECT 1
+    FROM psql_service ps
+    where ps.instance_id = @instance_id
+) AS BOOLEAN);
+
+-- name: DeleteInstance :exec
+DELETE FROM instance
+WHERE id = ?;
+
+-- name: GetInstanceNetwork :one
+SELECT network
+FROM instance
+WHERE id = @instance_id;
+
+-- name: GetAllNetworksByProjectId :many
+SELECT network
+FROM instance
+WHERE project_id = ?;

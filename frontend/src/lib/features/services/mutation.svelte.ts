@@ -12,13 +12,13 @@ import type {
 	UpdateEnvPayload,
 	UpdatePsqlServicePayload,
 	DeleteAppServicePayload,
-	DeletePsqlServicePayload
+	DeletePsqlServicePayload,
+	CreateServiceResponse
 } from './type';
-import { goto } from '$app/navigation';
-import { resolve } from '$app/paths';
-import type { ApiRes, ServiceType } from '@/types';
-import { getProjectServicesQueryKey } from './query.svelte';
+import type { ApiRes } from '@/types';
 import { queryClient } from '@/query';
+import { getBaseState } from '../global/store.svelte';
+import { getInstanceServicesQueryKey } from './query.svelte';
 
 export function useGetReposMutation() {
 	return createMutation(() => ({
@@ -35,16 +35,8 @@ export function useGetReposMutation() {
 export function useCreateServiceMutation() {
 	return createMutation(() => ({
 		mutationFn: async (payload: CreateServicePayload) =>
-			api.post<ApiRes<string>>('/service/app', payload).then((res) => res.data),
-		onSuccess: ({ data, message }) => {
-			toast.success(message || 'App Service created successfully');
-			goto(
-				resolve('/(protected)/(core)/[service_type]/[service_id]?tab=deployment', {
-					service_type: 'app' as ServiceType,
-					service_id: data
-				})
-			);
-		},
+			api.post<ApiRes<CreateServiceResponse>>('/service/app', payload).then((res) => res.data),
+		onSuccess: ({ message }) => toast.success(message || 'App Service created successfully'),
 		onError: (error) => axiosErr(error as Error, 'Failed to create service')
 	}));
 }
@@ -52,31 +44,26 @@ export function useCreateServiceMutation() {
 export function useCreatePsqlServiceMutation() {
 	return createMutation(() => ({
 		mutationFn: async (payload: CreatePsqlServicePayload) =>
-			api.post<ApiRes<string>>('/service/psql', payload).then((res) => res.data),
-		onSuccess: ({ message }, { project_id, volume }) => {
+			api.post<ApiRes<CreateServiceResponse>>('/service/psql', payload).then((res) => res.data),
+		onSuccess: ({ message }, { volume }) => {
 			// invalidate orphan volume caches when a reattach happened
 			if (volume) {
 				queryClient.invalidateQueries({ queryKey: ['orphan-volumes'] });
 			}
 			toast.success(message || 'PSQL Service created successfully');
-			goto(
-				resolve('/(protected)/(core)/project/[project_id]', {
-					project_id
-				})
-			);
 		},
 		onError: (error) => axiosErr(error as Error, 'Failed to create service')
 	}));
 }
 
-export function useDeleteAppServiceMutation(getProjectId: () => string) {
-	const projectId = getProjectId();
+export function useDeleteAppServiceMutation() {
 	return createMutation(() => ({
 		mutationFn: async (payload: DeleteAppServicePayload) =>
 			api.delete<ApiRes<null>>('/service/app', { data: payload }).then((res) => res.data),
 		onSuccess: ({ message }, { service_id }) => {
+			const { currentInstance } = getBaseState();
 			queryClient.setQueryData(
-				getProjectServicesQueryKey(projectId),
+				getInstanceServicesQueryKey(currentInstance.id),
 				(cachedRows: ServiceListResponse[] | undefined) => {
 					if (!cachedRows) return [];
 					return cachedRows.filter((row) => row.id !== service_id);
@@ -88,14 +75,14 @@ export function useDeleteAppServiceMutation(getProjectId: () => string) {
 	}));
 }
 
-export function useDeletePsqlServiceMutation(getProjectId: () => string) {
-	const projectId = getProjectId();
+export function useDeletePsqlServiceMutation() {
+	const { currentInstance } = getBaseState();
 	return createMutation(() => ({
 		mutationFn: async (payload: DeletePsqlServicePayload) =>
 			api.delete<ApiRes<null>>('/service/psql', { data: payload }).then((res) => res.data),
 		onSuccess: ({ message }, { service_id }) => {
 			queryClient.setQueryData(
-				getProjectServicesQueryKey(projectId),
+				getInstanceServicesQueryKey(currentInstance.id),
 				(cachedRows: ServiceListResponse[] | undefined) => {
 					if (!cachedRows) return [];
 					return cachedRows.filter((row) => row.id !== service_id);

@@ -15,14 +15,14 @@ import (
 )
 
 const createDeployment = `-- name: CreateDeployment :one
-INSERT INTO deployments (id, branch_id, commit_hash, commit_msg, is_current)
+INSERT INTO deployments (id, service_id, commit_hash, commit_msg, is_current)
 VALUES (?, ?, ?, ?, ?)
 RETURNING id
 `
 
 type CreateDeploymentParams struct {
 	ID         uuid.UUID `json:"id"`
-	BranchID   uuid.UUID `json:"branch_id"`
+	ServiceID  uuid.UUID `json:"service_id"`
 	CommitHash string    `json:"commit_hash"`
 	CommitMsg  string    `json:"commit_msg"`
 	IsCurrent  bool      `json:"is_current"`
@@ -31,7 +31,7 @@ type CreateDeploymentParams struct {
 func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error) {
 	row := q.db.QueryRowContext(ctx, createDeployment,
 		arg.ID,
-		arg.BranchID,
+		arg.ServiceID,
 		arg.CommitHash,
 		arg.CommitMsg,
 		arg.IsCurrent,
@@ -67,41 +67,6 @@ func (q *Queries) DownGradeDeployment(ctx context.Context, arg DownGradeDeployme
 	return err
 }
 
-const getAllDeploymentImgByServiceID = `-- name: GetAllDeploymentImgByServiceID :many
-SELECT d.id, d.image
-FROM deployments d
-JOIN app_service_branch b ON d.branch_id = b.id
-WHERE b.service_id = ?
-`
-
-type GetAllDeploymentImgByServiceIDRow struct {
-	ID    uuid.UUID      `json:"id"`
-	Image sql.NullString `json:"image"`
-}
-
-func (q *Queries) GetAllDeploymentImgByServiceID(ctx context.Context, serviceID uuid.UUID) ([]GetAllDeploymentImgByServiceIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getAllDeploymentImgByServiceID, serviceID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetAllDeploymentImgByServiceIDRow
-	for rows.Next() {
-		var i GetAllDeploymentImgByServiceIDRow
-		if err := rows.Scan(&i.ID, &i.Image); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getDeploymentImgByID = `-- name: GetDeploymentImgByID :one
 SELECT d.id, d.image
 FROM deployments d
@@ -133,65 +98,24 @@ func (q *Queries) GetDeploymentStatus(ctx context.Context, id uuid.UUID) (types.
 	return status, err
 }
 
-const getDeploymentsByBranchID = `-- name: GetDeploymentsByBranchID :many
-SELECT d.id, d.is_current, d.image, d.status, b.swarm_service_name
-FROM deployments d
-JOIN app_service_branch b ON d.branch_id = b.id
-WHERE d.branch_id = ?
-ORDER BY d.created_at DESC
-`
-
-type GetDeploymentsByBranchIDRow struct {
-	ID               uuid.UUID              `json:"id"`
-	IsCurrent        bool                   `json:"is_current"`
-	Image            sql.NullString         `json:"image"`
-	Status           types.DeploymentStatus `json:"status"`
-	SwarmServiceName string                 `json:"swarm_service_name"`
-}
-
-func (q *Queries) GetDeploymentsByBranchID(ctx context.Context, branchID uuid.UUID) ([]GetDeploymentsByBranchIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getDeploymentsByBranchID, branchID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetDeploymentsByBranchIDRow
-	for rows.Next() {
-		var i GetDeploymentsByBranchIDRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.IsCurrent,
-			&i.Image,
-			&i.Status,
-			&i.SwarmServiceName,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getDeploymentsByServiceID = `-- name: GetDeploymentsByServiceID :many
-SELECT d.id, d.status, d.commit_msg, b.branch_name, d.created_at
+SELECT d.id, d.is_current, d.service_id, d.status, d.commit_hash, d.commit_msg, d.image, d.created_at, aps.swarm_service
 FROM deployments d
-JOIN app_service_branch b ON d.branch_id = b.id
-WHERE b.service_id = ?
+JOIN app_service aps ON d.service_id = aps.id
+WHERE d.service_id = ?
 ORDER BY d.created_at DESC
 `
 
 type GetDeploymentsByServiceIDRow struct {
-	ID         uuid.UUID              `json:"id"`
-	Status     types.DeploymentStatus `json:"status"`
-	CommitMsg  string                 `json:"commit_msg"`
-	BranchName string                 `json:"branch_name"`
-	CreatedAt  time.Time              `json:"created_at"`
+	ID           uuid.UUID              `json:"id"`
+	IsCurrent    bool                   `json:"is_current"`
+	ServiceID    uuid.UUID              `json:"service_id"`
+	Status       types.DeploymentStatus `json:"status"`
+	CommitHash   string                 `json:"commit_hash"`
+	CommitMsg    string                 `json:"commit_msg"`
+	Image        sql.NullString         `json:"image"`
+	CreatedAt    time.Time              `json:"created_at"`
+	SwarmService string                 `json:"swarm_service"`
 }
 
 func (q *Queries) GetDeploymentsByServiceID(ctx context.Context, serviceID uuid.UUID) ([]GetDeploymentsByServiceIDRow, error) {
@@ -205,10 +129,14 @@ func (q *Queries) GetDeploymentsByServiceID(ctx context.Context, serviceID uuid.
 		var i GetDeploymentsByServiceIDRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.IsCurrent,
+			&i.ServiceID,
 			&i.Status,
+			&i.CommitHash,
 			&i.CommitMsg,
-			&i.BranchName,
+			&i.Image,
 			&i.CreatedAt,
+			&i.SwarmService,
 		); err != nil {
 			return nil, err
 		}

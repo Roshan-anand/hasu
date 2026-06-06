@@ -7,16 +7,15 @@
 	import { Trash2 } from '@lucide/svelte';
 
 	type Props = {
-		projectId: string;
 		serviceId: string;
 		name: string;
 	};
 
-	let { projectId, serviceId, name }: Props = $props();
+	let { serviceId, name }: Props = $props();
 	let dialogOpen = $state(false);
 	let keepData = $state(true);
 
-	const deletePsqlServiceMutation = useDeletePsqlServiceMutation(() => projectId);
+	const deletePsqlServiceMutation = useDeletePsqlServiceMutation();
 
 	function openDialog() {
 		dialogOpen = true;
@@ -29,7 +28,6 @@
 
 	function deleteService() {
 		if (deletePsqlServiceMutation.isPending) return;
-		console.log('delete service called Keep data:', keepData);
 		deletePsqlServiceMutation.mutate(
 			{
 				service_id: serviceId,

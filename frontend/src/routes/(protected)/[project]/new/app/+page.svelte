@@ -16,15 +16,18 @@
 	import { z } from 'zod';
 	import FormError from '@/components/services/FormError.svelte';
 	import { useGithubAppsQuery } from '@/features/git/query.svelte';
+	import { getBaseState } from '@/features/global/store.svelte';
 	import * as Collapsible from '@/components/ui/collapsible';
 	import { ChevronRight, ChevronDown } from '@lucide/svelte';
 	import SecretTextarea from '@/components/services/secret-textarea.svelte';
 	import { createForm } from '@tanstack/svelte-form';
 	import Icon from '@iconify/svelte';
 	import { GitProvidersList } from '@/features/services/const';
+	import { goto } from '$app/navigation';
 
 	const { data } = $props();
-	const projectId = $derived(data.project_id);
+	const { projectName } = $derived(data);
+	const baseState = getBaseState();
 
 	let environmentOpen = $state(false);
 	let buildSettingOpen = $state(false);
@@ -74,25 +77,38 @@
 			const build_args = value.build_args.split('\n').filter((line) => line.trim() !== '');
 			const build_secrets = value.build_secrets.split('\n').filter((line) => line.trim() !== '');
 
-			createServiceMutation.mutate({
-				project_id: projectId,
-				name: value.name.trim(),
-				git_provider: value.git_provider,
-				gh_app_id: value.gh_app_id,
-				gh_repo_id: value.gh_repo_id,
-				default_branch: value.default_branch,
-				build_path: buildPath,
-				watch_path: watchPath,
-				public: value.public,
-				env,
-				build_args,
-				build_secrets,
-				docker_build: {
-					file_path: value.docker_build.file_path,
-					context_path: value.docker_build.context_path,
-					build_stage: value.docker_build.build_stage
+			createServiceMutation.mutate(
+				{
+					instance_id: baseState.currentInstance.id,
+					name: value.name.trim(),
+					git_provider: value.git_provider,
+					gh_app_id: value.gh_app_id,
+					gh_repo_id: value.gh_repo_id,
+					default_branch: value.default_branch,
+					build_path: buildPath,
+					watch_path: watchPath,
+					public: value.public,
+					env,
+					build_args,
+					build_secrets,
+					docker_build: {
+						file_path: value.docker_build.file_path,
+						context_path: value.docker_build.context_path,
+						build_stage: value.docker_build.build_stage
+					}
+				},
+				{
+					onSuccess: ({ data }) => {
+						goto(
+							resolve('/(protected)/[project]/[service_type]/[service]?tab=deployment', {
+								project: projectName,
+								service_type: data.type,
+								service: data.name
+							})
+						);
+					}
 				}
-			});
+			);
 		}
 	}));
 
@@ -159,7 +175,7 @@
 				<Label class="my-1">Import from a git provider</Label>
 				<GitProviderField
 					value={field.state.value}
-					disabled={projectId === ''}
+					disabled={baseState.currentInstance.id === ''}
 					onSelect={(key) => {
 						field.handleChange(key);
 						fetchGitProvider(key);
@@ -175,12 +191,7 @@
 					{#if githubAppsQuery.data && githubAppsQuery.data.length === 0}
 						<div class="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
 							No app connected.
-							<a
-								href={resolve('/(protected)/(core)/git')}
-								class="ml-1 underline underline-offset-4"
-							>
-								Go to Git
-							</a>
+							<a href={resolve('/git')} class="ml-1 underline underline-offset-4"> Go to Git </a>
 						</div>
 					{:else}
 						<Select.Root

@@ -15,7 +15,7 @@ type PullJobData struct {
 	Token             string
 	Url               string
 	Branch            string
-	SwarmServiceName  string
+	SwarmService      string
 	BuildPath         string
 	DockerFilePath    string
 	DockerContextPath string
@@ -32,7 +32,7 @@ type BuildJobData struct {
 	Type              JobType
 	DeploymentID      uuid.UUID
 	BuildPath         string
-	SwarmServiceName  string
+	SwarmService      string
 	StorePath         string
 	DockerFilePath    string
 	DockerContextPath string
@@ -46,12 +46,12 @@ type BuildJobData struct {
 }
 
 type DeployJobData struct {
-	DeploymentID     uuid.UUID
-	SwarmServiceName string
-	ImgName          string
-	Env              []string
-	IsPublic         bool
-	NetworkName      string
+	DeploymentID uuid.UUID
+	SwarmService string
+	ImgName      string
+	Env          []string
+	IsPublic     bool
+	NetworkName  string
 }
 
 type RedeployJobData = DeployJobData

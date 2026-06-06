@@ -5,15 +5,11 @@
 	import { MoveLeft } from '@lucide/svelte';
 
 	let { children, data } = $props();
-	const projectId = $derived(data.project_id);
+	const project = $derived(data.projectName);
 </script>
 
 <header class="flex justify-between items-center p-2">
-	<Button
-		variant="link"
-		onclick={() =>
-			goto(resolve('/(protected)/(core)/project/[project_id]', { project_id: projectId }))}
-	>
+	<Button variant="link" onclick={() => goto(resolve('/(protected)/[project]', { project }))}>
 		<MoveLeft class="size-10 text-foreground" />
 	</Button>
 </header>

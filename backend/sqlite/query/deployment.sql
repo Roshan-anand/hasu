@@ -1,27 +1,14 @@
 -- name: CreateDeployment :one
-INSERT INTO deployments (id, branch_id, commit_hash, commit_msg, is_current)
+INSERT INTO deployments (id, service_id, commit_hash, commit_msg, is_current)
 VALUES (?, ?, ?, ?, ?)
 RETURNING id;
 
 -- name: GetDeploymentsByServiceID :many
-SELECT d.id, d.status, d.commit_msg, b.branch_name, d.created_at
+SELECT d.*, aps.swarm_service
 FROM deployments d
-JOIN app_service_branch b ON d.branch_id = b.id
-WHERE b.service_id = ?
+JOIN app_service aps ON d.service_id = aps.id
+WHERE d.service_id = ?
 ORDER BY d.created_at DESC;
-
--- name: GetDeploymentsByBranchID :many
-SELECT d.id, d.is_current, d.image, d.status, b.swarm_service_name
-FROM deployments d
-JOIN app_service_branch b ON d.branch_id = b.id
-WHERE d.branch_id = ?
-ORDER BY d.created_at DESC;
-
--- name: GetAllDeploymentImgByServiceID :many
-SELECT d.id, d.image
-FROM deployments d
-JOIN app_service_branch b ON d.branch_id = b.id
-WHERE b.service_id = ?;
 
 -- name: GetDeploymentImgByID :one
 SELECT d.id, d.image

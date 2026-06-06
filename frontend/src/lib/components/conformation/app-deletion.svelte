@@ -5,15 +5,14 @@
 	import { Trash2 } from '@lucide/svelte';
 
 	type Props = {
-		projectId: string;
 		serviceId: string;
 		name: string;
 	};
 
-	let { projectId, serviceId, name }: Props = $props();
+	let { serviceId, name }: Props = $props();
 	let dialogOpen = $state(false);
 
-	const deleteAppServiceMutation = useDeleteAppServiceMutation(() => projectId);
+	const deleteAppServiceMutation = useDeleteAppServiceMutation();
 
 	function openDialog() {
 		dialogOpen = true;

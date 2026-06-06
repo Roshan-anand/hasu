@@ -9,13 +9,16 @@
 	import { z } from 'zod';
 	import FormError from '@/components/services/FormError.svelte';
 	import type { CreatePsqlServiceBody } from '@/features/services/type';
+	import { getBaseState } from '@/features/global/store.svelte';
 	import { Eye, EyeOff } from '@lucide/svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	const { data } = $props();
-	const projectId = $derived(data.project_id);
+	const { projectName } = $derived(data);
+	const baseState = getBaseState();
 
 	const createPsqlServiceMutation = useCreatePsqlServiceMutation();
-	// orphan volumes available for reattach (psql-compatible only)
 	const orphanVolumesQuery = useGetOrphanVolumesByTypeQuery('psql');
 
 	let isPasswordVisible = $state(false);
@@ -41,16 +44,23 @@
 			volume: ''
 		} as CreatePsqlServiceBody,
 		onSubmit: ({ value }) => {
-			createPsqlServiceMutation.mutate({
-				project_id: projectId,
-				name: value.name.trim(),
-				db_name: value.db_name.trim(),
-				db_user: value.db_user.trim(),
-				db_password: value.db_password,
-				image: value.image.trim(),
-				// empty volume = create new database; non-empty = reattach orphan
-				volume: value.volume
-			});
+			createPsqlServiceMutation.mutate(
+				{
+					instance_id: baseState.currentInstance.id,
+					name: value.name.trim(),
+					db_name: value.db_name.trim(),
+					db_user: value.db_user.trim(),
+					db_password: value.db_password,
+					image: value.image.trim(),
+					// empty volume = create new database; non-empty = reattach orphan
+					volume: value.volume
+				},
+				{
+					onSuccess: () => {
+						goto(resolve('/(protected)/[project]', { project: projectName }));
+					}
+				}
+			);
 		}
 	}));
 </script>

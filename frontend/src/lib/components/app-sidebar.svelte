@@ -28,20 +28,20 @@
 	const sidebarItems: AppSidebarItem[] = [
 		{
 			hash: /^(?!#\/(?:members|git|storage)$).*$/,
-			route: resolve('/(protected)/(core)'),
+			route: resolve('/'),
 			name: 'Projects',
 			icon: Blocks
 		},
-		{ hash: /^#\/git$/, route: resolve('/(protected)/(core)/git'), name: 'Git', icon: GitBranch },
+		{ hash: /^#\/git$/, route: resolve('/git'), name: 'Git', icon: GitBranch },
 		{
 			hash: /^#\/storage$/,
-			route: resolve('/(protected)/(core)/storage'),
+			route: resolve('/storage'),
 			name: 'Storage',
 			icon: Database
 		},
 		{
 			hash: /^#\/members$/,
-			route: resolve('/(protected)/(core)/members'),
+			route: resolve('/members'),
 			name: 'Members',
 			icon: Users
 		}

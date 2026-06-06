@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 
-	let { branchId, open }: { branchId: string; open: boolean } = $props();
+	let { serviceID, open }: { serviceID: string; open: boolean } = $props();
 
 	let logs = $state<string[]>([]);
 	let streamState = $state<'connecting' | 'connected' | 'closed'>('closed');
@@ -16,25 +16,19 @@
 	}
 
 	function connectLogs() {
-		if (!browser || branchId === '') return;
+		if (!browser || serviceID === '') return;
 
 		closeStream();
 		logs = [];
 		streamState = 'connecting';
 
-		const url = `/api/service/logs?branch_id=${branchId}`;
+		const url = `/api/service/logs?service_id=${serviceID}`;
 		eventSource = new EventSource(url, { withCredentials: true });
 
 		eventSource.addEventListener('log', (event: MessageEvent<string>) => {
 			logs.push(event.data);
 			streamState = 'connected';
 		});
-
-		// eventSource.addEventListener('logs', (event: MessageEvent<string>) => {
-		// 	const prevLogs = JSON.parse(event.data) as string[];
-		// 	logs = [...logs, ...prevLogs];
-		// 	streamState = 'connected';
-		// });
 
 		eventSource.onerror = () => closeStream();
 	}

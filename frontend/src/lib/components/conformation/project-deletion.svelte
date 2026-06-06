@@ -38,7 +38,12 @@
 	}
 </script>
 
-<Button variant="destructive" size="sm" class="z-20" onclick={openDialog}>
+<Button
+	variant="destructive"
+	size="sm"
+	class="z-50 absolute top-1/2 right-0 -translate-y-1/2"
+	onclick={openDialog}
+>
 	<Trash2 />
 	Delete
 </Button>
