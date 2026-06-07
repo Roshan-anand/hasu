@@ -1,4 +1,6 @@
-# Godploy
+<div align="center">
+<img src="docs/logo/logo-name-black.png" align="center" alt="logo" width="200px" />
+</div>
 
 Lightweight, single-binary, self-hosted alternative to Dokploy, Coolify, Netlify, Vercel.
 
@@ -11,7 +13,8 @@ Lightweight, single-binary, self-hosted alternative to Dokploy, Coolify, Netlify
 - **UI:** sveltekit (SPA, served from binary)
 
 ## Architecture :
-![architecture](docs/architecture.png)
+
+![architecture](docs/architecture/architecture.png)
 
 ---
 

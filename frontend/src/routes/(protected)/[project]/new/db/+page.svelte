@@ -9,14 +9,14 @@
 	import { z } from 'zod';
 	import FormError from '@/components/services/FormError.svelte';
 	import type { CreatePsqlServiceBody } from '@/features/services/type';
-	import { getBaseState } from '@/features/global/store.svelte';
 	import { Eye, EyeOff } from '@lucide/svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { getInstanceState } from '@/features/instance/context.svelte.js';
 
 	const { data } = $props();
 	const { projectName } = $derived(data);
-	const baseState = getBaseState();
+	const instance = getInstanceState();
 
 	const createPsqlServiceMutation = useCreatePsqlServiceMutation();
 	const orphanVolumesQuery = useGetOrphanVolumesByTypeQuery('psql');
@@ -44,9 +44,11 @@
 			volume: ''
 		} as CreatePsqlServiceBody,
 		onSubmit: ({ value }) => {
+			if (!instance.id) return;
+
 			createPsqlServiceMutation.mutate(
 				{
-					instance_id: baseState.currentInstance.id,
+					instance_id: instance.id,
 					name: value.name.trim(),
 					db_name: value.db_name.trim(),
 					db_user: value.db_user.trim(),

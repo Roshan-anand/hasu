@@ -5,11 +5,13 @@
 	import { GetUserData } from '@/features/global/query';
 	import { setBaseState } from '@/features/global/store.svelte';
 	import AppBreadcrums from '@/components/app-breadcrums.svelte';
+	import { setInstanceState } from '@/features/instance/context.svelte';
 
 	let { children } = $props();
 
 	const { org_id, org_name } = GetUserData();
 	setBaseState(org_id, org_name);
+	setInstanceState();
 </script>
 
 <Sidebar.Provider>

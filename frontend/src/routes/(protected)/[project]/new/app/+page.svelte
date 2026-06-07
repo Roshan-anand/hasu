@@ -16,7 +16,6 @@
 	import { z } from 'zod';
 	import FormError from '@/components/services/FormError.svelte';
 	import { useGithubAppsQuery } from '@/features/git/query.svelte';
-	import { getBaseState } from '@/features/global/store.svelte';
 	import * as Collapsible from '@/components/ui/collapsible';
 	import { ChevronRight, ChevronDown } from '@lucide/svelte';
 	import SecretTextarea from '@/components/services/secret-textarea.svelte';
@@ -24,10 +23,11 @@
 	import Icon from '@iconify/svelte';
 	import { GitProvidersList } from '@/features/services/const';
 	import { goto } from '$app/navigation';
+	import { getInstanceState } from '@/features/instance/context.svelte.js';
 
 	const { data } = $props();
 	const { projectName } = $derived(data);
-	const baseState = getBaseState();
+	const instance = getInstanceState();
 
 	let environmentOpen = $state(false);
 	let buildSettingOpen = $state(false);
@@ -56,6 +56,8 @@
 			}
 		} as CreateAppServiceForm,
 		onSubmit: ({ value }) => {
+			if (!instance.id) return;
+
 			const selectedGithubRepo = getReposMutation.data?.find(
 				(repo) => repo.id === value.gh_repo_id
 			);
@@ -79,7 +81,7 @@
 
 			createServiceMutation.mutate(
 				{
-					instance_id: baseState.currentInstance.id,
+					instance_id: instance.id,
 					name: value.name.trim(),
 					git_provider: value.git_provider,
 					gh_app_id: value.gh_app_id,
@@ -175,7 +177,7 @@
 				<Label class="my-1">Import from a git provider</Label>
 				<GitProviderField
 					value={field.state.value}
-					disabled={baseState.currentInstance.id === ''}
+					disabled={!instance.id}
 					onSelect={(key) => {
 						field.handleChange(key);
 						fetchGitProvider(key);

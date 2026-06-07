@@ -1,41 +1,21 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import { useGetAllInstanceQuery } from '@/features/base/query.svelte';
-	import { getBaseState } from '@/features/global/store.svelte';
 	import * as Select from '@/components/ui/select';
 	import { Blocks } from '@lucide/svelte';
+	import { getInstanceState } from '@/features/instance/context.svelte';
 
-	const base = getBaseState();
-
-	const exp = /^(?!#\/(?:members|git|storage)?$).+$/;
-
-	const { project, service, type } = $derived.by(() => {
-		if (!exp.test(page.url.hash))
-			return {
-				project: null,
-				service: null,
-				type: null
-			};
-
-		const paths = page.url.hash.split('/');
-		paths.shift();
-		return {
-			project: paths[0],
-			type: paths[1],
-			service: paths[2]
-		};
-	});
+	const instance = getInstanceState();
+	const { project, service, type } = $derived(instance.path);
 
 	const getAllInstance = useGetAllInstanceQuery(() => project);
 
+	// update current instance when project changes
 	$effect(() => {
 		if (getAllInstance.isSuccess) {
-			getAllInstance.data.forEach((i) => {
-				if (i.is_production) {
-					base.setCurrentInstance(i.id, i.name);
-				}
+			getAllInstance.data.forEach(({ is_production, id, name }) => {
+				if (is_production) instance.setCurrent(id, name);
 			});
 		}
 	});
@@ -58,15 +38,15 @@
 				>
 			</Breadcrumb.Item>
 			<Breadcrumb.Separator />
-			{#if base.currentInstance.id !== ''}
+			{#if instance.id !== ''}
 				<Breadcrumb.Item>
-					<Select.Root type="single" value={base.currentInstance.name}>
+					<Select.Root type="single" value={instance.name}>
 						<Select.Trigger
 							class="w-full h-fit border-none dark:bg-transparent bg-transparent focus:bg-transparent"
 							id="git-branch-select"
 						>
-							{#if base.currentInstance.name}
-								<span>{base.currentInstance.name}</span>
+							{#if instance.name}
+								<span>{instance.name}</span>
 							{:else}
 								<span>Select Instance</span>
 							{/if}
@@ -77,7 +57,7 @@
 									<Select.Item
 										value={name}
 										label={name}
-										onclick={() => base.setCurrentInstance(id, name)}>{name}</Select.Item
+										onclick={() => instance.setCurrent(id, name)}>{name}</Select.Item
 									>
 								{/each}
 							{/if}

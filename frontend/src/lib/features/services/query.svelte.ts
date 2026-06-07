@@ -8,40 +8,40 @@ import type {
 	ServiceListResponse
 } from './type';
 import type { ApiRes } from '@/types';
-import { getBaseState } from '../global/store.svelte';
+import { getInstanceState } from '../instance/context.svelte';
 
 export const getInstanceServicesQueryKey = (instanceID: string) =>
 	['services-list', instanceID] as const;
 
 export function useGetAllServicesQuery() {
 	return createQuery(() => {
-		const base = getBaseState();
+		const instance = getInstanceState();
 		return {
-			queryKey: getInstanceServicesQueryKey(base.currentInstance.id),
+			queryKey: getInstanceServicesQueryKey(instance.id as string),
 			queryFn: async () =>
 				api
 					.get<ApiRes<ServiceListResponse[]>>('/service/all', {
-						params: { instance_id: base.currentInstance.id }
+						params: { instance_id: instance.id }
 					})
 					.then((res) => res.data.data),
-			enabled: base.currentInstance.id !== ''
+			enabled: !!instance.id
 		};
 	});
 }
 
 export function useGetServiceIDQuery(getServiceName: () => string) {
 	return createQuery(() => {
-		const base = getBaseState();
+		const instance = getInstanceState();
 		const serviceName = getServiceName();
 		return {
-			queryKey: getInstanceServicesQueryKey(base.currentInstance.id),
+			queryKey: getInstanceServicesQueryKey(instance.id as string),
 			queryFn: async () =>
 				api
 					.get<ApiRes<string>>(`/service/${serviceName}`, {
-						params: { instance_id: base.currentInstance.id }
+						params: { instance_id: instance.id }
 					})
 					.then((res) => res.data.data),
-			enabled: base.currentInstance.id !== ''
+			enabled: !!instance.id
 		};
 	});
 }

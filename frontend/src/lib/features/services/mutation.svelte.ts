@@ -17,8 +17,8 @@ import type {
 } from './type';
 import type { ApiRes } from '@/types';
 import { queryClient } from '@/query';
-import { getBaseState } from '../global/store.svelte';
 import { getInstanceServicesQueryKey } from './query.svelte';
+import { getInstanceState } from '../instance/context.svelte';
 
 export function useGetReposMutation() {
 	return createMutation(() => ({
@@ -61,28 +61,31 @@ export function useDeleteAppServiceMutation() {
 		mutationFn: async (payload: DeleteAppServicePayload) =>
 			api.delete<ApiRes<null>>('/service/app', { data: payload }).then((res) => res.data),
 		onSuccess: ({ message }, { service_id }) => {
-			const { currentInstance } = getBaseState();
+			toast.success(message || 'Application deleted successfully');
+
+			const instance = getInstanceState();
+			if (!instance.id) return;
 			queryClient.setQueryData(
-				getInstanceServicesQueryKey(currentInstance.id),
+				getInstanceServicesQueryKey(instance.id),
 				(cachedRows: ServiceListResponse[] | undefined) => {
 					if (!cachedRows) return [];
 					return cachedRows.filter((row) => row.id !== service_id);
 				}
 			);
-			toast.success(message || 'Application deleted successfully');
 		},
 		onError: (error) => axiosErr(error as Error, 'Failed to delete Application')
 	}));
 }
 
 export function useDeletePsqlServiceMutation() {
-	const { currentInstance } = getBaseState();
+	const instance = getInstanceState();
+
 	return createMutation(() => ({
 		mutationFn: async (payload: DeletePsqlServicePayload) =>
 			api.delete<ApiRes<null>>('/service/psql', { data: payload }).then((res) => res.data),
 		onSuccess: ({ message }, { service_id }) => {
 			queryClient.setQueryData(
-				getInstanceServicesQueryKey(currentInstance.id),
+				getInstanceServicesQueryKey(instance.id as string),
 				(cachedRows: ServiceListResponse[] | undefined) => {
 					if (!cachedRows) return [];
 					return cachedRows.filter((row) => row.id !== service_id);

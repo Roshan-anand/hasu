@@ -1,16 +1,9 @@
 import { getContext, setContext } from 'svelte';
 import type { Organization } from '../auth/type';
 
-export type Instance = {
-	id: string;
-	name: string;
-};
-
 interface BaseState {
 	currentOrg: Organization;
-	currentInstance: Instance;
 	setCurrentOrg: (id: string, name: string) => void;
-	setCurrentInstance: (id: string, name: string) => void;
 }
 
 class BaseStateClass implements BaseState {
@@ -19,14 +12,9 @@ class BaseStateClass implements BaseState {
 	}
 
 	currentOrg: Organization = $state({ id: '', name: '' });
-	currentInstance: Instance = $state({ id: '', name: '' });
 
 	setCurrentOrg = (id: string, name: string) => {
 		this.currentOrg = { id, name };
-	};
-
-	setCurrentInstance = (id: string, name: string) => {
-		this.currentInstance = { id, name };
 	};
 }
 
