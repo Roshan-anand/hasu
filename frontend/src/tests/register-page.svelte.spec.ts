@@ -89,9 +89,7 @@ describe('Register Page', () => {
 		await nameInput.fill('ab');
 		nameInput.element().blur();
 
-		await expect
-			.element(page.getByText('Name must be at least 3 characters'))
-			.toBeInTheDocument();
+		await expect.element(page.getByText('Name must be at least 3 characters')).toBeInTheDocument();
 	});
 
 	it('shows validation error when email is invalid', async () => {
@@ -101,9 +99,7 @@ describe('Register Page', () => {
 		await emailInput.fill('not-an-email');
 		emailInput.element().blur();
 
-		await expect
-			.element(page.getByText('Please enter a valid email'))
-			.toBeInTheDocument();
+		await expect.element(page.getByText('Please enter a valid email')).toBeInTheDocument();
 	});
 
 	it('shows validation error when password is too short', async () => {

@@ -28,6 +28,7 @@ func TestAppService(t *testing.T) {
 		Name:        "newapp",
 		GitProvider: "github",
 		Public:      true,
+		Port:        80,
 		BuildPath:   "/",
 		WatchPath:   "/",
 		DockerBuild: &handlers.DockerBuildReq{},

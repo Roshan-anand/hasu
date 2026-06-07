@@ -39,6 +39,7 @@
 			build_path: '/',
 			watch_path: '/',
 			public: true,
+			port: 80,
 			env: '',
 			build_args: '',
 			build_secrets: '',
@@ -371,6 +372,36 @@
 					>
 						Make it public
 					</Label>
+				</div>
+			{/snippet}
+		</form.Field>
+
+		<form.Field
+			name="port"
+			validators={{
+				onChange: z
+					.number()
+					.int('Port must be an integer')
+					.min(1, 'Port must be between 1 and 65535')
+					.max(65535, 'Port must be between 1 and 65535')
+			}}
+		>
+			{#snippet children(field)}
+				<div class="space-y-1.5">
+					<Label class="my-1" for={field.name}>Container Port</Label>
+					<Input
+						id={field.name}
+						type="number"
+						placeholder="80"
+						value={field.state.value}
+						onblur={field.handleBlur}
+						oninput={(e) => field.handleChange(Number(e.currentTarget.value))}
+						disabled={createServiceMutation.isPending}
+					/>
+					<p class="text-xs text-muted-foreground">
+						The port your application listens on inside the container.
+					</p>
+					<FormError errors={field.state.meta.errors} />
 				</div>
 			{/snippet}
 		</form.Field>

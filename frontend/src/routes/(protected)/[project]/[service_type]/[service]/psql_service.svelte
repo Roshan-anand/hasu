@@ -4,7 +4,8 @@
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { Eye, EyeOff } from '@lucide/svelte';
+	import { Eye, EyeOff, Copy } from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
 	import {
 		useRedeployPsqlServiceMutation,
 		useUpdatePsqlServiceMutation
@@ -69,7 +70,24 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<h2 class="text-lg font-semibold">{details.name}</h2>
-						<p class="text-sm text-muted-foreground">{details.internal_url}</p>
+						<div class="flex items-center gap-2">
+							<p class="text-sm text-muted-foreground">{details.internal_url}</p>
+							<button
+								type="button"
+								onclick={async () => {
+									try {
+										await navigator.clipboard.writeText(details.internal_url);
+										toast.success('Internal URL copied to clipboard');
+									} catch {
+										toast.error('Failed to copy to clipboard');
+									}
+								}}
+								class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+								title="Copy internal URL"
+							>
+								<Copy class="h-3.5 w-3.5" />
+							</button>
+						</div>
 					</div>
 					<Button
 						variant="outline"

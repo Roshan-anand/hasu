@@ -58,6 +58,7 @@ export function useCreateServiceMutation(getProjectName: () => string) {
 				build_path: normalizePathValue(formValue.build_path),
 				watch_path: normalizePathValue(formValue.watch_path),
 				public: formValue.public,
+				port: formValue.port,
 				env,
 				build_args,
 				build_secrets,

@@ -34,6 +34,7 @@ type AppService struct {
 	Branch            string            `json:"branch"`
 	SwarmService      string            `json:"swarm_service"`
 	Domain            string            `json:"domain"`
+	InternalUrl       string            `json:"internal_url"`
 	Port              int32             `json:"port"`
 	CreatedAt         time.Time         `json:"created_at"`
 }

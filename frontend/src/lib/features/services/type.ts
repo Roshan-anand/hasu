@@ -71,6 +71,7 @@ export type CreateAppServiceBody = {
 	build_path: string;
 	watch_path: string;
 	public: boolean;
+	port: number;
 	docker_build: {
 		file_path: string;
 		context_path: string;
@@ -138,6 +139,8 @@ export type AppServiceDetails = {
 	branch: string;
 	swarm_service: string;
 	domain: string;
+	internal_url: string;
+	port: number;
 	created_at: string;
 };
 

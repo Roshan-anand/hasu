@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS app_service (
     branch TEXT NOT NULL,
     swarm_service TEXT NOT NULL,
     domain TEXT NOT NULL DEFAULT '',
+    internal_url TEXT NOT NULL,
     port INTEGER NOT NULL DEFAULT 80,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );

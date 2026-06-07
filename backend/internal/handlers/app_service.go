@@ -38,6 +38,7 @@ type CreateAppServiceReq struct {
 	BuildSecrets  []string        `json:"build_secrets"`
 	DockerBuild   *DockerBuildReq `json:"docker_build"`
 	Public        bool            `json:"public"`
+	Port          int32           `json:"port"`
 }
 
 type CreatePreviewAppServiceReq struct {
@@ -149,6 +150,9 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	}
 	tq := q.WithTx(tx)
 
+	// create app internal url (accessible within the same Docker network)
+	internalURL := fmt.Sprintf("http://%s:%d", unique.ServiceName, b.Port)
+
 	// create a new service
 	service, err := tq.CreateAppService(h.qCtx, db.CreateAppServiceParams{
 		ID:                security.GeneratePrimaryKey(),
@@ -171,6 +175,8 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		IsPublic:          b.Public,
 		Branch:            b.DefaultBranch,
 		SwarmService:      unique.ServiceName,
+		Port:              b.Port,
+		InternalUrl:       internalURL,
 	})
 	if err != nil {
 		tx.Rollback()

@@ -86,9 +86,7 @@ describe('Login Page', () => {
 		await emailInput.fill('not-an-email');
 		emailInput.element().blur();
 
-		await expect
-			.element(page.getByText('Please enter a valid email'))
-			.toBeInTheDocument();
+		await expect.element(page.getByText('Please enter a valid email')).toBeInTheDocument();
 	});
 
 	it('shows a validation error when password is too short', async () => {
@@ -117,9 +115,7 @@ describe('Login Page', () => {
 		await passwordInput.fill(validCredentials.password);
 		await submitButton.click();
 
-		await expect
-			.element(page.getByRole('button', { name: /logging in/i }))
-			.toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: /logging in/i })).toBeInTheDocument();
 	});
 
 	it('calls the login API and navigates home on success', async () => {

@@ -11,8 +11,18 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { ServiceType } from '@/types';
+	import { toast } from 'svelte-sonner';
 
 	let { serviceID, project }: { serviceID: string; project: string } = $props();
+
+	const copyToClipboard = async (text: string, label: string) => {
+		try {
+			await navigator.clipboard.writeText(text);
+			toast.success(`${label} copied to clipboard`);
+		} catch {
+			toast.error('Failed to copy to clipboard');
+		}
+	};
 
 	const serviceQuery = useGetAppServiceDetailsQuery(() => serviceID);
 	const rebuildService = useRebuildServiceMutation();
@@ -29,8 +39,17 @@
 {:else if serviceQuery.isError}
 	<p class="text-red-500">Failed to load service details</p>
 {:else if serviceQuery.data}
-	{@const { name, branch, gh_repo_name, created_at, commit_msg, status, domain } =
-		serviceQuery.data}
+	{@const {
+		name,
+		branch,
+		gh_repo_name,
+		created_at,
+		commit_msg,
+		status,
+		domain,
+		internal_url,
+		port
+	} = serviceQuery.data}
 	<Card class="flex-1 mb-5">
 		<CardContent>
 			<div class="flex flex-col gap-1 px-1">
@@ -97,6 +116,24 @@
 						status : {status}
 					</div>
 					<div>created at : {created_at}</div>
+				</section>
+				<section class="mt-2 rounded-md border bg-muted/30 p-3">
+					<h4 class="mb-1 text-xs font-medium text-muted-foreground">Internal URL</h4>
+					<div class="flex items-center gap-2 text-sm">
+						<Icon icon="lucide:network" class="h-4 w-4 text-muted-foreground" />
+						<code class="rounded bg-muted px-2 py-0.5 font-mono text-xs">
+							{internal_url}
+						</code>
+						<span class="text-xs text-muted-foreground">(port {port})</span>
+						<button
+							type="button"
+							onclick={() => copyToClipboard(internal_url, 'Internal URL')}
+							class="ml-auto rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+							title="Copy internal URL"
+						>
+							<Icon icon="lucide:copy" class="h-4 w-4" />
+						</button>
+					</div>
 				</section>
 			</div>
 		</CardContent>

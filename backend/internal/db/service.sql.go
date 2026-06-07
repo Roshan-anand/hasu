@@ -50,8 +50,8 @@ func (q *Queries) CheckServiceIsProduction(ctx context.Context, serviceID uuid.U
 }
 
 const createAppService = `-- name: CreateAppService :one
-INSERT INTO app_service (id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage, is_public, branch, swarm_service, port)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 80)
+INSERT INTO app_service (id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage, is_public, branch, swarm_service, port, internal_url)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, name, type
 `
 
@@ -76,6 +76,8 @@ type CreateAppServiceParams struct {
 	IsPublic          bool              `json:"is_public"`
 	Branch            string            `json:"branch"`
 	SwarmService      string            `json:"swarm_service"`
+	Port              int32             `json:"port"`
+	InternalUrl       string            `json:"internal_url"`
 }
 
 type CreateAppServiceRow struct {
@@ -106,6 +108,8 @@ func (q *Queries) CreateAppService(ctx context.Context, arg CreateAppServicePara
 		arg.IsPublic,
 		arg.Branch,
 		arg.SwarmService,
+		arg.Port,
+		arg.InternalUrl,
 	)
 	var i CreateAppServiceRow
 	err := row.Scan(&i.ID, &i.Name, &i.Type)
@@ -292,7 +296,7 @@ func (q *Queries) GetAllSwarmServiceAndImgByAppServiceId(ctx context.Context, se
 
 const getAppServiceById = `-- name: GetAppServiceById :one
 SELECT
-    a.id, a.instance_id, a.type, a.name, a.git_provider, a.gh_app_id, a.gh_repo_id, a.gh_repo_name, a.gh_repo_url, a.build_path, a.watch_path, a.docker_filepath, a.docker_contextpath, a.docker_buildstage, a.env, a.build_args, a.build_secrets, a.is_public, a.branch, a.swarm_service, a.domain, a.port, a.created_at,
+    a.id, a.instance_id, a.type, a.name, a.git_provider, a.gh_app_id, a.gh_repo_id, a.gh_repo_name, a.gh_repo_url, a.build_path, a.watch_path, a.docker_filepath, a.docker_contextpath, a.docker_buildstage, a.env, a.build_args, a.build_secrets, a.is_public, a.branch, a.swarm_service, a.domain, a.internal_url, a.port, a.created_at,
     d.id AS deployment_id,d.status AS deployment_status, d.commit_msg
 FROM app_service a
 JOIN deployments d ON d.service_id = a.id AND d.is_current
@@ -321,6 +325,7 @@ type GetAppServiceByIdRow struct {
 	Branch            string                 `json:"branch"`
 	SwarmService      string                 `json:"swarm_service"`
 	Domain            string                 `json:"domain"`
+	InternalUrl       string                 `json:"internal_url"`
 	Port              int32                  `json:"port"`
 	CreatedAt         time.Time              `json:"created_at"`
 	DeploymentID      uuid.UUID              `json:"deployment_id"`
@@ -353,6 +358,7 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppSe
 		&i.Branch,
 		&i.SwarmService,
 		&i.Domain,
+		&i.InternalUrl,
 		&i.Port,
 		&i.CreatedAt,
 		&i.DeploymentID,
