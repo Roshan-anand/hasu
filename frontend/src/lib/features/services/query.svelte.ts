@@ -5,7 +5,8 @@ import type {
 	GetBranchDomainRes,
 	GetEnvRes,
 	PsqlServiceDetails,
-	ServiceListResponse
+	ServiceListResponse,
+	PRInfo
 } from './type';
 import type { ApiRes } from '@/types';
 import { getInstanceState } from '../instance';
@@ -17,14 +18,14 @@ export function useGetAllServicesQuery() {
 	return createQuery(() => {
 		const instance = getInstanceState();
 		return {
-			queryKey: getInstanceServicesQueryKey(instance.id as string),
+			queryKey: getInstanceServicesQueryKey(instance.current.id as string),
 			queryFn: async () =>
 				api
 					.get<ApiRes<ServiceListResponse[]>>('/service/all', {
-						params: { instance_id: instance.id }
+						params: { instance_id: instance.current.id }
 					})
 					.then((res) => res.data.data),
-			enabled: !!instance.id
+			enabled: !!instance.current.id
 		};
 	});
 }
@@ -34,14 +35,14 @@ export function useGetServiceIDQuery(getServiceName: () => string) {
 		const instance = getInstanceState();
 		const serviceName = getServiceName();
 		return {
-			queryKey: getInstanceServicesQueryKey(instance.id as string),
+			queryKey: getInstanceServicesQueryKey(instance.current.id as string),
 			queryFn: async () =>
 				api
 					.get<ApiRes<string>>(`/service/${serviceName}`, {
-						params: { instance_id: instance.id }
+						params: { instance_id: instance.current.id }
 					})
 					.then((res) => res.data.data),
-			enabled: !!instance.id
+			enabled: !!instance.current.id
 		};
 	});
 }
@@ -102,6 +103,38 @@ export function useGetPsqlServiceDetailsQuery(getID: () => string) {
 					.get<ApiRes<PsqlServiceDetails>>(`/service/psql/${serviceId}`)
 					.then((res) => res.data.data),
 			enabled: serviceId !== ''
+		};
+	});
+}
+
+export function useGetGithubPRListQuery(getServiceId: () => string) {
+	return createQuery(() => {
+		const serviceId = getServiceId();
+		return {
+			queryKey: ['github-prs', 'service', serviceId],
+			queryFn: async () =>
+				api
+					.get<ApiRes<PRInfo[]>>('/provider/github/pr/list', {
+						params: { service_id: serviceId }
+					})
+					.then((res) => res.data.data),
+			enabled: serviceId !== ''
+		};
+	});
+}
+
+export function useGetGithubPRListByInstanceQuery() {
+	return createQuery(() => {
+		const instance = getInstanceState();
+		return {
+			queryKey: ['github-prs', 'instance', instance.current.id as string],
+			queryFn: async () =>
+				api
+					.get<ApiRes<Record<string, PRInfo[]>>>('/provider/github/pr/instance', {
+						params: { instance_id: instance.current.id }
+					})
+					.then((res) => res.data.data),
+			enabled: !!instance.current.id
 		};
 	});
 }

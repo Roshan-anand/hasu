@@ -117,3 +117,10 @@ WHERE id = @service_id;
 UPDATE app_service
 SET domain = ?, port = ?
 WHERE id = @service_id;
+
+-- name: GetAppServiceOnly :one
+SELECT * FROM app_service WHERE id = ?;
+
+-- name: GetAppServicesByInstanceId :many
+SELECT id, name, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, branch FROM app_service WHERE instance_id = ?;
+

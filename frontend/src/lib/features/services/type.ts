@@ -180,3 +180,11 @@ export type NavItem = {
 	label: string;
 	tab: ServiceTab;
 };
+
+export type PRInfo = {
+	id: number;
+	number: number;
+	title: string;
+	state: string;
+	html_url: string;
+};

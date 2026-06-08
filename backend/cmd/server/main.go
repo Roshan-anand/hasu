@@ -10,6 +10,8 @@ import (
 	"github.com/Roshan-anand/godploy/internal/config"
 	deploymentjob "github.com/Roshan-anand/godploy/internal/jobs/deployment"
 	"github.com/Roshan-anand/godploy/internal/jobs/logbroker"
+	"github.com/Roshan-anand/godploy/internal/lib/types"
+	"github.com/Roshan-anand/godploy/internal/lib/utils"
 	"github.com/Roshan-anand/godploy/internal/routes"
 	"github.com/joho/godotenv"
 )
@@ -23,11 +25,11 @@ func createServer() (*config.Server, error) {
 	}
 
 	// validate public ip
-	// if cfg.AppEnv == types.ProdMode {
-	// 	cfg.ServerUrl = utils.GetPublicUrl()
-	// } else if !utils.ValidatePublicUrl(cfg.ServerUrl) {
-	// 	return nil, fmt.Errorf("invalid server url: %s", cfg.ServerUrl)
-	// }
+	if cfg.AppEnv == types.ProdMode {
+		cfg.ServerUrl = utils.GetPublicUrl()
+	} else if !utils.ValidatePublicUrl(cfg.ServerUrl) {
+		return nil, fmt.Errorf("invalid server url: %s", cfg.ServerUrl)
+	}
 
 	// create server instance
 	s, err := config.NewServer(cfg)

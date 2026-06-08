@@ -563,3 +563,133 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 
 	return nil
 }
+
+type PRInfo struct {
+	ID      int64  `json:"id"`
+	Number  int    `json:"number"`
+	Title   string `json:"title"`
+	State   string `json:"state"`
+	HtmlURL string `json:"html_url"`
+}
+
+func fetchRepoPRs(ctx context.Context, gh *ghservice.GithubService, ghRepoName string) ([]PRInfo, error) {
+	parts := strings.Split(ghRepoName, "/")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid repository name format: %s", ghRepoName)
+	}
+	owner := parts[0]
+	repo := parts[1]
+
+	opts := &github.PullRequestListOptions{
+		State: "open",
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+			Page:    1,
+		},
+	}
+
+	var prInfos []PRInfo
+	for {
+		prs, resp, err := gh.Client.PullRequests.List(ctx, owner, repo, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, pr := range prs {
+			prInfos = append(prInfos, PRInfo{
+				ID:      pr.GetID(),
+				Number:  pr.GetNumber(),
+				Title:   pr.GetTitle(),
+				State:   pr.GetState(),
+				HtmlURL: pr.GetHTMLURL(),
+			})
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return prInfos, nil
+}
+
+// GetGithubPRList gets all PRs for a given service's repo
+// route: GET /api/provider/github/pr/list?service_id=
+func (h *GitHandler) GetGithubPRList(c *echo.Context) error {
+	q := h.Server.DB.Queries
+
+	serviceID, err := uuid.Parse(c.QueryParam("service_id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid service_id"})
+	}
+
+	service, err := q.GetAppServiceOnly(h.qCtx, serviceID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "Service not found"})
+		}
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to fetch service details"})
+	}
+
+	gh, err := ghservice.New(q, service.GhAppID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create github client"})
+	}
+
+	prInfos, err := fetchRepoPRs(h.ghCtx, gh, service.GhRepoName)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to fetch pull requests"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res[[]PRInfo]{
+		Message: "Success",
+		Data:    prInfos,
+	})
+}
+
+// GetGithubPRListByInstance gets all PRs for all services in an instance
+// route: GET /api/provider/github/pr/instance?instance_id=
+func (h *GitHandler) GetGithubPRListByInstance(c *echo.Context) error {
+	q := h.Server.DB.Queries
+
+	instanceID, err := uuid.Parse(c.QueryParam("instance_id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid instance_id"})
+	}
+
+	services, err := q.GetAppServicesByInstanceId(h.qCtx, instanceID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to fetch services"})
+	}
+
+	res := make(map[string][]PRInfo)
+	clients := make(map[int64]*ghservice.GithubService)
+
+	for _, s := range services {
+		gh, ok := clients[s.GhAppID]
+		if !ok {
+			var err error
+			gh, err = ghservice.New(q, s.GhAppID)
+			if err != nil {
+				fmt.Printf("Error creating github client for app %d: %v\n", s.GhAppID, err)
+				continue
+			}
+			clients[s.GhAppID] = gh
+		}
+
+		prInfos, err := fetchRepoPRs(h.ghCtx, gh, s.GhRepoName)
+		if err != nil {
+			fmt.Printf("Error fetching PRs for repo %s: %v\n", s.GhRepoName, err)
+			res[s.Name] = []PRInfo{}
+			continue
+		}
+
+		res[s.Name] = prInfos
+	}
+
+	return c.JSON(http.StatusOK, types.Res[map[string][]PRInfo]{
+		Message: "Success",
+		Data:    res,
+	})
+}

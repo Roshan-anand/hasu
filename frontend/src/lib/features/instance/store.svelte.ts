@@ -1,18 +1,44 @@
 import { getContext, setContext } from 'svelte';
+import type { Instance } from '../auth';
 
 interface InstanceState {
-	id: string | null;
-	name: string;
+	current: {
+		id: string | null;
+		name: string;
+	};
+	all: Instance[];
 	setCurrent: (id: string, name: string) => void;
+	setInstances: (instance: Instance[]) => void;
 }
 
 class InstanceStateClass implements InstanceState {
-	id: string | null = $state(null);
-	name: string = $state('');
+	private id: string | null = $state(null);
+	private name: string = $state('');
+	private instance: Instance[] = $state([]);
+
+	get current() {
+		return {
+			id: this.id,
+			name: this.name
+		};
+	}
+
+	get all() {
+		return this.instance;
+	}
 
 	setCurrent = (id: string, name: string) => {
 		this.id = id;
 		this.name = name;
+	};
+
+	setInstances = (instance: Instance[]) => {
+		instance.forEach(({ is_production, id, name }) => {
+			if (!is_production) return;
+			this.id = id;
+			this.name = name;
+		});
+		this.instance = instance;
 	};
 }
 

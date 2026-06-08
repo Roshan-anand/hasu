@@ -12,6 +12,9 @@
 	import { resolve } from '$app/paths';
 	import type { ServiceType } from '@/types';
 	import { toast } from 'svelte-sonner';
+	import AppServicePRPreviewButton from './AppServicePRPreviewButton.svelte';
+	import { X } from '@lucide/svelte';
+	import type { PRInfo } from '@/features/services';
 
 	let { serviceID, project }: { serviceID: string; project: string } = $props();
 
@@ -29,6 +32,7 @@
 	const rollBackService = useRollbackServiceMutation();
 
 	let open = $state(false);
+	let selectedPR = $state<PRInfo | null>(null);
 </script>
 
 {#if serviceQuery.isPending}
@@ -51,6 +55,21 @@
 		port,
 		is_public
 	} = serviceQuery.data}
+	{#if selectedPR}
+		<div
+			class="mb-4 p-2 bg-accent text-accent-foreground rounded-lg flex items-center justify-between border"
+		>
+			<div class="flex items-center gap-2">
+				<span class="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-semibold"
+					>PR Preview</span
+				>
+				<span class="font-medium text-sm">#{selectedPR.number}: {selectedPR.title}</span>
+			</div>
+			<Button variant="ghost" size="icon" class="h-6 w-6" onclick={() => (selectedPR = null)}>
+				<X class="h-4 w-4" />
+			</Button>
+		</div>
+	{/if}
 	<Card class="flex-1 mb-5">
 		<CardContent>
 			<div class="flex flex-col gap-1 px-1">
@@ -63,7 +82,8 @@
 						<span class="bg-muted text-muted-foreground px-1 rounded-md">Production</span>
 					</div>
 
-					<div>
+					<div class="flex items-center gap-2">
+						<AppServicePRPreviewButton serviceId={serviceID} onSelect={(pr) => (selectedPR = pr)} />
 						<Button
 							disabled={rebuildService.isPending}
 							onclick={() =>
