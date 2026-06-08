@@ -145,22 +145,12 @@ export type AppServiceDetails = {
 	created_at: string;
 };
 
-// branch domain types
-export type BranchDomainDetails = {
+// service domain types
+export type UpdateServiceDomainPayload = {
 	service_id: string;
 	domain: string;
 	port: number;
-};
-
-export type UpdateBranchDomainPayload = {
-	service_id: string;
-	domain: string;
-	port: number;
-};
-
-export type GetBranchDomainRes = {
-	domain: string;
-	port: number;
+	is_public: boolean;
 };
 
 // service env types
@@ -174,7 +164,7 @@ export type UpdateEnvPayload = {
 export type GetEnvRes = Omit<UpdateEnvPayload, 'service_id'>;
 
 // navigation types
-export type ServiceTab = '' | 'deployment' | 'env' | 'domains';
+export type ServiceTab = '' | 'deployment' | 'env' | 'settings';
 
 export type NavItem = {
 	label: string;

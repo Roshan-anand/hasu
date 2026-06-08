@@ -1,7 +1,7 @@
 <script lang="ts">
 	import AppDeployments from '@/components/services/app/app-deployments.svelte';
 	import AppHome from '@/components/services/app/app-home.svelte';
-	import AppDomain from '@/components/services/app/app-domain.svelte';
+	import AppSettings from '@/components/services/app/app-settings.svelte';
 	import { resolve } from '$app/paths';
 	import * as NavigationMenu from '@/components/ui/navigation-menu';
 	import { NavItems } from '@/features/services';
@@ -46,8 +46,8 @@
 	{:else if tab === 'env'}
 		<p class="text-muted-foreground">Environment variables tab content goes here</p>
 		<AppEnv {serviceID} />
-	{:else if tab === 'domains'}
-		<AppDomain {serviceID} />
+	{:else if tab === 'settings'}
+		<AppSettings {serviceID} />
 	{:else}
 		<AppHome {serviceID} project={projectName} />
 	{/if}

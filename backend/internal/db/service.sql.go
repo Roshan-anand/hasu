@@ -621,17 +621,18 @@ func (q *Queries) UpdateAppServiceEnv(ctx context.Context, arg UpdateAppServiceE
 
 const updateDomianAndPort = `-- name: UpdateDomianAndPort :exec
 UPDATE app_service
-SET domain = ?, port = ?
+SET domain = ?, port = ?, is_public = ?
 WHERE id = ?
 `
 
 type UpdateDomianAndPortParams struct {
 	Domain    string    `json:"domain"`
 	Port      int32     `json:"port"`
+	IsPublic  bool      `json:"is_public"`
 	ServiceID uuid.UUID `json:"service_id"`
 }
 
 func (q *Queries) UpdateDomianAndPort(ctx context.Context, arg UpdateDomianAndPortParams) error {
-	_, err := q.db.ExecContext(ctx, updateDomianAndPort, arg.Domain, arg.Port, arg.ServiceID)
+	_, err := q.db.ExecContext(ctx, updateDomianAndPort, arg.Domain, arg.Port, arg.IsPublic, arg.ServiceID)
 	return err
 }

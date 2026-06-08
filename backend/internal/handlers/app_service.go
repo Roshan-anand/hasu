@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
@@ -48,8 +49,9 @@ type CreatePreviewAppServiceReq struct {
 
 type UpdateDomainReq struct {
 	ServiceID uuid.UUID `json:"service_id" validate:"required"`
-	Domain    string    `json:"domain" validate:"required"`
-	Port      int32     `json:"port" validate:"required"`
+	Domain    string    `json:"domain"`
+	Port      int32     `json:"port"`
+	IsPublic  bool      `json:"is_public"`
 }
 
 type UpdateEnvReq struct {
@@ -309,7 +311,7 @@ func (h *ServiceHandler) GetServiceEnv(c *echo.Context) error {
 	})
 }
 
-// update domain and port
+// update domain, port and visibility
 //
 // route: PUT /api/service/app/domain
 func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
@@ -321,9 +323,24 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
-	// check if url is valid
-	if _, err := url.Parse(b.Domain); err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid domain"})
+	// when making private, clear the domain
+	if !b.IsPublic {
+		b.Domain = ""
+	}
+
+	// validate domain only when public
+	if b.IsPublic && b.Domain != "" {
+		if !strings.HasPrefix(b.Domain, "https://") {
+			b.Domain = "https://" + b.Domain
+		}
+		if u, err := url.Parse(b.Domain); err != nil || u.Hostname() == "" {
+			fmt.Println("host name:", u.Hostname())
+			fmt.Println("host :", u.Host)
+			fmt.Println("paht :", u.Path)
+
+			return c.JSON(http.StatusBadRequest,
+				types.Res[struct{}]{Message: "invalid domain"})
+		}
 	}
 
 	swarmService, err := q.GetSwarmServiceByServiceId(h.qCtx, b.ServiceID)
@@ -339,7 +356,12 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 	serviceV := inspectRes.Version
 	spec := inspectRes.Spec
 
-	// add domain specfic labels
+	// set traefik enable based on visibility (preserves routing config, just toggles on/off)
+	spec.Annotations.Labels["traefik.enable"] = "false"
+	if b.IsPublic {
+		spec.Annotations.Labels["traefik.enable"] = "true"
+	}
+
 	spec.Annotations.Labels[fmt.Sprintf("traefik.http.routers.%s.rule", swarmService)] = fmt.Sprintf("Host(`%s`)", b.Domain)
 	spec.Annotations.Labels[fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", swarmService)] = fmt.Sprintf("%d", b.Port)
 
@@ -348,10 +370,11 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update swarm service"})
 	}
 
-	// update the branch table
+	// update the app service in database
 	if err := q.UpdateDomianAndPort(h.qCtx, db.UpdateDomianAndPortParams{
 		Domain:    b.Domain,
 		Port:      b.Port,
+		IsPublic:  b.IsPublic,
 		ServiceID: b.ServiceID,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update domain and port"})

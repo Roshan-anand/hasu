@@ -36,7 +36,7 @@ func TestAppService(t *testing.T) {
 	}
 
 	var appServiceID uuid.UUID
-	var deploymentID uuid.UUID
+	// var deploymentID uuid.UUID
 
 	t.Run("get all github apps", func(t *testing.T) {
 		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Git.GetAllGithubApps, IsAuth: true})
@@ -135,8 +135,7 @@ func TestAppService(t *testing.T) {
 			t.Fatal("expected at least one deployment, got 0")
 		}
 
-		deploymentID = res.Data[0].ID
-		t.Log("deployemnt :", deploymentID)
+		// deploymentID = res.Data[0].ID
 	})
 
 	t.Run("get all PRs for app service", func(t *testing.T) {
@@ -164,7 +163,6 @@ func TestAppService(t *testing.T) {
 		if err := readAndUnmarshl(body, &res); err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("Found %d PRs for service", len(res.Data))
 	})
 
 	t.Run("get all PRs for instance", func(t *testing.T) {
@@ -186,7 +184,6 @@ func TestAppService(t *testing.T) {
 		if err := readAndUnmarshl(body, &res); err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("Found %d services in instance map", len(res.Data))
 	})
 
 	t.Run("delete app service", func(t *testing.T) {

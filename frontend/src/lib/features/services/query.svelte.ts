@@ -2,7 +2,6 @@ import { api } from '@/axios';
 import { createQuery } from '@tanstack/svelte-query';
 import type {
 	AppServiceDetails,
-	GetBranchDomainRes,
 	GetEnvRes,
 	PsqlServiceDetails,
 	ServiceListResponse,
@@ -55,22 +54,6 @@ export function useGetAppServiceDetailsQuery(getID: () => string) {
 			queryFn: async () =>
 				api
 					.get<ApiRes<AppServiceDetails>>(`/service/app/${serviceId}`)
-					.then((res) => res.data.data),
-			enabled: serviceId !== ''
-		};
-	});
-}
-
-export function useGetBranchDomainQuery(getServiceId: () => string) {
-	return createQuery(() => {
-		const serviceId = getServiceId();
-		return {
-			queryKey: ['branch-domain', serviceId],
-			queryFn: async () =>
-				api
-					.get<ApiRes<GetBranchDomainRes>>('/service/app/domain', {
-						params: { service_id: serviceId }
-					})
 					.then((res) => res.data.data),
 			enabled: serviceId !== ''
 		};

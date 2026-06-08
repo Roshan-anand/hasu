@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/Roshan-anand/godploy/internal/config"
@@ -32,8 +31,6 @@ func InitInstanceHandlers(s *config.Server) *InstanceHandler {
 // route: GET /api/instance?project=&org_id=
 func (h *InstanceHandler) GetAllInstance(c *echo.Context) error {
 	q := h.Server.DB.Queries
-
-	fmt.Println("triggerget all instace")
 
 	project := c.QueryParam("project")
 	if project == "" {

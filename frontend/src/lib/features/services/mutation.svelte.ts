@@ -9,7 +9,7 @@ import type {
 	GithubRepo,
 	RedeployPsqlServicePayload,
 	ServiceListResponse,
-	UpdateBranchDomainPayload,
+	UpdateServiceDomainPayload,
 	UpdateEnvPayload,
 	UpdatePsqlServicePayload,
 	DeleteAppServicePayload,
@@ -166,13 +166,13 @@ export function useDeletePsqlServiceMutation() {
 	}));
 }
 
-export function useUpdateBranchDomainMutation(getServiceId: () => string) {
+export function useUpdateServiceDomainMutation(getServiceId: () => string) {
 	return createMutation(() => ({
-		mutationFn: async (payload: UpdateBranchDomainPayload) =>
+		mutationFn: async (payload: UpdateServiceDomainPayload) =>
 			api.put<ApiRes<null>>('/service/app/domain', payload).then((res) => res.data),
 		onSuccess: ({ message }) => {
 			queryClient.invalidateQueries({
-				queryKey: ['branch-domain', getServiceId()]
+				queryKey: ['service-details', getServiceId()]
 			});
 			toast.success(message || 'Domain updated successfully');
 		},

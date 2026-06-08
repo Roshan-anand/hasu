@@ -136,7 +136,7 @@ WHERE id = @service_id;
 
 -- name: UpdateDomianAndPort :exec
 UPDATE app_service
-SET domain = ?, port = ?
+SET domain = ?, port = ?, is_public = ?
 WHERE id = @service_id;
 
 -- name: GetAppServiceOnly :one
