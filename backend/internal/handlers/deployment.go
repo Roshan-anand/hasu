@@ -145,7 +145,7 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Res)
 	}
 
-	s, err := q.GetAppServiceById(h.qCtx, b.ServiceId)
+	s, err := q.GetAppServiceForRebuild(h.qCtx, b.ServiceId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch"})
 	}

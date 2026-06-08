@@ -2,7 +2,6 @@ import { api, axiosErr } from '@/axios';
 import { createMutation } from '@tanstack/svelte-query';
 import { toast } from 'svelte-sonner';
 import type { ApiRes } from '@/types';
-import { GetUserData } from '../global/query';
 import { queryClient } from '@/query';
 import type { Organization } from '@/features/auth';
 import type {
@@ -15,18 +14,19 @@ import type {
 	CreateOrgPayload
 } from './type';
 import { getOrgProjectsQueryKey, getOrgsQueryKey } from './const';
-import { getBaseState } from '../global/store.svelte';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
+import { getOrgState } from './store.svelte';
+import { GetUserData } from './query.svelte';
 
 export function useCreateProjectMutation() {
-	const base = getBaseState();
+	const currentOrg = getOrgState();
 	return createMutation(() => ({
 		mutationFn: async (payload: CreateProjectPayload) =>
 			api.post<ApiRes<ProjectResponse>>('/project', payload).then((res) => res.data),
 		onSuccess: ({ data, message }) => {
 			queryClient.setQueryData(
-				getOrgProjectsQueryKey(base.currentOrg.id),
+				getOrgProjectsQueryKey(currentOrg.id),
 				(cachedRows: ProjectListResponse | undefined) => {
 					if (!cachedRows) return [data];
 					if (cachedRows.some((row) => row.id === data.id)) return cachedRows;
@@ -40,13 +40,13 @@ export function useCreateProjectMutation() {
 }
 
 export function useDeleteProjectMutation() {
-	const base = getBaseState();
+	const currentOrg = getOrgState();
 	return createMutation(() => ({
 		mutationFn: async (payload: DeleteProjectPayload) =>
 			api.delete<ApiRes<null>>('/project', { data: payload }).then((res) => res.data),
 		onSuccess: ({ message }, { project_id }) => {
 			queryClient.setQueryData(
-				getOrgProjectsQueryKey(base.currentOrg.id),
+				getOrgProjectsQueryKey(currentOrg.id),
 				(cachedRows: ProjectListResponse | undefined) => {
 					if (!cachedRows) return [];
 					return cachedRows.filter((row) => row.id !== project_id);
@@ -71,7 +71,7 @@ export function useDeleteVolumeMutation() {
 }
 
 export function useSwitchOrgMutation() {
-	const { setCurrentOrg } = getBaseState();
+	const { setCurrentOrg } = getOrgState();
 	return createMutation(() => ({
 		mutationFn: (payload: SwitchOrgPayload) =>
 			api.post<ApiRes<Organization>>('/org/switch', payload).then((res) => res.data),

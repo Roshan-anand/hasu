@@ -138,6 +138,7 @@ export type AppServiceDetails = {
 	commit_msg: string;
 	branch: string;
 	swarm_service: string;
+	is_public: boolean;
 	domain: string;
 	internal_url: string;
 	port: number;

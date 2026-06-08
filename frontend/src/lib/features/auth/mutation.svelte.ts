@@ -3,7 +3,7 @@ import { resolve } from '$app/paths';
 import { api } from '@/axios';
 import { createMutation } from '@tanstack/svelte-query';
 import type { LoginPayload, AuthResponse, RegisterPayload } from './type';
-import { setUserData } from '../global/query';
+import { setUserData } from '../base';
 import type { ApiRes } from '@/types';
 
 export function useLoginMutation() {

@@ -7,14 +7,12 @@
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
 	import { Check, ChevronsUpDown, Plus } from '@lucide/svelte';
-	import { GetUserData } from '@/features/global';
-	import { useGetAllOrgsQuery } from '@/features/base';
+	import { getOrgState, GetUserData, useGetAllOrgsQuery } from '@/features/base';
 	import { useSwitchOrgMutation, useCreateOrgMutation } from '@/features/base';
 	import { SidebarMenuButton } from './ui/sidebar';
-	import { getBaseState } from '@/features/global';
 
+	const currentOrg = getOrgState();
 	const { email } = GetUserData();
-	const base = getBaseState();
 
 	let orgMenuOpen = $state(false);
 	let createDialogOpen = $state(false);
@@ -29,7 +27,7 @@
 	});
 
 	function switchOrg(orgId: string) {
-		if (!orgId || orgId === base.currentOrg.id || switchOrgMutation.isPending) return;
+		if (!orgId || orgId === currentOrg.id || switchOrgMutation.isPending) return;
 
 		switchOrgMutation.mutate(
 			{ org_id: orgId },
@@ -69,10 +67,10 @@
 		class={`relative flex items-center gap-2 p-1 m-0 w-full mx-auto border border-border h-fit hover:bg-sidebar-accent ${orgMenuOpen && 'bg-sidebar-accent'}`}
 	>
 		<Avatar>
-			<AvatarFallback class="rounded-lg">{base.currentOrg.name.trim()[0] || '?'}</AvatarFallback>
+			<AvatarFallback class="rounded-lg">{currentOrg.name.trim()[0] || '?'}</AvatarFallback>
 		</Avatar>
 		<div class="flex flex-col items-start">
-			<p class="truncate font-medium">{base.currentOrg.name || 'No organization selected'}</p>
+			<p class="truncate font-medium">{currentOrg.name || 'No organization selected'}</p>
 			<p class="truncate font-medium opacity-75">{email}</p>
 		</div>
 
@@ -94,7 +92,7 @@
 						disabled={switchOrgMutation.isPending}
 					>
 						<span class="truncate">{org.name}</span>
-						{#if org.id === base.currentOrg.id}
+						{#if org.id === org.id}
 							<Check class="ml-auto" />
 						{/if}
 					</DropdownMenu.Item>

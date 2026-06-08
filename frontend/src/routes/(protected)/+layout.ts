@@ -1,5 +1,5 @@
 import { resolve } from '$app/paths';
-import { fetchUserQuery, GetUserData } from '@/features/global';
+import { fetchUserQuery, GetUserData } from '@/features/base';
 import { redirect } from '@sveltejs/kit';
 import axios from 'axios';
 

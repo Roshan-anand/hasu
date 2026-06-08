@@ -48,7 +48,8 @@
 		status,
 		domain,
 		internal_url,
-		port
+		port,
+		is_public
 	} = serviceQuery.data}
 	<Card class="flex-1 mb-5">
 		<CardContent>
@@ -96,18 +97,22 @@
 					<Icon icon="mingcute:git-branch-line" />
 					<span>{gh_repo_name}</span>
 					<span>{branch}</span>
-					{#if domain === ''}
-						<span>No domain specified</span>
+					{#if is_public}
+						{#if domain === ''}
+							<span>No domain specified</span>
+						{:else}
+							<!--  eslint-disable svelte/no-navigation-without-resolve  -->
+							<a
+								href={domain.includes('https://') ? domain : `https://${domain}`}
+								target="_blank"
+								class="flex items-center gap-1 underline underline-offset-2 hover:text-primary"
+							>
+								<span>{domain}</span>
+								<Icon icon="lucide:external-link" class="w-4 h-4" />
+							</a>
+						{/if}
 					{:else}
-						<!--  eslint-disable svelte/no-navigation-without-resolve  -->
-						<a
-							href={domain.includes('https://') ? domain : `https://${domain}`}
-							target="_blank"
-							class="flex items-center gap-1 underline underline-offset-2 hover:text-primary"
-						>
-							<span>{domain}</span>
-							<Icon icon="lucide:external-link" class="w-4 h-4" />
-						</a>
+						<span class="text-muted-foreground">Internal service</span>
 					{/if}
 				</p>
 				<p>{commit_msg}</p>

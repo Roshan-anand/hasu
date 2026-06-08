@@ -4,39 +4,61 @@ import type { ApiRes } from '@/types';
 import type { Instance, Organization } from '@/features/auth';
 import type { OrphanVolume, ProjectListResponse } from './type';
 import { getOrphanVolumesQueryKey, getOrgProjectsQueryKey, getOrgsQueryKey } from './const';
-import { getBaseState } from '../global/store.svelte';
-import { GetUserData } from '../global/query';
+import type { AuthResponse } from '@/features/auth';
+import { queryClient } from '@/query';
+import { getOrgState } from './store.svelte';
+
+const authUserQueryKey = () => ['auth', 'user'];
+
+// query to fetch auth user data
+export const fetchUserQuery = () =>
+	queryClient.fetchQuery({
+		queryKey: authUserQueryKey(),
+		queryFn: () => api.get<ApiRes<AuthResponse>>('/auth/user').then((res) => res.data.data)
+	});
+
+// helper function to get auth user data from cache
+export const GetUserData = (): AuthResponse =>
+	queryClient.getQueryData<AuthResponse>(authUserQueryKey()) || {
+		name: '',
+		email: '',
+		org_id: '',
+		org_name: ''
+	};
+
+export const setUserData = (userData: AuthResponse | null) =>
+	queryClient.setQueryData<AuthResponse | null>(authUserQueryKey(), userData);
 
 export function useGetAllProjectsQuery() {
 	return createQuery(() => {
-		const base = getBaseState();
+		const currentOrg = getOrgState();
 		return {
-			queryKey: getOrgProjectsQueryKey(base.currentOrg.id),
+			queryKey: getOrgProjectsQueryKey(currentOrg.id),
 			queryFn: async () =>
 				api
 					.get<ApiRes<ProjectListResponse>>('/project', {
-						params: { org_id: base.currentOrg.id }
+						params: { org_id: currentOrg.id }
 					})
 					.then((res) => res.data.data),
-			enabled: base.currentOrg.id !== ''
+			enabled: currentOrg.id !== ''
 		};
 	});
 }
 
 export function useGetOrphanVolumesQuery() {
 	return createQuery(() => {
-		const base = getBaseState();
+		const currentOrg = getOrgState();
 		return {
-			queryKey: getOrphanVolumesQueryKey(base.currentOrg.id),
+			queryKey: getOrphanVolumesQueryKey(currentOrg.id),
 			queryFn: async () => {
 				const res = await api.get<ApiRes<OrphanVolume[]>>('/volume', {
-					params: { org_id: base.currentOrg.id },
+					params: { org_id: currentOrg.id },
 					validateStatus: (status) => (status >= 200 && status < 300) || status === 204
 				});
 				if (res.status === 204) return [];
 				return res.data.data || [];
 			},
-			enabled: base.currentOrg.id !== ''
+			enabled: currentOrg.id !== ''
 		};
 	});
 }
@@ -51,20 +73,20 @@ export function useGetAllOrgsQuery() {
 	});
 }
 
-export function useGetAllInstanceQuery(getProject: () => string | null) {
+export function useGetAllInstanceQuery(getProject: () => string) {
 	return createQuery(() => {
 		const { org_id } = GetUserData();
 		const project = getProject();
 
 		return {
-			queryKey: getOrgsQueryKey(project as string),
+			queryKey: getOrgsQueryKey(project),
 			queryFn: () =>
 				api
 					.get<ApiRes<Instance[]>>('/instance', {
 						params: { project, org_id }
 					})
 					.then((res) => res.data.data),
-			enabled: !!project && org_id !== ''
+			enabled: project != '' && org_id !== ''
 		};
 	});
 }
@@ -73,18 +95,18 @@ export function useGetAllInstanceQuery(getProject: () => string | null) {
 // Used during predef-db creation to let users reattach a compatible orphan volume.
 export function useGetOrphanVolumesByTypeQuery(type: string) {
 	return createQuery(() => {
-		const base = getBaseState();
+		const currentOrg = getOrgState();
 		return {
-			queryKey: ['orphan-volumes', base.currentOrg.id, 'type', type] as const,
+			queryKey: ['orphan-volumes', currentOrg.id, 'type', type] as const,
 			queryFn: async () => {
 				const res = await api.get<ApiRes<OrphanVolume[]>>(`/volume/${type}`, {
-					params: { org_id: base.currentOrg.id },
+					params: { org_id: currentOrg.id },
 					validateStatus: (status) => (status >= 200 && status < 300) || status === 204
 				});
 				if (res.status === 204) return [];
 				return res.data.data || [];
 			},
-			enabled: base.currentOrg.id !== '' && type !== ''
+			enabled: currentOrg.id !== '' && type !== ''
 		};
 	});
 }

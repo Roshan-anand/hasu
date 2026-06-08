@@ -2,15 +2,14 @@
 	import AppSidebar from '@/components/app-sidebar.svelte';
 	import * as Sidebar from '@/components/ui/sidebar/index.js';
 	import ModeToggle from '@/components/mode-toggle.svelte';
-	import { GetUserData } from '@/features/global';
-	import { setBaseState } from '@/features/global';
 	import AppBreadcrums from '@/components/app-breadcrums.svelte';
 	import { setInstanceState } from '@/features/instance';
+	import { GetUserData, setOrgState } from '@/features/base';
 
 	let { children } = $props();
 
 	const { org_id, org_name } = GetUserData();
-	setBaseState(org_id, org_name);
+	setOrgState(org_id, org_name);
 	setInstanceState();
 </script>
 

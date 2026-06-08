@@ -21,7 +21,7 @@ import type {
 import type { ApiRes } from '@/types';
 import { queryClient } from '@/query';
 import { getInstanceServicesQueryKey } from './query.svelte';
-import { getInstanceState } from '../instance/context.svelte';
+import { getInstanceState } from '../instance';
 import { normalizePathValue } from '@/utils';
 
 export function useGetReposMutation() {

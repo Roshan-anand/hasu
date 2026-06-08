@@ -8,7 +8,7 @@ import type {
 	ServiceListResponse
 } from './type';
 import type { ApiRes } from '@/types';
-import { getInstanceState } from '../instance/context.svelte';
+import { getInstanceState } from '../instance';
 
 export const getInstanceServicesQueryKey = (instanceID: string) =>
 	['services-list', instanceID] as const;

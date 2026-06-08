@@ -296,41 +296,27 @@ func (q *Queries) GetAllSwarmServiceAndImgByAppServiceId(ctx context.Context, se
 
 const getAppServiceById = `-- name: GetAppServiceById :one
 SELECT
-    a.id, a.instance_id, a.type, a.name, a.git_provider, a.gh_app_id, a.gh_repo_id, a.gh_repo_name, a.gh_repo_url, a.build_path, a.watch_path, a.docker_filepath, a.docker_contextpath, a.docker_buildstage, a.env, a.build_args, a.build_secrets, a.is_public, a.branch, a.swarm_service, a.domain, a.internal_url, a.port, a.created_at,
-    d.id AS deployment_id,d.status AS deployment_status, d.commit_msg
+    a.id, a.name, a.gh_repo_name, a.gh_repo_url, a.is_public, a.branch, a.swarm_service, a.domain, a.internal_url, a.port, a.created_at,
+    d.status, d.commit_msg
 FROM app_service a
 JOIN deployments d ON d.service_id = a.id AND d.is_current
 WHERE a.id = ?
 `
 
 type GetAppServiceByIdRow struct {
-	ID                uuid.UUID              `json:"id"`
-	InstanceID        uuid.UUID              `json:"instance_id"`
-	Type              types.ServiceType      `json:"type"`
-	Name              string                 `json:"name"`
-	GitProvider       string                 `json:"git_provider"`
-	GhAppID           int64                  `json:"gh_app_id"`
-	GhRepoID          int64                  `json:"gh_repo_id"`
-	GhRepoName        string                 `json:"gh_repo_name"`
-	GhRepoUrl         string                 `json:"gh_repo_url"`
-	BuildPath         string                 `json:"build_path"`
-	WatchPath         string                 `json:"watch_path"`
-	DockerFilepath    string                 `json:"docker_filepath"`
-	DockerContextpath string                 `json:"docker_contextpath"`
-	DockerBuildstage  string                 `json:"docker_buildstage"`
-	Env               []byte                 `json:"env"`
-	BuildArgs         []byte                 `json:"build_args"`
-	BuildSecrets      []byte                 `json:"build_secrets"`
-	IsPublic          bool                   `json:"is_public"`
-	Branch            string                 `json:"branch"`
-	SwarmService      string                 `json:"swarm_service"`
-	Domain            string                 `json:"domain"`
-	InternalUrl       string                 `json:"internal_url"`
-	Port              int32                  `json:"port"`
-	CreatedAt         time.Time              `json:"created_at"`
-	DeploymentID      uuid.UUID              `json:"deployment_id"`
-	DeploymentStatus  types.DeploymentStatus `json:"deployment_status"`
-	CommitMsg         string                 `json:"commit_msg"`
+	ID           uuid.UUID              `json:"id"`
+	Name         string                 `json:"name"`
+	GhRepoName   string                 `json:"gh_repo_name"`
+	GhRepoUrl    string                 `json:"gh_repo_url"`
+	IsPublic     bool                   `json:"is_public"`
+	Branch       string                 `json:"branch"`
+	SwarmService string                 `json:"swarm_service"`
+	Domain       string                 `json:"domain"`
+	InternalUrl  string                 `json:"internal_url"`
+	Port         int32                  `json:"port"`
+	CreatedAt    time.Time              `json:"created_at"`
+	Status       types.DeploymentStatus `json:"status"`
+	CommitMsg    string                 `json:"commit_msg"`
 }
 
 func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppServiceByIdRow, error) {
@@ -338,22 +324,9 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppSe
 	var i GetAppServiceByIdRow
 	err := row.Scan(
 		&i.ID,
-		&i.InstanceID,
-		&i.Type,
 		&i.Name,
-		&i.GitProvider,
-		&i.GhAppID,
-		&i.GhRepoID,
 		&i.GhRepoName,
 		&i.GhRepoUrl,
-		&i.BuildPath,
-		&i.WatchPath,
-		&i.DockerFilepath,
-		&i.DockerContextpath,
-		&i.DockerBuildstage,
-		&i.Env,
-		&i.BuildArgs,
-		&i.BuildSecrets,
 		&i.IsPublic,
 		&i.Branch,
 		&i.SwarmService,
@@ -361,9 +334,60 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppSe
 		&i.InternalUrl,
 		&i.Port,
 		&i.CreatedAt,
+		&i.Status,
+		&i.CommitMsg,
+	)
+	return i, err
+}
+
+const getAppServiceForRebuild = `-- name: GetAppServiceForRebuild :one
+SELECT
+    a.id, a.name, a.gh_repo_url, a.gh_app_id, a.gh_repo_id, a.branch, a.build_path, a.docker_filepath, a.docker_contextpath, a.docker_buildstage, a.env, a.build_args, a.build_secrets, a.swarm_service,
+    d.id AS deployment_id, d.status AS deployment_status
+FROM app_service a
+JOIN deployments d ON d.service_id = a.id AND d.is_current
+WHERE a.id = ?
+`
+
+type GetAppServiceForRebuildRow struct {
+	ID                uuid.UUID              `json:"id"`
+	Name              string                 `json:"name"`
+	GhRepoUrl         string                 `json:"gh_repo_url"`
+	GhAppID           int64                  `json:"gh_app_id"`
+	GhRepoID          int64                  `json:"gh_repo_id"`
+	Branch            string                 `json:"branch"`
+	BuildPath         string                 `json:"build_path"`
+	DockerFilepath    string                 `json:"docker_filepath"`
+	DockerContextpath string                 `json:"docker_contextpath"`
+	DockerBuildstage  string                 `json:"docker_buildstage"`
+	Env               []byte                 `json:"env"`
+	BuildArgs         []byte                 `json:"build_args"`
+	BuildSecrets      []byte                 `json:"build_secrets"`
+	SwarmService      string                 `json:"swarm_service"`
+	DeploymentID      uuid.UUID              `json:"deployment_id"`
+	DeploymentStatus  types.DeploymentStatus `json:"deployment_status"`
+}
+
+func (q *Queries) GetAppServiceForRebuild(ctx context.Context, id uuid.UUID) (GetAppServiceForRebuildRow, error) {
+	row := q.db.QueryRowContext(ctx, getAppServiceForRebuild, id)
+	var i GetAppServiceForRebuildRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.GhRepoUrl,
+		&i.GhAppID,
+		&i.GhRepoID,
+		&i.Branch,
+		&i.BuildPath,
+		&i.DockerFilepath,
+		&i.DockerContextpath,
+		&i.DockerBuildstage,
+		&i.Env,
+		&i.BuildArgs,
+		&i.BuildSecrets,
+		&i.SwarmService,
 		&i.DeploymentID,
 		&i.DeploymentStatus,
-		&i.CommitMsg,
 	)
 	return i, err
 }

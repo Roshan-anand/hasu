@@ -5,11 +5,12 @@
 	import * as Select from '@/components/ui/select';
 	import { Blocks } from '@lucide/svelte';
 	import { getInstanceState } from '@/features/instance';
+	import { page } from '$app/state';
 
 	const instance = getInstanceState();
-	const { project, service, type } = $derived(instance.path);
+	const { project, service } = $derived(page.params);
 
-	const getAllInstance = useGetAllInstanceQuery(() => project);
+	const getAllInstance = useGetAllInstanceQuery(() => project || '');
 
 	// update current instance when project changes
 	$effect(() => {
@@ -67,7 +68,7 @@
 			{:else}
 				<Breadcrumb.Item>loading...</Breadcrumb.Item>
 			{/if}
-			{#if service && type !== 'new'}
+			{#if service}
 				<Breadcrumb.Separator />
 				<Breadcrumb.Item>
 					<Breadcrumb.Link>{service}</Breadcrumb.Link>

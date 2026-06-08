@@ -4,7 +4,7 @@
 
 - [ ] 01 — Install Godploy on Ubuntu from GHCR [easy]
 - [x] 02 — Create a Project with a default production Project Instance [easy]
-- [ ] 03 — Create an internal application Service inside the production Project Instance [easy]
+- [x] 03 — Create an internal application Service inside the production Project Instance [easy]
 - [ ] 04 — Expose a public application Service from the production Project Instance [easy]
 - [ ] 05 — Show project instance switching in the dashboard [easy]
 - [ ] 06 — Create a branch preview Project Instance from a production snapshot [easy]

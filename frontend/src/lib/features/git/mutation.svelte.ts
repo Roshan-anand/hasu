@@ -4,7 +4,7 @@ import { createMutation } from '@tanstack/svelte-query';
 import { toast } from 'svelte-sonner';
 import { getGithubAppsQueryKey } from './query.svelte';
 import type { DeleteGithubAppPayload, GithubApp } from './type';
-import { GetUserData } from '../global/query';
+import { GetUserData } from '../base';
 import type { ApiRes } from '@/types';
 
 export function useDeleteGithubAppMutation() {

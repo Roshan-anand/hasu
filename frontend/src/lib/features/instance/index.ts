@@ -1,1 +1,1 @@
-export * from './context.svelte';
+export * from './store.svelte';
