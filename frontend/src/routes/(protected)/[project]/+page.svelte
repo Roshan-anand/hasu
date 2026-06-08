@@ -11,8 +11,12 @@
 	import AppDeletion from '@/components/conformation/app-deletion.svelte';
 	import DbDeletion from '@/components/conformation/db-deletion.svelte';
 	import { DotmSquare } from '@/components/loader';
+	import InstancePRPreviewDropdown from '@/components/InstancePRPreviewDropdown.svelte';
+	import { X } from '@lucide/svelte';
+	import type { PRInfo } from '@/features/services';
 
 	let searchQuery = $state('');
+	let selectedPR = $state<{ serviceName: string; pr: PRInfo } | null>(null);
 
 	const { data } = $props();
 	const servicesQuery = useGetAllServicesQuery();
@@ -24,9 +28,19 @@
 		if (!servicesQuery.data) return [];
 
 		const keyword = searchQuery.trim().toLowerCase();
+		console.log('keyword :', keyword);
+		console.log('dta a', servicesQuery.data);
 		if (keyword === '') return servicesQuery.data;
 
-		return servicesQuery.data.filter((service) => service.name.toLowerCase().includes(keyword));
+		const data = servicesQuery.data.filter((service) =>
+			service.name.toLowerCase().includes(keyword)
+		);
+		console.log('after filer :', data);
+		return data;
+	});
+
+	$effect(() => {
+		console.log('filter :', filteredServices);
 	});
 
 	const createOptions = [
@@ -45,6 +59,24 @@
 	];
 </script>
 
+{#if selectedPR}
+	<div
+		class="mb-3 p-2 bg-accent text-accent-foreground rounded-lg flex items-center justify-between border"
+	>
+		<div class="flex items-center gap-2">
+			<span class="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-semibold"
+				>PR Preview</span
+			>
+			<span class="font-medium text-sm"
+				>{selectedPR.serviceName} - #{selectedPR.pr.number}: {selectedPR.pr.title}</span
+			>
+		</div>
+		<Button variant="ghost" size="icon" class="h-6 w-6" onclick={() => (selectedPR = null)}>
+			<X class="h-4 w-4" />
+		</Button>
+	</div>
+{/if}
+
 <nav class="flex gap-4">
 	<div class="flex-1 flex relative">
 		<Input
@@ -55,6 +87,7 @@
 		/>
 		<Label class="absolute top-0 right-0 m-1 opacity-75" for="service-search"><Search /></Label>
 	</div>
+	<InstancePRPreviewDropdown onSelect={(serviceName, pr) => (selectedPR = { serviceName, pr })} />
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
@@ -74,7 +107,6 @@
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>
 </nav>
-
 <section class="flex-1 p-2">
 	{#if servicesQuery.isPending}
 		<div class="size-full flex items-center justify-center">
@@ -85,19 +117,21 @@
 	{:else if filteredServices.length > 0}
 		<!-- TODO : update UI to include new type of app service returned -->
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-			{#each filteredServices as service (service.id)}
+			{#each filteredServices as service, i (i)}
 				<div
 					class="rounded-lg border bg-card text-card-foreground shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer relative"
 				>
-					<a
-						href={resolve('/(protected)/[project]/[service_type]/[service]', {
-							service_type: service.type,
-							service: service.id,
-							project: getProjectName()
-						})}
-						class="absolute z-10 size-full inset-0 text-transparent"
-						title="open service"
-					></a>
+					{#if service.type}
+						<a
+							href={resolve('/(protected)/[project]/[service_type]/[service]', {
+								service_type: service.type,
+								service: service.name,
+								project: getProjectName()
+							})}
+							class="absolute z-10 size-full inset-0 text-transparent"
+							title="open service"
+						></a>
+					{/if}
 					<div class="flex items-start justify-between gap-2">
 						<div>
 							<h3 class="font-semibold text-lg">{service.name}</h3>
@@ -109,6 +143,7 @@
 							<DbDeletion serviceId={service.id} name={service.name} />
 						{/if}
 					</div>
+					<div>{service.type}</div>
 				</div>
 			{/each}
 		</div>

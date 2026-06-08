@@ -392,6 +392,86 @@ func (q *Queries) GetAppServiceForRebuild(ctx context.Context, id uuid.UUID) (Ge
 	return i, err
 }
 
+const getAppServiceOnly = `-- name: GetAppServiceOnly :one
+SELECT id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, docker_filepath, docker_contextpath, docker_buildstage, env, build_args, build_secrets, is_public, branch, swarm_service, domain, port, created_at FROM app_service WHERE id = ?
+`
+
+func (q *Queries) GetAppServiceOnly(ctx context.Context, id uuid.UUID) (AppService, error) {
+	row := q.db.QueryRowContext(ctx, getAppServiceOnly, id)
+	var i AppService
+	err := row.Scan(
+		&i.ID,
+		&i.InstanceID,
+		&i.Type,
+		&i.Name,
+		&i.GitProvider,
+		&i.GhAppID,
+		&i.GhRepoID,
+		&i.GhRepoName,
+		&i.GhRepoUrl,
+		&i.BuildPath,
+		&i.WatchPath,
+		&i.DockerFilepath,
+		&i.DockerContextpath,
+		&i.DockerBuildstage,
+		&i.Env,
+		&i.BuildArgs,
+		&i.BuildSecrets,
+		&i.IsPublic,
+		&i.Branch,
+		&i.SwarmService,
+		&i.Domain,
+		&i.Port,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getAppServicesByInstanceId = `-- name: GetAppServicesByInstanceId :many
+SELECT id, name, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, branch FROM app_service WHERE instance_id = ?
+`
+
+type GetAppServicesByInstanceIdRow struct {
+	ID         uuid.UUID `json:"id"`
+	Name       string    `json:"name"`
+	GhAppID    int64     `json:"gh_app_id"`
+	GhRepoID   int64     `json:"gh_repo_id"`
+	GhRepoName string    `json:"gh_repo_name"`
+	GhRepoUrl  string    `json:"gh_repo_url"`
+	Branch     string    `json:"branch"`
+}
+
+func (q *Queries) GetAppServicesByInstanceId(ctx context.Context, instanceID uuid.UUID) ([]GetAppServicesByInstanceIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAppServicesByInstanceId, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAppServicesByInstanceIdRow
+	for rows.Next() {
+		var i GetAppServicesByInstanceIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.GhAppID,
+			&i.GhRepoID,
+			&i.GhRepoName,
+			&i.GhRepoUrl,
+			&i.Branch,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getDomainAndPortByServiceId = `-- name: GetDomainAndPortByServiceId :one
 SELECT domain, port
 FROM app_service

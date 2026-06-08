@@ -3,10 +3,16 @@ import { createQuery } from '@tanstack/svelte-query';
 import type { ApiRes } from '@/types';
 import type { Instance, Organization } from '@/features/auth';
 import type { OrphanVolume, ProjectListResponse } from './type';
-import { getOrphanVolumesQueryKey, getOrgProjectsQueryKey, getOrgsQueryKey } from './const';
+import {
+	getOrphanVolumesQueryKey,
+	getOrgProjectsQueryKey,
+	getOrgsQueryKey,
+	getAllInstanceQueryKey
+} from './const';
 import type { AuthResponse } from '@/features/auth';
 import { queryClient } from '@/query';
 import { getOrgState } from './store.svelte';
+import { getInstanceState } from '../instance';
 
 const authUserQueryKey = () => ['auth', 'user'];
 
@@ -77,15 +83,18 @@ export function useGetAllInstanceQuery(getProject: () => string) {
 	return createQuery(() => {
 		const { org_id } = GetUserData();
 		const project = getProject();
+		const instance = getInstanceState();
 
 		return {
-			queryKey: getOrgsQueryKey(project),
-			queryFn: () =>
-				api
-					.get<ApiRes<Instance[]>>('/instance', {
-						params: { project, org_id }
-					})
-					.then((res) => res.data.data),
+			queryKey: getAllInstanceQueryKey(project),
+			queryFn: async () => {
+				const res = await api.get<ApiRes<Instance[]>>('/instance', {
+					params: { project, org_id }
+				});
+
+				instance.setInstances(res.data.data);
+				return res.data.data;
+			},
 			enabled: project != '' && org_id !== ''
 		};
 	});

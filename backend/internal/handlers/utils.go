@@ -72,8 +72,9 @@ func getManifestData(url string, state string) (string, error) {
 		"setup_url": fmt.Sprintf("%s/api/provider/github/app/setup?state=%s", url, state),
 		"public":    true,
 		"default_permissions": map[string]string{
-			"contents": "read",
-			"metadata": "read",
+			"contents":      "read",
+			"metadata":      "read",
+			"pull_requests": "read",
 		},
 		"default_events": []string{"push"},
 	}

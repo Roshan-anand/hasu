@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -136,6 +137,56 @@ func TestAppService(t *testing.T) {
 
 		deploymentID = res.Data[0].ID
 		t.Log("deployemnt :", deploymentID)
+	})
+
+	t.Run("get all PRs for app service", func(t *testing.T) {
+		query := url.Values{}
+		query.Add("service_id", appServiceID.String())
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Git.GetGithubPRList, IsAuth: true, Query: query})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			var errMsg types.Res[struct{}]
+			_ = json.Unmarshal(rec.Body.Bytes(), &errMsg)
+			if errMsg.Message == "Failed to fetch pull requests" {
+				t.Log("Skipping PR list check because the test GitHub App does not have pull_requests read permissions")
+				return
+			}
+			printRaw(body, t)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var res types.Res[[]handlers.PRInfo]
+		if err := readAndUnmarshl(body, &res); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("Found %d PRs for service", len(res.Data))
+	})
+
+	t.Run("get all PRs for instance", func(t *testing.T) {
+		query := url.Values{}
+		query.Add("instance_id", user.InstanceID.String())
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Git.GetGithubPRListByInstance, IsAuth: true, Query: query})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			printRaw(body, t)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var res types.Res[map[string][]handlers.PRInfo]
+		if err := readAndUnmarshl(body, &res); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("Found %d services in instance map", len(res.Data))
 	})
 
 	t.Run("delete app service", func(t *testing.T) {

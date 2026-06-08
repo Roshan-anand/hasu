@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
-	import { useGetAllInstanceQuery } from '@/features/base';
 	import * as Select from '@/components/ui/select';
 	import { Blocks } from '@lucide/svelte';
 	import { getInstanceState } from '@/features/instance';
@@ -9,17 +8,6 @@
 
 	const instance = getInstanceState();
 	const { project, service } = $derived(page.params);
-
-	const getAllInstance = useGetAllInstanceQuery(() => project || '');
-
-	// update current instance when project changes
-	$effect(() => {
-		if (getAllInstance.isSuccess) {
-			getAllInstance.data.forEach(({ is_production, id, name }) => {
-				if (is_production) instance.setCurrent(id, name);
-			});
-		}
-	});
 </script>
 
 {#if project}
@@ -39,22 +27,22 @@
 				>
 			</Breadcrumb.Item>
 			<Breadcrumb.Separator />
-			{#if instance.id !== ''}
+			{#if instance.current.id}
 				<Breadcrumb.Item>
-					<Select.Root type="single" value={instance.name}>
+					<Select.Root type="single" value={instance.current.name}>
 						<Select.Trigger
 							class="w-full h-fit border-none dark:bg-transparent bg-transparent focus:bg-transparent"
 							id="git-branch-select"
 						>
-							{#if instance.name}
-								<span>{instance.name}</span>
+							{#if instance.current.name}
+								<span>{instance.current.name}</span>
 							{:else}
 								<span>Select Instance</span>
 							{/if}
 						</Select.Trigger>
 						<Select.Content>
-							{#if getAllInstance.data}
-								{#each getAllInstance.data as { id, name } (id)}
+							{#if instance.all}
+								{#each instance.all as { id, name } (id)}
 									<Select.Item
 										value={name}
 										label={name}
