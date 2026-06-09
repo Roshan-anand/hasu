@@ -122,7 +122,6 @@ func NewGithubAppClient(q *db.Queries, appID int64) (*github.Client, error) {
 
 // to get the latest commit of the
 func (gh *GithubService) GetLatestCommit(owner string, repoName string, branch string) (*CommitInfo, error) {
-
 	commits, _, err := gh.Client.Repositories.ListCommits(context.Background(), owner, repoName, &github.CommitsListOptions{
 		SHA: branch,
 		ListOptions: github.ListOptions{

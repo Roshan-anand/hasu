@@ -4,6 +4,7 @@
 <p>Lightweight, single-binary, self-hosted alternative to railway, render, vercel.</p>
 </div>
 
+# ! Project is under development, v0.0.1 will release soon
 
 ## Tech stack
 

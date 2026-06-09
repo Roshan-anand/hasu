@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
-	ghservice "github.com/Roshan-anand/godploy/internal/lib/gh"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/Roshan-anand/godploy/internal/lib/utils"
@@ -101,28 +99,12 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Service name already exists"})
 	}
 
-	// create a new github client
-	gh, err := ghservice.New(q, b.GhAppID)
+	ghData, err := GetGitHubDeployData(q, b.GhAppID, b.GhRepoID, b.DefaultBranch)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: fmt.Sprintf("github app with app id %d not found", b.GhAppID)})
-		}
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github client"})
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to fetch github data"})
 	}
 
-	// get the github repository details
-	repo, err := gh.GetRepo(b.GhRepoID)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch repository info from github"})
-	}
-
-	// get the latest commit info of the selected branch
-	commit, err := gh.GetLatestCommit(repo.Owner, repo.Name, b.DefaultBranch)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch latest commit info from github"})
-	}
-
-	url, err := utils.GetUrltHostNPath(repo.URL)
+	url, err := utils.GetUrltHostNPath(ghData.RepoURL)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid repository url"})
 	}
@@ -164,7 +146,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		GitProvider:       b.GitProvider,
 		GhAppID:           b.GhAppID,
 		GhRepoID:          b.GhRepoID,
-		GhRepoName:        repo.FullName,
+		GhRepoName:        ghData.RepoFullName,
 		GhRepoUrl:         url,
 		BuildPath:         b.BuildPath,
 		WatchPath:         b.WatchPath,
@@ -189,8 +171,8 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 		ID:         security.GeneratePrimaryKey(),
 		ServiceID:  service.ID,
-		CommitHash: commit.Hash,
-		CommitMsg:  commit.Message,
+		CommitHash: ghData.CommitHash,
+		CommitMsg:  ghData.CommitMsg,
 		IsCurrent:  true,
 	})
 	if err != nil {
@@ -212,7 +194,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
 		Type:              deploymentqueue.DeployJob,
 		DeploymentID:      dID,
-		Token:             gh.Token,
+		Token:             ghData.Token,
 		Url:               url,
 		Branch:            b.DefaultBranch,
 		SwarmService:      unique.ServiceName,

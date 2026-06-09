@@ -9,8 +9,10 @@ import (
 	"strings"
 
 	"github.com/Roshan-anand/godploy/internal/db"
+	ghservice "github.com/Roshan-anand/godploy/internal/lib/gh"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
+	"github.com/Roshan-anand/godploy/internal/lib/utils"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v5"
 )
@@ -184,4 +186,49 @@ func generateServiceAndImgName(name string, branch string) *GenerateNameRes {
 		ServiceName: serviceName,
 		ImgName:     imgName,
 	}
+}
+
+// Bundles GitHub client creation, repo fetch, and latest commit fetch into one call.
+type GitHubDeployData struct {
+	Token        string
+	Owner        string
+	RepoName     string
+	RepoFullName string
+	RepoURL      string
+	RepoURLPath  string
+	CommitHash   string
+	CommitMsg    string
+}
+
+func GetGitHubDeployData(q *db.Queries, ghAppID int64, ghRepoID int64, branch string) (*GitHubDeployData, error) {
+	gh, err := ghservice.New(q, ghAppID)
+	if err != nil {
+		return nil, err
+	}
+
+	repo, err := gh.GetRepo(ghRepoID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch repository info: %w", err)
+	}
+
+	commit, err := gh.GetLatestCommit(repo.Owner, repo.Name, branch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch latest commit: %w", err)
+	}
+
+	urlPath, err := utils.GetUrltHostNPath(repo.URL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid repository url: %w", err)
+	}
+
+	return &GitHubDeployData{
+		Token:        gh.Token,
+		Owner:        repo.Owner,
+		RepoName:     repo.Name,
+		RepoFullName: repo.FullName,
+		RepoURL:      repo.URL,
+		RepoURLPath:  urlPath,
+		CommitHash:   commit.Hash,
+		CommitMsg:    commit.Message,
+	}, nil
 }

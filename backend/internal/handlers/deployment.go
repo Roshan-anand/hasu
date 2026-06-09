@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -11,7 +9,6 @@ import (
 	"github.com/Roshan-anand/godploy/internal/db"
 	deploymentqueue "github.com/Roshan-anand/godploy/internal/jobs/deployment/queue"
 	logbrokerqueue "github.com/Roshan-anand/godploy/internal/jobs/logbroker/queue"
-	ghservice "github.com/Roshan-anand/godploy/internal/lib/gh"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/sse"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
@@ -176,33 +173,17 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
 
-	// create a new github client
-	gh, err := ghservice.New(tq, s.GhAppID)
+	ghData, err := GetGitHubDeployData(tq, s.GhAppID, s.GhRepoID, s.Branch)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: fmt.Sprintf("github app with app id %d not found", s.GhAppID)})
-		}
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to create github client"})
-	}
-
-	// get the github repository details
-	repo, err := gh.GetRepo(s.GhRepoID)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch repository info from github"})
-	}
-
-	// get the latest commit info of the default branch
-	commit, err := gh.GetLatestCommit(repo.Owner, repo.Name, s.Branch)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "failed to fetch latest commit info from github"})
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to fetch github data"})
 	}
 
 	// create a new deployment for the app service
 	dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
 		ID:         security.GeneratePrimaryKey(),
 		ServiceID:  s.ID,
-		CommitMsg:  commit.Message,
-		CommitHash: commit.Hash,
+		CommitHash: ghData.CommitHash,
+		CommitMsg:  ghData.CommitMsg,
 		IsCurrent:  true,
 	})
 	if err != nil {
@@ -231,7 +212,7 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 	h.Server.DeploymentQ.EnqueuePullJob(&deploymentqueue.PullJobData{
 		Type:              deploymentqueue.RebuildJob,
 		DeploymentID:      dID,
-		Token:             gh.Token,
+		Token:             ghData.Token,
 		Url:               s.GhRepoUrl,
 		Branch:            s.Branch,
 		SwarmService:      s.SwarmService,
