@@ -28,7 +28,8 @@ vi.mock('@/axios', () => ({
 	api: {
 		post: mockPost,
 		get: vi.fn()
-	}
+	},
+	axiosErr: vi.fn()
 }));
 
 vi.mock('svelte-sonner', () => ({

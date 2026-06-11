@@ -5,10 +5,6 @@
 	const project = $derived(data.projectName);
 
 	useGetAllInstanceQuery(() => project);
-
-	$effect(() => {
-		console.log('Project key :', project);
-	});
 </script>
 
 {@render children()}

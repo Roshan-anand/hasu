@@ -2,7 +2,7 @@ import { api } from '@/axios';
 import { createQuery } from '@tanstack/svelte-query';
 import type { ApiRes } from '@/types';
 import type { Instance, Organization } from '@/features/auth';
-import type { OrphanVolume, ProjectListResponse } from './type';
+import type { OrphanVolume, ProjectListResponse, OrgProject } from './type';
 import {
 	getOrphanVolumesQueryKey,
 	getOrgProjectsQueryKey,
@@ -96,6 +96,22 @@ export function useGetAllInstanceQuery(getProject: () => string) {
 				return res.data.data;
 			},
 			enabled: project != '' && org_id !== ''
+		};
+	});
+}
+
+export function useGetOrgProjectsQuery(getOrgId: () => string) {
+	return createQuery(() => {
+		const orgId = getOrgId();
+		return {
+			queryKey: ['org-projects', orgId] as const,
+			queryFn: async () =>
+				api
+					.get<ApiRes<OrgProject[]>>('/org/projects', {
+						params: { org_id: orgId }
+					})
+					.then((res) => res.data.data),
+			enabled: orgId !== ''
 		};
 	});
 }

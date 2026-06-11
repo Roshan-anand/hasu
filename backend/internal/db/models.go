@@ -146,6 +146,7 @@ type User struct {
 	Role         types.UserRole `json:"role"`
 	CurrentOrgID uuid.UUID      `json:"current_org_id"`
 	CreatedAt    time.Time      `json:"created_at"`
+	Avatar       string         `json:"avatar"`
 }
 
 type UserOrganization struct {

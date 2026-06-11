@@ -41,21 +41,32 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	auth.POST("/register", h.Auth.AppRegiter)
 	auth.POST("/login", h.Auth.AppLogin)
 
+	// initialize profile api routes
+	profile := protected.Group("/profile")
+	profile.GET("", h.Profile.GetProfile)
+	profile.PUT("", h.Profile.UpdateProfile)
+	profile.PUT("/password", h.Profile.ChangePassword)
+
 	// initialize org api routes
 	org := protected.Group("/org")
 	org.GET("", h.Org.GetAllOrgs)
 	org.POST("", h.Org.CreateOrg)
+	org.PUT("/rename", h.Org.RenameOrg)
 	org.DELETE("", h.Org.DeleteOrg)
 	org.POST("/switch", h.Org.SwitchOrg)
+	org.GET("/projects", h.Org.GetOrgProjects)
 
 	// initialize project api routes
 	project := protected.Group("/project")
 	project.GET("", h.Project.GetAllProject)
 	project.POST("", h.Project.CreateProject)
 	project.DELETE("", h.Project.DeleteProject)
+	project.PUT("/transfer", h.Project.TransferProject)
+	project.PUT("/rename", h.Project.RenameProject)
 
 	instance := protected.Group("/instance")
 	instance.GET("", h.Instance.GetAllInstance)
+	instance.PUT("/rename", h.Instance.RenameInstance)
 
 	volume := protected.Group("/volume")
 	volume.GET("", h.Service.GetAllVolume)

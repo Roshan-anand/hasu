@@ -37,3 +37,18 @@ SELECT CAST(EXISTS (
 UPDATE user
 SET current_org_id = ?
 WHERE id = ?;
+
+-- name: GetUserProfile :one
+SELECT id, name, email, role, avatar, created_at
+FROM user
+WHERE id = ?;
+
+-- name: UpdateUserProfile :exec
+UPDATE user
+SET name = ?, email = ?, avatar = ?
+WHERE id = ?;
+
+-- name: UpdateUserPassword :exec
+UPDATE user
+SET hash_pass = ?
+WHERE id = ?;

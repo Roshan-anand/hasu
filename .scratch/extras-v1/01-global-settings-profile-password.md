@@ -14,11 +14,11 @@ Backend endpoints: profile GET/PUT, password-change PUT. All behind auth middlew
 
 ## Acceptance criteria
 
-- [ ] Avatar picker shows a grid of PNG avatars, selecting one saves the filename to the user's profile
-- [ ] Display name and email are editable through the settings page
-- [ ] Password change requires old password, new password, and confirmation
-- [ ] All changes persist through page reload
-- [ ] Backend validates old password before accepting a password change
+- [x] Avatar picker shows a grid of PNG avatars, selecting one saves the filename to the user's profile
+- [x] Display name and email are editable through the settings page
+- [x] Password change requires old password, new password, and confirmation
+- [x] All changes persist through page reload
+- [x] Backend validates old password before accepting a password change
 
 ## Blocked by
 

@@ -18,10 +18,10 @@ Organization-level settings page covering org lifecycle and project transfer.
 
 ## Acceptance criteria
 
-- [ ] Rename, create, switch, and delete an org all work from the settings page
-- [ ] Delete org shows a warning with list of projects/services that will be removed
-- [ ] Transfer project action exists (inline in delete flow or as a separate action)
-- [ ] Transfer reassigns `org_id` on the project; target org validated
+- [x] Rename, create, switch, and delete an org all work from the settings page
+- [x] Delete org shows a warning with list of projects/services that will be removed
+- [x] Transfer project action exists (inline in delete flow or as a separate action)
+- [x] Transfer reassigns `org_id` on the project; target org validated
 - [ ] Cascade deletion on org delete: projects → instances → services → deployments → volumes
 
 ## Blocked by

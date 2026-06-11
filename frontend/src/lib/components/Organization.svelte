@@ -7,8 +7,13 @@
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
 	import { Check, ChevronsUpDown, Plus } from '@lucide/svelte';
-	import { getOrgState, GetUserData, useGetAllOrgsQuery } from '@/features/base';
-	import { useSwitchOrgMutation, useCreateOrgMutation } from '@/features/base';
+	import {
+		getOrgState,
+		GetUserData,
+		useGetAllOrgsQuery,
+		useSwitchOrgMutation,
+		useCreateOrgMutation
+	} from '@/features/base';
 	import { SidebarMenuButton } from './ui/sidebar';
 
 	const currentOrg = getOrgState();

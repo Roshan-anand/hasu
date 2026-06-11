@@ -5,6 +5,7 @@ import "github.com/Roshan-anand/godploy/internal/config"
 type Handler struct {
 	Health       *HealthHandler
 	Auth         *AuthHandler
+	Profile      *ProfileHandler
 	Service      *ServiceHandler
 	PsqlService  *PsqlServiceHandler
 	RedisService *RedisServiceHandler
@@ -20,6 +21,7 @@ func NewHandeler(srv *config.Server) *Handler {
 	return &Handler{
 		Health:       InitHealthHandlers(srv),
 		Auth:         InitAuthHandlers(srv),
+		Profile:      InitProfileHandlers(srv),
 		Service:      InitServiceHandlers(srv),
 		PsqlService:  InitPsqlServiceHandlers(srv),
 		RedisService: InitRedisServiceHandlers(srv),

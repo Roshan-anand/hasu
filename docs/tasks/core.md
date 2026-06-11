@@ -28,7 +28,7 @@
 
 ## Extras V1
 
-- [ ] 01 — Global Settings: avatar picker, profile edit, password change [easy]
+- [x] 01 — Global Settings: avatar picker, profile edit, password change [easy]
 - [ ] 02 — Organization Settings: CRUD, org switch, delete with cascade, project transfer [easy]
 - [ ] 03 — Project Instance Rename: editable name with per-project uniqueness [easy]
 - [x] 04 — App Service Pause & Replicas: pause/resume, replica count inc/dec [easy]

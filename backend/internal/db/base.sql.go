@@ -430,6 +430,41 @@ func (q *Queries) GetOrgById(ctx context.Context, id uuid.UUID) (GetOrgByIdRow, 
 	return i, err
 }
 
+const getProjectsByOrgId = `-- name: GetProjectsByOrgId :many
+SELECT id, name, created_at
+FROM project
+WHERE organization_id = ?
+`
+
+type GetProjectsByOrgIdRow struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (q *Queries) GetProjectsByOrgId(ctx context.Context, organizationID uuid.UUID) ([]GetProjectsByOrgIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getProjectsByOrgId, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetProjectsByOrgIdRow
+	for rows.Next() {
+		var i GetProjectsByOrgIdRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const linkUserNOrg = `-- name: LinkUserNOrg :exec
 INSERT INTO user_organization (user_email, organization_id)
 VALUES (?, ?)
@@ -442,6 +477,96 @@ type LinkUserNOrgParams struct {
 
 func (q *Queries) LinkUserNOrg(ctx context.Context, arg LinkUserNOrgParams) error {
 	_, err := q.db.ExecContext(ctx, linkUserNOrg, arg.UserEmail, arg.OrganizationID)
+	return err
+}
+
+const renameInstance = `-- name: RenameInstance :one
+UPDATE instance
+SET name = ?
+WHERE id = ?
+RETURNING id, name, is_production
+`
+
+type RenameInstanceParams struct {
+	Name string    `json:"name"`
+	ID   uuid.UUID `json:"id"`
+}
+
+type RenameInstanceRow struct {
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	IsProduction bool      `json:"is_production"`
+}
+
+func (q *Queries) RenameInstance(ctx context.Context, arg RenameInstanceParams) (RenameInstanceRow, error) {
+	row := q.db.QueryRowContext(ctx, renameInstance, arg.Name, arg.ID)
+	var i RenameInstanceRow
+	err := row.Scan(&i.ID, &i.Name, &i.IsProduction)
+	return i, err
+}
+
+const renameOrg = `-- name: RenameOrg :one
+UPDATE organization
+SET name = ?
+WHERE id = ?
+RETURNING id, name
+`
+
+type RenameOrgParams struct {
+	Name string    `json:"name"`
+	ID   uuid.UUID `json:"id"`
+}
+
+type RenameOrgRow struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) RenameOrg(ctx context.Context, arg RenameOrgParams) (RenameOrgRow, error) {
+	row := q.db.QueryRowContext(ctx, renameOrg, arg.Name, arg.ID)
+	var i RenameOrgRow
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
+const renameProject = `-- name: RenameProject :one
+UPDATE project
+SET name = ?
+WHERE id = ?
+RETURNING id, name, created_at
+`
+
+type RenameProjectParams struct {
+	Name string    `json:"name"`
+	ID   uuid.UUID `json:"id"`
+}
+
+type RenameProjectRow struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (q *Queries) RenameProject(ctx context.Context, arg RenameProjectParams) (RenameProjectRow, error) {
+	row := q.db.QueryRowContext(ctx, renameProject, arg.Name, arg.ID)
+	var i RenameProjectRow
+	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	return i, err
+}
+
+const transferProject = `-- name: TransferProject :exec
+UPDATE project
+SET organization_id = ?
+WHERE id = ?
+`
+
+type TransferProjectParams struct {
+	OrganizationID uuid.UUID `json:"organization_id"`
+	ID             uuid.UUID `json:"id"`
+}
+
+func (q *Queries) TransferProject(ctx context.Context, arg TransferProjectParams) error {
+	_, err := q.db.ExecContext(ctx, transferProject, arg.OrganizationID, arg.ID)
 	return err
 }
 

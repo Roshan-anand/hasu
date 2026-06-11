@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/google/uuid"
@@ -107,6 +108,35 @@ func (q *Queries) GetUserCurrentOrg(ctx context.Context, email string) (uuid.UUI
 	return current_org_id, err
 }
 
+const getUserProfile = `-- name: GetUserProfile :one
+SELECT id, name, email, role, avatar, created_at
+FROM user
+WHERE id = ?
+`
+
+type GetUserProfileRow struct {
+	ID        uuid.UUID      `json:"id"`
+	Name      string         `json:"name"`
+	Email     string         `json:"email"`
+	Role      types.UserRole `json:"role"`
+	Avatar    string         `json:"avatar"`
+	CreatedAt time.Time      `json:"created_at"`
+}
+
+func (q *Queries) GetUserProfile(ctx context.Context, id uuid.UUID) (GetUserProfileRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserProfile, id)
+	var i GetUserProfileRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Role,
+		&i.Avatar,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const isUserAdmin = `-- name: IsUserAdmin :one
 SELECT CAST(EXISTS (
     SELECT 1 FROM user
@@ -134,5 +164,44 @@ type UpdateCurrentOrgParams struct {
 
 func (q *Queries) UpdateCurrentOrg(ctx context.Context, arg UpdateCurrentOrgParams) error {
 	_, err := q.db.ExecContext(ctx, updateCurrentOrg, arg.CurrentOrgID, arg.ID)
+	return err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE user
+SET hash_pass = ?
+WHERE id = ?
+`
+
+type UpdateUserPasswordParams struct {
+	HashPass string    `json:"hash_pass"`
+	ID       uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.HashPass, arg.ID)
+	return err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :exec
+UPDATE user
+SET name = ?, email = ?, avatar = ?
+WHERE id = ?
+`
+
+type UpdateUserProfileParams struct {
+	Name   string    `json:"name"`
+	Email  string    `json:"email"`
+	Avatar string    `json:"avatar"`
+	ID     uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserProfile,
+		arg.Name,
+		arg.Email,
+		arg.Avatar,
+		arg.ID,
+	)
 	return err
 }

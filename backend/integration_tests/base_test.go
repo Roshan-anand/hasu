@@ -114,6 +114,71 @@ func TestOrgOperations(t *testing.T) {
 		}
 	})
 
+	t.Run("Rename org", func(t *testing.T) {
+		renameBody := &handlers.RenameOrgReq{
+			OrgID: secOrg,
+			Name:  "renamed-org",
+		}
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Org.RenameOrg, Body: renameBody, IsAuth: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var res types.Res[db.RenameOrgRow]
+		if err := readAndUnmarshl(body, &res); err != nil {
+			t.Fatal(err)
+		}
+
+		if res.Data.Name != "renamed-org" {
+			t.Fatalf("expected org name 'renamed-org', got '%s'", res.Data.Name)
+		}
+	})
+
+	t.Run("Rename org without access (wrong org)", func(t *testing.T) {
+		renameBody := &handlers.RenameOrgReq{
+			OrgID: uuid.New(),
+			Name:  "should-fail",
+		}
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Org.RenameOrg, Body: renameBody, IsAuth: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("expected status code %d, got %d", http.StatusForbidden, rec.Code)
+		}
+	})
+
+	t.Run("Get org projects (empty)", func(t *testing.T) {
+		query := url.Values{}
+		query.Add("org_id", secOrg.String())
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Org.GetOrgProjects, IsAuth: true, Query: query})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var res types.Res[[]db.GetProjectsByOrgIdRow]
+		if err := readAndUnmarshl(body, &res); err != nil {
+			t.Fatal(err)
+		}
+
+		if len(res.Data) != 0 {
+			t.Fatalf("expected 0 projects, got %d", len(res.Data))
+		}
+	})
+
 	t.Run("DELETE /org : returns 200 for deleting org (not the only one)", func(t *testing.T) {
 		orgReqBody.OrgID = user.OrgId
 		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Org.DeleteOrg, Body: orgReqBody, IsAuth: true})
@@ -225,6 +290,100 @@ func TestProjectOperations(t *testing.T) {
 
 		if rec.Code != http.StatusOK {
 			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+	})
+
+	t.Run("Transfer project to another org", func(t *testing.T) {
+		// create a second org
+		createOrgBody := &handlers.CreateOrgReq{Name: "transfer-target-org"}
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Org.CreateOrg, Body: createOrgBody, IsAuth: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var orgRes types.Res[db.CreateOrgRow]
+		if err := readAndUnmarshl(body, &orgRes); err != nil {
+			t.Fatal(err)
+		}
+
+		// create a project under the original org
+		createProjectBody.Name = "project-to-transfer"
+		rec, err = TestEchoHandler(&TestEchoBody{T: t, H: h.Project.CreateProject, Body: createProjectBody, IsAuth: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body = rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var projectRes types.Res[db.CreateProjectRow]
+		if err := readAndUnmarshl(body, &projectRes); err != nil {
+			t.Fatal(err)
+		}
+
+		// transfer the project to the second org
+		transferBody := &handlers.TransferProjectReq{
+			ProjectID:   projectRes.Data.ID,
+			TargetOrgID: orgRes.Data.ID,
+		}
+		rec, err = TestEchoHandler(&TestEchoBody{T: t, H: h.Project.TransferProject, Body: transferBody, IsAuth: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		// verify project is now under the target org
+		query := url.Values{}
+		query.Add("org_id", orgRes.Data.ID.String())
+		rec, err = TestEchoHandler(&TestEchoBody{T: t, H: h.Project.GetAllProject, IsAuth: true, Query: query})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body = rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+
+		var allProjectsRes types.Res[[]db.GetAllProjectsRow]
+		if err := readAndUnmarshl(body, &allProjectsRes); err != nil {
+			t.Fatal(err)
+		}
+
+		if len(allProjectsRes.Data) != 1 {
+			t.Fatalf("expected 1 project in target org, got %d", len(allProjectsRes.Data))
+		}
+
+		if allProjectsRes.Data[0].Name != "project-to-transfer" {
+			t.Fatalf("expected project name 'project-to-transfer', got '%s'", allProjectsRes.Data[0].Name)
+		}
+	})
+
+	t.Run("Transfer project to inaccessible org should fail", func(t *testing.T) {
+		transferBody := &handlers.TransferProjectReq{
+			ProjectID:   projectReqBody.ProjectID,
+			TargetOrgID: uuid.New(),
+		}
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Project.TransferProject, Body: transferBody, IsAuth: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("expected status code %d, got %d", http.StatusForbidden, rec.Code)
 		}
 	})
 }

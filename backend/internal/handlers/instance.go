@@ -61,3 +61,42 @@ func (h *InstanceHandler) GetAllInstance(c *echo.Context) error {
 		Data:    instances,
 	})
 }
+
+type RenameInstanceReq struct {
+	InstanceID uuid.UUID `json:"instance_id" validate:"required"`
+	ProjectID  uuid.UUID `json:"project_id" validate:"required"`
+	Name       string    `json:"name" validate:"required,min=3"`
+}
+
+// rename a project instance
+//
+// route: PUT /api/instance/rename
+func (h *InstanceHandler) RenameInstance(c *echo.Context) error {
+	b := new(RenameInstanceReq)
+
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	q := h.Server.DB.Queries
+
+	// check if instance name already exists in the project
+	if exists, err := q.CheckInstanceExists(h.qCtx, db.CheckInstanceExistsParams{
+		ProjectID:    b.ProjectID,
+		InstanceName: b.Name,
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "internal server error"})
+	} else if exists {
+		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Instance with this name already exists in the project"})
+	}
+
+	instance, err := q.RenameInstance(h.qCtx, db.RenameInstanceParams{
+		Name: b.Name,
+		ID:   b.InstanceID,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to rename instance"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res[db.RenameInstanceRow]{Message: "", Data: instance})
+}

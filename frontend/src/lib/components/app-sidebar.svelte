@@ -13,7 +13,7 @@
 		SidebarMenuItem,
 		SidebarRail
 	} from '@/components/ui/sidebar';
-	import { Blocks, Users, GitBranch, Database } from '@lucide/svelte';
+	import { Blocks, Users, GitBranch, Database, Settings } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import type { ResolvedPathname } from '$app/types';
 	import Organization from './Organization.svelte';
@@ -27,7 +27,7 @@
 
 	const sidebarItems: AppSidebarItem[] = [
 		{
-			hash: /^(?!#\/(?:members|git|storage)$).*$/,
+			hash: /^#\/(?:project(?:\/.*)?|)$/,
 			route: resolve('/'),
 			name: 'Projects',
 			icon: Blocks
@@ -44,6 +44,12 @@
 			route: resolve('/members'),
 			name: 'Members',
 			icon: Users
+		},
+		{
+			hash: /^#\/settings$/,
+			route: resolve('/settings'),
+			name: 'Settings',
+			icon: Settings
 		}
 	];
 </script>

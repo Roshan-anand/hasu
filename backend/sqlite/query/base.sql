@@ -45,6 +45,17 @@ SELECT CAST(EXISTS(
     WHERE uo.user_email = ? AND o.name = @org_name
 ) AS BOOLEAN);
 
+-- name: RenameOrg :one
+UPDATE organization
+SET name = ?
+WHERE id = ?
+RETURNING id, name;
+
+-- name: GetProjectsByOrgId :many
+SELECT id, name, created_at
+FROM project
+WHERE organization_id = ?;
+
 -- name: CreateProject :one
 INSERT INTO project (id, organization_id, name)
 VALUES (?, ?, ?)
@@ -68,6 +79,11 @@ SELECT CAST(EXISTS(
     FROM instance
     WHERE project_id = ?
 ) AS BOOLEAN);
+
+-- name: TransferProject :exec
+UPDATE project
+SET organization_id = ?
+WHERE id = ?;
 
 -- name: DeleteProject :exec
 DELETE FROM project
@@ -118,3 +134,15 @@ WHERE id = @instance_id;
 SELECT network
 FROM instance
 WHERE project_id = ?;
+
+-- name: RenameInstance :one
+UPDATE instance
+SET name = ?
+WHERE id = ?
+RETURNING id, name, is_production;
+
+-- name: RenameProject :one
+UPDATE project
+SET name = ?
+WHERE id = ?
+RETURNING id, name, created_at;

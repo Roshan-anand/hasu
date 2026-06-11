@@ -33,6 +33,11 @@ type DeleteProjectReq struct {
 	ProjectID uuid.UUID `json:"project_id" validate:"required"`
 }
 
+type TransferProjectReq struct {
+	ProjectID   uuid.UUID `json:"project_id" validate:"required"`
+	TargetOrgID uuid.UUID `json:"target_org_id" validate:"required"`
+}
+
 func InitProjectHandlers(s *config.Server) *ProjectHandler {
 	return &ProjectHandler{
 		Server:   s,
@@ -165,6 +170,79 @@ func (h *ProjectHandler) DeleteProject(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "project deleted successfully"})
+}
+
+// transfer a project to another organization
+//
+// route: PUT /api/project/transfer
+func (h *ProjectHandler) TransferProject(c *echo.Context) error {
+	u := c.Get(h.Server.Config.EchoCtxUserKey).(auth.AuthUser)
+	b := new(TransferProjectReq)
+
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	q := h.Server.DB.Queries
+
+	// validate that the user has access to the target org
+	if exists, err := q.CheckUserOrgExists(h.qCtx, db.CheckUserOrgExistsParams{
+		UserEmail:      u.Email,
+		OrganizationID: b.TargetOrgID,
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "internal server error"})
+	} else if !exists {
+		return c.JSON(http.StatusForbidden, types.Res[struct{}]{Message: "User does not have access to the target organization"})
+	}
+
+	// transfer the project
+	if err := q.TransferProject(h.qCtx, db.TransferProjectParams{
+		OrganizationID: b.TargetOrgID,
+		ID:             b.ProjectID,
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to transfer project"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "Project transferred successfully"})
+}
+
+type RenameProjectReq struct {
+	ProjectID uuid.UUID `json:"project_id" validate:"required"`
+	OrgID     uuid.UUID `json:"org_id" validate:"required"`
+	Name      string    `json:"name" validate:"required,min=3"`
+}
+
+// rename a project
+//
+// route: PUT /api/project/rename
+func (h *ProjectHandler) RenameProject(c *echo.Context) error {
+	b := new(RenameProjectReq)
+
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	q := h.Server.DB.Queries
+
+	// check if project name already exists in the org
+	if exists, err := q.CheckProjectExists(h.qCtx, db.CheckProjectExistsParams{
+		OrganizationID: b.OrgID,
+		ProjectName:    b.Name,
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "internal server error"})
+	} else if exists {
+		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Project with this name already exists in the organization"})
+	}
+
+	project, err := q.RenameProject(h.qCtx, db.RenameProjectParams{
+		Name: b.Name,
+		ID:   b.ProjectID,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to rename project"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res[db.RenameProjectRow]{Message: "", Data: project})
 }
 
 // TODO : make route to shut down an instance
