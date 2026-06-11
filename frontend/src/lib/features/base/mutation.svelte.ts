@@ -14,7 +14,10 @@ import type {
 	CreateOrgPayload,
 	RenameOrgPayload,
 	DeleteOrgPayload,
-	TransferProjectPayload
+	TransferProjectPayload,
+	RenameProjectPayload,
+	RenameProjectResponse,
+	RenameInstancePayload
 } from './type';
 import { getOrgProjectsQueryKey, getOrgsQueryKey } from './const';
 import { goto } from '$app/navigation';
@@ -147,5 +150,36 @@ export function useTransferProjectMutation() {
 			toast.success(message || 'Project transferred successfully');
 		},
 		onError: (error) => axiosErr(error, 'Failed to transfer project')
+	}));
+}
+export function useRenameProjectMutation() {
+	const currentOrg = getOrgState();
+	return createMutation(() => ({
+		mutationFn: (payload: RenameProjectPayload) =>
+			api.put<ApiRes<RenameProjectResponse>>('/project/rename', payload).then((res) => res.data),
+		onSuccess: ({ data, message }) => {
+			queryClient.setQueryData(
+				getOrgProjectsQueryKey(currentOrg.id),
+				(cachedRows: ProjectListResponse | undefined) => {
+					if (!cachedRows) return;
+					return cachedRows.map((row) => (row.id === data.id ? { ...row, name: data.name } : row));
+				}
+			);
+			toast.success(message || 'Project renamed successfully');
+		},
+		onError: (error) => axiosErr(error, 'Failed to rename project')
+	}));
+}
+
+export function useRenameInstanceMutation() {
+	return createMutation(() => ({
+		mutationFn: (payload: RenameInstancePayload) =>
+			api.put<ApiRes<null>>('/instance/rename', payload).then((res) => res.data),
+		onSuccess: ({ message }) => {
+			// Invalidate all instance queries (keyed by project name)
+			queryClient.invalidateQueries({ queryKey: ['all-instance'] });
+			toast.success(message || 'Instance renamed successfully');
+		},
+		onError: (error) => axiosErr(error, 'Failed to rename instance')
 	}));
 }

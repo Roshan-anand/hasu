@@ -206,6 +206,45 @@ func (h *ProjectHandler) TransferProject(c *echo.Context) error {
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "Project transferred successfully"})
 }
 
+type RenameProjectReq struct {
+	ProjectID uuid.UUID `json:"project_id" validate:"required"`
+	OrgID     uuid.UUID `json:"org_id" validate:"required"`
+	Name      string    `json:"name" validate:"required,min=3"`
+}
+
+// rename a project
+//
+// route: PUT /api/project/rename
+func (h *ProjectHandler) RenameProject(c *echo.Context) error {
+	b := new(RenameProjectReq)
+
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	q := h.Server.DB.Queries
+
+	// check if project name already exists in the org
+	if exists, err := q.CheckProjectExists(h.qCtx, db.CheckProjectExistsParams{
+		OrganizationID: b.OrgID,
+		ProjectName:    b.Name,
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "internal server error"})
+	} else if exists {
+		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Project with this name already exists in the organization"})
+	}
+
+	project, err := q.RenameProject(h.qCtx, db.RenameProjectParams{
+		Name: b.Name,
+		ID:   b.ProjectID,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to rename project"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res[db.RenameProjectRow]{Message: "", Data: project})
+}
+
 // TODO : make route to shut down an instance
 // by remving all the services,swarm service, volumes etc
 func (h *ProjectHandler) ShutDownInstance(c *echo.Context) error {

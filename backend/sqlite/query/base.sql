@@ -134,3 +134,15 @@ WHERE id = @instance_id;
 SELECT network
 FROM instance
 WHERE project_id = ?;
+
+-- name: RenameInstance :one
+UPDATE instance
+SET name = ?
+WHERE id = ?
+RETURNING id, name, is_production;
+
+-- name: RenameProject :one
+UPDATE project
+SET name = ?
+WHERE id = ?
+RETURNING id, name, created_at;

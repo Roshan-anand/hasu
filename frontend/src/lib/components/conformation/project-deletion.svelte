@@ -7,10 +7,11 @@
 	type Props = {
 		projectId: string;
 		name: string;
+		dialogOpen?: boolean;
+		hideTrigger?: boolean;
 	};
 
-	let { projectId, name }: Props = $props();
-	let dialogOpen = $state(false);
+	let { projectId, name, dialogOpen = $bindable(false), hideTrigger = false }: Props = $props();
 	let deleteVolumes = $state<string[]>([]);
 
 	const deleteProjectMutation = useDeleteProjectMutation();
@@ -38,15 +39,17 @@
 	}
 </script>
 
-<Button
-	variant="destructive"
-	size="sm"
-	class="z-50 absolute top-1/2 right-0 -translate-y-1/2"
-	onclick={openDialog}
->
-	<Trash2 />
-	Delete
-</Button>
+{#if !hideTrigger}
+	<Button
+		variant="destructive"
+		size="sm"
+		class="z-50 absolute top-1/2 right-0 -translate-y-1/2"
+		onclick={openDialog}
+	>
+		<Trash2 />
+		Delete
+	</Button>
+{/if}
 
 <Dialog.Root bind:open={dialogOpen}>
 	<Dialog.Portal>

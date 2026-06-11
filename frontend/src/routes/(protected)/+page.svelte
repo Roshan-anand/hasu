@@ -5,7 +5,7 @@
 	import { resolve } from '$app/paths';
 	import { useGetAllProjectsQuery } from '@/features/base';
 	import CreateProject from './create-project.svelte';
-	import { ProjectDeletion } from '@/components/conformation';
+	import { ProjectSettings } from '@/components/settings';
 	import { DotmSquare } from '@/components/loader';
 	import { goto } from '$app/navigation';
 	import { Button } from '@/components/ui/button';
@@ -62,7 +62,7 @@
 						<h3 class="font-semibold text-lg">{name}</h3>
 						<p class="text-xs uppercase text-muted-foreground">Project</p>
 					</Button>
-					<ProjectDeletion projectId={id} {name} />
+					<ProjectSettings projectId={id} {name} />
 				</div>
 			{/each}
 		</div>

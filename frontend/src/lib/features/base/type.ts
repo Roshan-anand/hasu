@@ -53,3 +53,21 @@ export type OrgProject = {
 	name: string;
 	created_at: string;
 };
+
+export type RenameProjectPayload = {
+	project_id: string;
+	org_id: string;
+	name: string;
+};
+
+export type RenameProjectResponse = {
+	id: string;
+	name: string;
+	created_at: string;
+};
+
+export type RenameInstancePayload = {
+	instance_id: string;
+	project_id: string;
+	name: string;
+};

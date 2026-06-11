@@ -62,9 +62,11 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	project.POST("", h.Project.CreateProject)
 	project.DELETE("", h.Project.DeleteProject)
 	project.PUT("/transfer", h.Project.TransferProject)
+	project.PUT("/rename", h.Project.RenameProject)
 
 	instance := protected.Group("/instance")
 	instance.GET("", h.Instance.GetAllInstance)
+	instance.PUT("/rename", h.Instance.RenameInstance)
 
 	volume := protected.Group("/volume")
 	volume.GET("", h.Service.GetAllVolume)
