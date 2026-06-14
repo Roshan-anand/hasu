@@ -29,11 +29,11 @@
 ## Extras V1
 
 - [x] 01 — Global Settings: avatar picker, profile edit, password change [easy]
-- [ ] 02 — Organization Settings: CRUD, org switch, delete with cascade, project transfer [easy]
+- [x] 02 — Organization Settings: CRUD, org switch, delete with cascade, project transfer [easy]
 - [ ] 03 — Project Instance Rename: editable name with per-project uniqueness [easy]
 - [x] 04 — App Service Pause & Replicas: pause/resume, replica count inc/dec [easy]
 - [ ] 05 — App Service Health Check Override: custom health check over Dockerfile [easy]
 - [ ] 06 — Service Domain Settings: production domain input, preview auto-gen & custom override [easy]
 - [ ] 07 — Project Deletion Warning Update: list running services per instance instead of orphan volumes [easy]
-- [ ] 08 — Predefined DB Volume Size & Stop/Start: configurable volume size, stop/start without redeploy [easy]
-- [ ] 09 — Orphan Volume Filters & Rename: size sort, type filter, name search, inline rename [easy]
+- [ ] 08 — Predefined DB  Stop/Start: configurable stop/start  [easy]
+- [x] 09 — Orphan Volume Filters & Rename: size sort, type filter, name search, inline rename [easy]

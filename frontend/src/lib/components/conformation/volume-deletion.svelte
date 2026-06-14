@@ -8,10 +8,17 @@
 		volume: string;
 		label?: string;
 		onDeleted?: () => void;
+		dialogOpen?: boolean;
+		hideTrigger?: boolean;
 	};
 
-	let { volume, label = 'Delete', onDeleted }: Props = $props();
-	let dialogOpen = $state(false);
+	let {
+		volume,
+		label = 'Delete',
+		onDeleted,
+		dialogOpen = $bindable(false),
+		hideTrigger = false
+	}: Props = $props();
 
 	const deleteVolumeMutation = useDeleteVolumeMutation();
 
@@ -34,10 +41,12 @@
 	}
 </script>
 
-<Button variant="destructive" size="sm" onclick={openDialog}>
-	<Trash2 />
-	{label}
-</Button>
+{#if !hideTrigger}
+	<Button variant="destructive" size="sm" onclick={openDialog}>
+		<Trash2 />
+		{label}
+	</Button>
+{/if}
 
 <Dialog.Root bind:open={dialogOpen}>
 	<Dialog.Portal>

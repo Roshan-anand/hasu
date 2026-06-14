@@ -51,9 +51,19 @@ SELECT *
 FROM orphan_volume
 WHERE volume = ?;
 
+-- name: GetOrphanVolumeById :one
+SELECT *
+FROM orphan_volume
+WHERE id = ?;
+
 -- name: ClaimOrphanVolume :execrows
 DELETE FROM orphan_volume
 WHERE volume = ? AND organization_id = ?;
+
+-- name: UpdateOrphanVolumeName :exec
+UPDATE orphan_volume
+SET display_name = ?
+WHERE id = ? AND organization_id = ?;
 
 -- name: DeleteOrphanVolume :exec
 DELETE FROM orphan_volume

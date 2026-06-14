@@ -84,6 +84,7 @@ type OrphanVolume struct {
 	Volume         string                  `json:"volume"`
 	Type           types.PredefServiceType `json:"type"`
 	CreatedAt      time.Time               `json:"created_at"`
+	DisplayName    string                  `json:"display_name"`
 }
 
 type Project struct {

@@ -140,7 +140,7 @@ func (q *Queries) DeletePsqlService(ctx context.Context, id uuid.UUID) error {
 }
 
 const getAllAttachableOrphanVolumes = `-- name: GetAllAttachableOrphanVolumes :many
-SELECT id, organization_id, volume, type, created_at
+SELECT id, organization_id, volume, type, created_at, display_name
 FROM orphan_volume
 WHERE organization_id = ?
 `
@@ -160,6 +160,7 @@ func (q *Queries) GetAllAttachableOrphanVolumes(ctx context.Context, organizatio
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,
+			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -175,7 +176,7 @@ func (q *Queries) GetAllAttachableOrphanVolumes(ctx context.Context, organizatio
 }
 
 const getAllOrphanVolumesByOrgID = `-- name: GetAllOrphanVolumesByOrgID :many
-SELECT id, organization_id, volume, type, created_at
+SELECT id, organization_id, volume, type, created_at, display_name
 FROM orphan_volume
 WHERE organization_id = ?
 `
@@ -195,6 +196,7 @@ func (q *Queries) GetAllOrphanVolumesByOrgID(ctx context.Context, organizationID
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,
+			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -209,8 +211,28 @@ func (q *Queries) GetAllOrphanVolumesByOrgID(ctx context.Context, organizationID
 	return items, nil
 }
 
+const getOrphanVolumeById = `-- name: GetOrphanVolumeById :one
+SELECT id, organization_id, volume, type, created_at, display_name
+FROM orphan_volume
+WHERE id = ?
+`
+
+func (q *Queries) GetOrphanVolumeById(ctx context.Context, id uuid.UUID) (OrphanVolume, error) {
+	row := q.db.QueryRowContext(ctx, getOrphanVolumeById, id)
+	var i OrphanVolume
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.Volume,
+		&i.Type,
+		&i.CreatedAt,
+		&i.DisplayName,
+	)
+	return i, err
+}
+
 const getOrphanVolumeByName = `-- name: GetOrphanVolumeByName :one
-SELECT id, organization_id, volume, type, created_at
+SELECT id, organization_id, volume, type, created_at, display_name
 FROM orphan_volume
 WHERE volume = ?
 `
@@ -224,12 +246,13 @@ func (q *Queries) GetOrphanVolumeByName(ctx context.Context, volume string) (Orp
 		&i.Volume,
 		&i.Type,
 		&i.CreatedAt,
+		&i.DisplayName,
 	)
 	return i, err
 }
 
 const getOrphanVolumeByType = `-- name: GetOrphanVolumeByType :many
-SELECT id, organization_id, volume, type, created_at
+SELECT id, organization_id, volume, type, created_at, display_name
 FROM orphan_volume
 WHERE organization_id = ? AND type = ?
 `
@@ -254,6 +277,7 @@ func (q *Queries) GetOrphanVolumeByType(ctx context.Context, arg GetOrphanVolume
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,
+			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -348,6 +372,20 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, serviceID uuid.UUID) (
 	return i, err
 }
 
+const updateOrphanVolumeName = `-- name: UpdateOrphanVolumeName :exec
+UPDATE orphan_volume
+SET display_name = ?
+WHERE id = ? AND organization_id = ?
+`
+
+type UpdateOrphanVolumeNameParams struct {
+	DisplayName    string    `json:"display_name"`
+	ID             uuid.UUID `json:"id"`
+	OrganizationID uuid.UUID `json:"organization_id"`
+}
+
+func (q *Queries) UpdateOrphanVolumeName(ctx context.Context, arg UpdateOrphanVolumeNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateOrphanVolumeName, arg.DisplayName, arg.ID, arg.OrganizationID)
 const transferOrphanVolume = `-- name: TransferOrphanVolume :exec
 UPDATE orphan_volume
 SET organization_id = ?

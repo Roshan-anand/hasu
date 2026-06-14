@@ -24,6 +24,13 @@ export type OrphanVolume = {
 	volume: string;
 	type: string;
 	created_at: string;
+	display_name: string;
+	size_bytes: number;
+};
+
+export type RenameVolumePayload = {
+	id: string;
+	display_name: string;
 };
 
 export type SwitchOrgPayload = {

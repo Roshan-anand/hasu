@@ -56,14 +56,12 @@ export function useGetOrphanVolumesQuery() {
 		const currentOrg = getOrgState();
 		return {
 			queryKey: getOrphanVolumesQueryKey(currentOrg.id),
-			queryFn: async () => {
-				const res = await api.get<ApiRes<OrphanVolume[]>>('/volume', {
-					params: { org_id: currentOrg.id },
-					validateStatus: (status) => (status >= 200 && status < 300) || status === 204
-				});
-				if (res.status === 204) return [];
-				return res.data.data || [];
-			},
+			queryFn: async () =>
+				await api
+					.get<ApiRes<OrphanVolume[]>>('/volume', {
+						params: { org_id: currentOrg.id }
+					})
+					.then((res) => res.data.data),
 			enabled: currentOrg.id !== ''
 		};
 	});
