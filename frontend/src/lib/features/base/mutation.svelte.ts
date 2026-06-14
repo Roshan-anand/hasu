@@ -18,8 +18,8 @@ import type {
 	RenameProjectPayload,
 	RenameProjectResponse,
 	RenameInstancePayload,
+	TransferVolumePayload,
 	RenameVolumePayload
-	TransferVolumePayload
 } from './type';
 import { getOrgProjectsQueryKey, getOrgsQueryKey } from './const';
 import { goto } from '$app/navigation';
