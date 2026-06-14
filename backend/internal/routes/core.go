@@ -55,6 +55,8 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	org.DELETE("", h.Org.DeleteOrg)
 	org.POST("/switch", h.Org.SwitchOrg)
 	org.GET("/projects", h.Org.GetOrgProjects)
+	org.GET("/volumes", h.Org.GetOrgVolumes)
+	org.PUT("/transfer-volume", h.Org.TransferVolume)
 
 	// initialize project api routes
 	project := protected.Group("/project")

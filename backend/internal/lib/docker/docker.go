@@ -115,3 +115,11 @@ func (d *DockerClient) RemoveNetwork(networks []string) {
 		}
 	}
 }
+
+// helper function to remove a Docker volume
+func (d *DockerClient) RemoveVolume(volumeName string) error {
+	if err := d.Client.VolumeRemove(context.Background(), volumeName, true); err != nil {
+		return fmt.Errorf("failed to remove volume %s : %w", volumeName, err)
+	}
+	return nil
+}

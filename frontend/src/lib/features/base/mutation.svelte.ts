@@ -17,7 +17,8 @@ import type {
 	TransferProjectPayload,
 	RenameProjectPayload,
 	RenameProjectResponse,
-	RenameInstancePayload
+	RenameInstancePayload,
+	TransferVolumePayload
 } from './type';
 import { getOrgProjectsQueryKey, getOrgsQueryKey } from './const';
 import { goto } from '$app/navigation';
@@ -168,6 +169,18 @@ export function useRenameProjectMutation() {
 			toast.success(message || 'Project renamed successfully');
 		},
 		onError: (error) => axiosErr(error, 'Failed to rename project')
+	}));
+}
+
+export function useTransferVolumeMutation() {
+	return createMutation(() => ({
+		mutationFn: async (payload: TransferVolumePayload) =>
+			api.put<ApiRes<null>>('/org/transfer-volume', payload).then((res) => res.data),
+		onSuccess: ({ message }) => {
+			queryClient.invalidateQueries({ queryKey: ['org-volumes'] });
+			toast.success(message || 'Volume transferred successfully');
+		},
+		onError: (error) => axiosErr(error, 'Failed to transfer volume')
 	}));
 }
 

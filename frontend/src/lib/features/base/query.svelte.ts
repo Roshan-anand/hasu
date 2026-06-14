@@ -2,7 +2,7 @@ import { api } from '@/axios';
 import { createQuery } from '@tanstack/svelte-query';
 import type { ApiRes } from '@/types';
 import type { Instance, Organization } from '@/features/auth';
-import type { OrphanVolume, ProjectListResponse, OrgProject } from './type';
+import type { OrphanVolume, ProjectListResponse, OrgProject, OrgVolume } from './type';
 import {
 	getOrphanVolumesQueryKey,
 	getOrgProjectsQueryKey,
@@ -108,6 +108,23 @@ export function useGetOrgProjectsQuery(getOrgId: () => string) {
 			queryFn: async () =>
 				api
 					.get<ApiRes<OrgProject[]>>('/org/projects', {
+						params: { org_id: orgId }
+					})
+					.then((res) => res.data.data),
+			enabled: orgId !== ''
+		};
+	});
+}
+
+// Fetch orphan volumes for a given org (used in delete org confirmation UI)
+export function useGetOrgVolumesQuery(getOrgId: () => string) {
+	return createQuery(() => {
+		const orgId = getOrgId();
+		return {
+			queryKey: ['org-volumes', orgId] as const,
+			queryFn: async () =>
+				api
+					.get<ApiRes<OrgVolume[]>>('/org/volumes', {
 						params: { org_id: orgId }
 					})
 					.then((res) => res.data.data),

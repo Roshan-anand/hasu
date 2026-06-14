@@ -141,6 +141,22 @@ SET name = ?
 WHERE id = ?
 RETURNING id, name, is_production;
 
+-- name: GetAllInstancesByOrgId :many
+SELECT i.id, i.name, i.is_production, i.project_id, p.name AS project_name,
+    CAST((
+        SELECT COUNT(*)
+        FROM (
+            SELECT 1 FROM app_service aps WHERE aps.instance_id = i.id
+            UNION ALL
+            SELECT 1 FROM psql_service ps WHERE ps.instance_id = i.id
+            UNION ALL
+            SELECT 1 FROM redis_service rs WHERE rs.instance_id = i.id
+        )
+    ) AS INTEGER) AS service_count
+FROM instance i
+JOIN project p ON p.id = i.project_id
+WHERE p.organization_id = ?;
+
 -- name: RenameProject :one
 UPDATE project
 SET name = ?

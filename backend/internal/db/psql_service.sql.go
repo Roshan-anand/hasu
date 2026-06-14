@@ -268,6 +268,41 @@ func (q *Queries) GetOrphanVolumeByType(ctx context.Context, arg GetOrphanVolume
 	return items, nil
 }
 
+const getOrphanVolumesByOrgId = `-- name: GetOrphanVolumesByOrgId :many
+SELECT id, organization_id, volume, type, created_at
+FROM orphan_volume
+WHERE organization_id = ?
+`
+
+func (q *Queries) GetOrphanVolumesByOrgId(ctx context.Context, organizationID uuid.UUID) ([]OrphanVolume, error) {
+	rows, err := q.db.QueryContext(ctx, getOrphanVolumesByOrgId, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OrphanVolume
+	for rows.Next() {
+		var i OrphanVolume
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.Volume,
+			&i.Type,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPsqlServiceById = `-- name: GetPsqlServiceById :one
 SELECT ps.id, ps.instance_id, ps.type, ps.name, ps.swarm_service, ps.db_name, ps.db_user, ps.db_password, ps.image, ps.volume, ps.internal_url, ps.created_at, p.organization_id
 FROM psql_service ps
@@ -311,6 +346,23 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, serviceID uuid.UUID) (
 		&i.OrganizationID,
 	)
 	return i, err
+}
+
+const transferOrphanVolume = `-- name: TransferOrphanVolume :exec
+UPDATE orphan_volume
+SET organization_id = ?
+WHERE id = ? AND organization_id = ?
+`
+
+type TransferOrphanVolumeParams struct {
+	OrganizationID   uuid.UUID `json:"organization_id"`
+	ID               uuid.UUID `json:"id"`
+	OrganizationID_2 uuid.UUID `json:"organization_id_2"`
+}
+
+func (q *Queries) TransferOrphanVolume(ctx context.Context, arg TransferOrphanVolumeParams) error {
+	_, err := q.db.ExecContext(ctx, transferOrphanVolume, arg.OrganizationID, arg.ID, arg.OrganizationID_2)
+	return err
 }
 
 const updatePsqlServiceDetails = `-- name: UpdatePsqlServiceDetails :exec

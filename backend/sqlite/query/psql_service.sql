@@ -58,3 +58,13 @@ WHERE volume = ? AND organization_id = ?;
 -- name: DeleteOrphanVolume :exec
 DELETE FROM orphan_volume
 WHERE volume = ? AND organization_id = ?;
+
+-- name: TransferOrphanVolume :exec
+UPDATE orphan_volume
+SET organization_id = ?
+WHERE id = ? AND organization_id = ?;
+
+-- name: GetOrphanVolumesByOrgId :many
+SELECT *
+FROM orphan_volume
+WHERE organization_id = ?;

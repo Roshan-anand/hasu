@@ -283,6 +283,62 @@ func (q *Queries) GetAllInstance(ctx context.Context, arg GetAllInstanceParams) 
 	return items, nil
 }
 
+const getAllInstancesByOrgId = `-- name: GetAllInstancesByOrgId :many
+SELECT i.id, i.name, i.is_production, i.project_id, p.name AS project_name,
+    CAST((
+        SELECT COUNT(*)
+        FROM (
+            SELECT 1 FROM app_service aps WHERE aps.instance_id = i.id
+            UNION ALL
+            SELECT 1 FROM psql_service ps WHERE ps.instance_id = i.id
+            UNION ALL
+            SELECT 1 FROM redis_service rs WHERE rs.instance_id = i.id
+        )
+    ) AS INTEGER) AS service_count
+FROM instance i
+JOIN project p ON p.id = i.project_id
+WHERE p.organization_id = ?
+`
+
+type GetAllInstancesByOrgIdRow struct {
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	IsProduction bool      `json:"is_production"`
+	ProjectID    uuid.UUID `json:"project_id"`
+	ProjectName  string    `json:"project_name"`
+	ServiceCount int64     `json:"service_count"`
+}
+
+func (q *Queries) GetAllInstancesByOrgId(ctx context.Context, organizationID uuid.UUID) ([]GetAllInstancesByOrgIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllInstancesByOrgId, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllInstancesByOrgIdRow
+	for rows.Next() {
+		var i GetAllInstancesByOrgIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.IsProduction,
+			&i.ProjectID,
+			&i.ProjectName,
+			&i.ServiceCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAllNetworksByProjectId = `-- name: GetAllNetworksByProjectId :many
 SELECT network
 FROM instance

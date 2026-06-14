@@ -1,3 +1,3 @@
 export { default as ProfileSettings } from './profile-settings.svelte';
-export { default as OrgSettings } from './OrgSettings.svelte';
+export { OrgSettings } from './orgsettings';
 export { default as ProjectSettings } from './ProjectSettings.svelte';
