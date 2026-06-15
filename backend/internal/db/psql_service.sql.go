@@ -293,7 +293,7 @@ func (q *Queries) GetOrphanVolumeByType(ctx context.Context, arg GetOrphanVolume
 }
 
 const getOrphanVolumesByOrgId = `-- name: GetOrphanVolumesByOrgId :many
-SELECT id, organization_id, volume, type, created_at
+SELECT id, organization_id, volume, type, created_at, display_name
 FROM orphan_volume
 WHERE organization_id = ?
 `
@@ -313,6 +313,7 @@ func (q *Queries) GetOrphanVolumesByOrgId(ctx context.Context, organizationID uu
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,
+			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -372,20 +373,6 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, serviceID uuid.UUID) (
 	return i, err
 }
 
-const updateOrphanVolumeName = `-- name: UpdateOrphanVolumeName :exec
-UPDATE orphan_volume
-SET display_name = ?
-WHERE id = ? AND organization_id = ?
-`
-
-type UpdateOrphanVolumeNameParams struct {
-	DisplayName    string    `json:"display_name"`
-	ID             uuid.UUID `json:"id"`
-	OrganizationID uuid.UUID `json:"organization_id"`
-}
-
-func (q *Queries) UpdateOrphanVolumeName(ctx context.Context, arg UpdateOrphanVolumeNameParams) error {
-	_, err := q.db.ExecContext(ctx, updateOrphanVolumeName, arg.DisplayName, arg.ID, arg.OrganizationID)
 const transferOrphanVolume = `-- name: TransferOrphanVolume :exec
 UPDATE orphan_volume
 SET organization_id = ?
@@ -400,6 +387,23 @@ type TransferOrphanVolumeParams struct {
 
 func (q *Queries) TransferOrphanVolume(ctx context.Context, arg TransferOrphanVolumeParams) error {
 	_, err := q.db.ExecContext(ctx, transferOrphanVolume, arg.OrganizationID, arg.ID, arg.OrganizationID_2)
+	return err
+}
+
+const updateOrphanVolumeName = `-- name: UpdateOrphanVolumeName :exec
+UPDATE orphan_volume
+SET display_name = ?
+WHERE id = ? AND organization_id = ?
+`
+
+type UpdateOrphanVolumeNameParams struct {
+	DisplayName    string    `json:"display_name"`
+	ID             uuid.UUID `json:"id"`
+	OrganizationID uuid.UUID `json:"organization_id"`
+}
+
+func (q *Queries) UpdateOrphanVolumeName(ctx context.Context, arg UpdateOrphanVolumeNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateOrphanVolumeName, arg.DisplayName, arg.ID, arg.OrganizationID)
 	return err
 }
 

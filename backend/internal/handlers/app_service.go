@@ -197,12 +197,6 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
 	}
 
-	// get instance network
-	network, err := tq.GetInstanceNetwork(h.qCtx, b.InstanceID)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get project network"})
-	}
-
 	if err := tx.Commit(); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create service"})
 	}
@@ -210,9 +204,11 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	// push a new deployment job to the queue
 	h.Server.Services.Deployment.Submit(context.Background(), &deployjob.DeploymentServiceParams{
 		JobType:           deployjob.DeployJob,
+		InstanceID:        b.InstanceID,
 		DeploymentID:      dID,
 		Token:             ghData.Token,
 		Url:               url,
+		RepoType:          deployjob.RepoBranch,
 		Branch:            b.DefaultBranch,
 		SwarmService:      unique.ServiceName,
 		BuildPath:         b.BuildPath,
@@ -224,7 +220,6 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		BuildArgs:         b.BuildArgs,
 		BuildSecrets:      b.BuildSecrets,
 		IsPublic:          b.Public,
-		NetworkName:       network,
 	})
 
 	return c.JSON(http.StatusOK, types.Res[db.CreateAppServiceRow]{

@@ -130,6 +130,7 @@ Godploy itself will be distributed for V1 as a single core Go server component p
 - The stored **Internal URL** for a **Predefined Database Service** is a full private connection string, not only a host or port.
 - When credentials or logical database settings change, the generated **Internal URL** must be recomputed from the new stored values.
 - Predefined database attachment to application **Services** remains manual in V1. Godploy shows the **Internal URL**, and the user places it into service environment settings themselves.
+- **Service Dependency Graph** provides an optional explicit connection mechanism between application **Services** and other **Services** within the same **Project Instance**. A user can connect an application **Service** to another **Service** via a "Connect Service" action in service settings, specifying an environment variable name and selecting a target service and column (e.g., `internal_url`, `db_password`). The system stores the dependency record and resolves the value dynamically at deploy time, merging dependency-derived environment variables with user-defined environment variables (dependency values take precedence on conflict). When a dependency service changes (e.g., credentials rotated), a background routine updates all stored dependency records and notifies affected services. During preview instance creation, dependency records are cloned and rewritten to point to the preview-cloned counterparts, enabling automatic environment injection in previews. The dependency graph is visible in the UI as a service connection flow diagram. This feature is fully optional — manual environment configuration continues to work for users who do not use the connect feature.
 - Deleting a predefined database service includes an optional data-purge choice.
 - If data is preserved, it becomes an **Orphan Volume** instead of remaining attached to the deleted service.
 - **Orphan Volumes** belong either to a specific **Project** or to an unassigned pool when the parent **Project** is later removed while preserving data.
@@ -164,6 +165,7 @@ Godploy itself will be distributed for V1 as a single core Go server component p
 - **Status Aggregation Module**: owns separation and presentation of instance status, deployment status, and runtime health.
 - **GitHub Event Intake Module**: owns webhook verification, open-PR cache updates, and deploy-target expansion rules.
 - **Installer Bootstrap Module**: owns Ubuntu installation behavior, GHCR image pulls, Docker and swarm bootstrap, and Godploy runtime startup.
+- **Service Dependency Graph Module**: owns explicit service-to-service connection declarations, dependency record lifecycle, dynamic env var injection at deploy time, and automatic dependency rewriting during preview instance creation.
 - **Frontend Experience Module**: owns dashboard flows for projects, instance switching, preview creation, service details, predefined services, storage, confirmations, and responsive UI polish.
 
 These modules should be kept deep where possible: the project-instance orchestrator, Git source resolution, preview routing policy, template catalog, storage or orphan-volume management, and status aggregation are the clearest opportunities to encapsulate complex behavior behind stable interfaces.
@@ -183,7 +185,7 @@ These modules should be kept deep where possible: the project-instance orchestra
 - Password reset flows.
 - Git providers beyond the existing GitHub-centered flow.
 - Buildpacks and Nixpacks support.
-- Automatic injection of predefined database credentials into application service environment values.
+- Automatic injection of predefined database credentials into application service environment values. (Superseded by explicit service dependency graph feature — see **Service Dependency Graph** module below)
 - Public exposure for predefined databases.
 - Swarm replicas or true replication topology for Postgres or Redis.
 - Additional predefined templates beyond Postgres and Redis.

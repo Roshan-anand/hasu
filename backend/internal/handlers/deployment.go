@@ -214,6 +214,7 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 		DeploymentID:      dID,
 		Token:             ghData.Token,
 		Url:               s.GhRepoUrl,
+		RepoType:          deployjob.RepoBranch,
 		Branch:            s.Branch,
 		SwarmService:      s.SwarmService,
 		BuildPath:         s.BuildPath,

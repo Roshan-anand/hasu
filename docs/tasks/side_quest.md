@@ -53,9 +53,10 @@
   - [ ] config operation if image not exists
   - [ ] provide settings to +/- keeping the image of deployments
   - [ ] automaticcally delete deployments img if max exceeds
-- [ ] modify the bg workers to production level setup.
+- [x] modify the bg workers to production level setup.
 - [ ] when sidebar collapse the organization button avatar is oddly placed, fix by keeping it in center. [easy, ui]
-- [ ] if app service is internal then ask for port so in backend it automanically create internal url for internal communication between services.
+- [x] if app service is internal then ask for port so in backend it automanically create internal url for internal communication between services.
+- [ ] enhance log broker worker cunncurrency as per users
 
 ## Potential bugs
 

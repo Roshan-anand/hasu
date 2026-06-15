@@ -9,7 +9,7 @@ import (
 	"github.com/Roshan-anand/godploy/internal/db"
 	"github.com/Roshan-anand/godploy/internal/jobs/logbroker"
 	"github.com/Roshan-anand/godploy/internal/lib/docker"
-	"github.com/google/uuid"
+	"github.com/go-playground/validator/v10"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -21,24 +21,12 @@ const (
 	ReDeployJob JobType = "redeploy"
 )
 
-type DeploymentServiceParams struct {
-	JobType           JobType
-	DeploymentID      uuid.UUID
-	Token             string
-	Url               string
-	Branch            string
-	SwarmService      string
-	BuildPath         string
-	DockerFilePath    string
-	DockerContextPath string
-	DockerBuildStage  string
-	ImgName           string
-	Env               []string
-	BuildArgs         []string
-	BuildSecrets      []string
-	IsPublic          bool
-	NetworkName       string
-}
+type RepoType string
+
+const (
+	RepoPR     RepoType = "pr"
+	RepoBranch RepoType = "branch"
+)
 
 type DeploymentJob struct {
 	ctx  context.Context
@@ -52,8 +40,9 @@ type workerData struct {
 
 type DeploymentService struct {
 	mu           sync.Mutex
+	v            *validator.Validate
+	q            *db.Queries
 	qCtx         context.Context
-	queries      *db.Queries
 	docker       *docker.DockerClient
 	log          *logbroker.LogBrokerService
 	codeStoreDir string
@@ -68,14 +57,15 @@ type DeploymentService struct {
 }
 
 // initializes a new deployment service
-func NewDeploymentService(queries *db.Queries, docker *docker.DockerClient, log *logbroker.LogBrokerService) *DeploymentService {
+func NewDeploymentService(q *db.Queries, docker *docker.DockerClient, log *logbroker.LogBrokerService) *DeploymentService {
 	jobs := make(chan DeploymentJob, 100)
 	shut := make(chan struct{})
 	workers := make(map[int32]*workerData)
 
 	return &DeploymentService{
 		qCtx:    context.Background(),
-		queries: queries,
+		v:       validator.New(),
+		q:       q,
 		docker:  docker,
 		log:     log,
 		eg:      new(errgroup.Group),
@@ -168,10 +158,9 @@ func (d *DeploymentService) worker(ctx context.Context) error {
 
 			fmt.Println("Processing job:", j.Body.JobType)
 			if j.Body.JobType == ReDeployJob {
-				d.redeploy(&deployData{
+				d.redeploy(&reDeployData{
 					deploymentID: j.Body.DeploymentID,
 					swarmService: j.Body.SwarmService,
-					networkName:  j.Body.NetworkName,
 					isPublic:     j.Body.IsPublic,
 					env:          j.Body.Env,
 					imgName:      j.Body.ImgName,

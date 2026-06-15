@@ -1,5 +1,2 @@
 .env
-.agents
-/private
-.scratch
 tmp

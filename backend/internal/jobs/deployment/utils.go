@@ -59,22 +59,22 @@ func runWorkerCmd(l *logbroker.LogBrokerService, dID uuid.UUID, cmd *exec.Cmd, w
 }
 
 // returns a base service spec for the given parameters
-func getBaseSpec(imgName string, networkName string, swarmName string, env []string, isPublic bool) *swarm.ServiceSpec {
+func (d *deployData) getBaseSpec() *swarm.ServiceSpec {
 
 	spec := &swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
-			Name: swarmName,
+			Name: d.swarmService,
 			Labels: map[string]string{
-				fmt.Sprintf("traefik.http.routers.%s.entrypoints", swarmName):               "websecure",
-				fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", swarmName): "80",
-				fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", swarmName):          "le",
+				fmt.Sprintf("traefik.http.routers.%s.entrypoints", d.swarmService):               "websecure",
+				fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", d.swarmService): "80",
+				fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", d.swarmService):          "le",
 				"traefik.constraint-label": "head-proxy",
 			},
 		},
 
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image: imgName,
+				Image: d.imgName,
 				TTY:   false,
 			},
 
@@ -84,14 +84,14 @@ func getBaseSpec(imgName string, networkName string, swarmName string, env []str
 
 			Networks: []swarm.NetworkAttachmentConfig{
 				{
-					Target: networkName,
+					Target: d.networkName,
 				},
 			},
 		},
 	}
 
 	// if the service is public connect to traefik
-	if isPublic {
+	if d.isPublic {
 		spec.TaskTemplate.Networks = append(spec.TaskTemplate.Networks, swarm.NetworkAttachmentConfig{
 			Target: "godploy_traefik_proxy",
 		})
@@ -101,34 +101,26 @@ func getBaseSpec(imgName string, networkName string, swarmName string, env []str
 	}
 
 	// if env avalable
-	if len(env) > 0 {
-		spec.TaskTemplate.ContainerSpec.Env = env
+	if len(d.env) > 0 {
+		spec.TaskTemplate.ContainerSpec.Env = d.env
 	}
 
 	return spec
 }
 
-type dockerBuildCmdData struct {
-	dockerFilePath    string
-	dockerContextPath string
-	dockerBuildStage  string
-	imgName           string
-	buildArgs         []string
-	outputPath        string
-}
-
-func getDockerBuildCmd(d *dockerBuildCmdData) *exec.Cmd {
+// helper function to get the docker build command based on the given parameters
+func (d *DeploymentServiceParams) getDockerBuildCmd(outputPath string) *exec.Cmd {
 	// 	"--secret", "id=npm_token,src=/tmp/npm_token",
 	// 	"--secret", "id=github_token,src=/tmp/github_token",
 
 	cmd := exec.Command("docker", "build", "--progress=plain")
 
-	if d.dockerFilePath != "" {
-		cmd.Args = append(cmd.Args, "--file", d.dockerFilePath)
+	if d.DockerFilePath != "" {
+		cmd.Args = append(cmd.Args, "--file", d.DockerFilePath)
 	}
 
 	// Guard against empty build args that break docker buildx parsing.
-	for _, arg := range d.buildArgs {
+	for _, arg := range d.BuildArgs {
 		trimmed := strings.TrimSpace(arg)
 		if trimmed == "" || strings.HasPrefix(trimmed, "=") {
 			continue
@@ -138,16 +130,72 @@ func getDockerBuildCmd(d *dockerBuildCmdData) *exec.Cmd {
 
 	// TODO : add build secrets to the cmd
 
-	if d.imgName != "" {
-		cmd.Args = append(cmd.Args, "--tag", d.imgName)
+	if d.ImgName != "" {
+		cmd.Args = append(cmd.Args, "--tag", d.ImgName)
 	}
 
-	if d.dockerBuildStage != "" {
-		cmd.Args = append(cmd.Args, "--target", d.dockerBuildStage)
+	if d.DockerBuildStage != "" {
+		cmd.Args = append(cmd.Args, "--target", d.DockerBuildStage)
 	}
 
-	dockerCtxPath := path.Join(d.outputPath + d.dockerContextPath)
+	dockerCtxPath := path.Join(outputPath + d.DockerContextPath)
 	cmd.Args = append(cmd.Args, dockerCtxPath)
 
 	return cmd
+}
+
+// helper function to get the git clone command based on the repo type
+func (d *DeploymentServiceParams) getCloneRepoCmd(codeStoreDir string) (*exec.Cmd, string) {
+	outputPath := path.Join(codeStoreDir, d.SwarmService)
+	repoUrl := fmt.Sprintf("https://oauth2:%s@%s", d.Token, d.Url)
+
+	var cmdStr string
+	if d.RepoType == RepoPR {
+		cmdStr = fmt.Sprintf("git clone --depth 1 %s %s && git -C %s checkout %s", repoUrl, outputPath, outputPath, d.Branch)
+	} else {
+		cmdStr = fmt.Sprintf("git clone --branch %s --depth 1 %s %s", d.Branch, repoUrl, outputPath)
+	}
+
+	return exec.Command("bash", "-c", cmdStr), outputPath
+}
+
+// helper fucntion to fill deploy data
+func (d *DeploymentServiceParams) getDeployData(network string) *deployData {
+	return &deployData{
+		deploymentID: d.DeploymentID,
+		swarmService: d.SwarmService,
+		networkName:  network,
+		isPublic:     d.IsPublic,
+		env:          d.Env,
+		imgName:      d.ImgName,
+	}
+}
+
+// helper function to fill redeploy data
+func (d *DeploymentServiceParams) getReDeployData() *reDeployData {
+	return &reDeployData{
+		deploymentID: d.DeploymentID,
+		swarmService: d.SwarmService,
+		isPublic:     d.IsPublic,
+		env:          d.Env,
+		imgName:      d.ImgName,
+	}
+}
+
+// helper function to get the service network, if not exist create a new one
+func (d *DeploymentService) getServiceNetwork(instanceID uuid.UUID) (string, error) {
+	// get instance network
+	network, err := d.q.GetInstanceNetwork(d.qCtx, instanceID)
+	if err != nil {
+		return "", err
+	}
+
+	// create network if not exist
+	if err := d.docker.CreateNetwork(network); err != nil {
+		fmt.Printf("DeployWorker: error creating network: %v\n", err)
+
+		return "", err
+	}
+
+	return network, nil
 }
