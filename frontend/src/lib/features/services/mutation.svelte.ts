@@ -276,3 +276,31 @@ export function useResumeAppServiceMutation(getServiceId: () => string) {
 		onError: (error) => axiosErr(error as Error, 'Failed to resume service')
 	}));
 }
+
+export function useStopPredefServiceMutation(getServiceId: () => string) {
+	return createMutation(() => ({
+		mutationFn: async () =>
+			api
+				.post<ApiRes<null>>('/service/stop', { service_id: getServiceId() })
+				.then((res) => res.data),
+		onSuccess: ({ message }) => {
+			queryClient.invalidateQueries({ queryKey: ['psql-service-details', getServiceId()] });
+			toast.success(message || 'Service stopped');
+		},
+		onError: (error) => axiosErr(error as Error, 'Failed to stop service')
+	}));
+}
+
+export function useStartPredefServiceMutation(getServiceId: () => string) {
+	return createMutation(() => ({
+		mutationFn: async () =>
+			api
+				.post<ApiRes<null>>('/service/start', { service_id: getServiceId() })
+				.then((res) => res.data),
+		onSuccess: ({ message }) => {
+			queryClient.invalidateQueries({ queryKey: ['psql-service-details', getServiceId()] });
+			toast.success(message || 'Service started');
+		},
+		onError: (error) => axiosErr(error as Error, 'Failed to start service')
+	}));
+}

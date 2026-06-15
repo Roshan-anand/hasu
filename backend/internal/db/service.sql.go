@@ -539,6 +539,28 @@ func (q *Queries) GetDomainAndPortByServiceId(ctx context.Context, serviceID uui
 	return i, err
 }
 
+const getPredefSwarmServiceById = `-- name: GetPredefSwarmServiceById :one
+SELECT swarm_service, status
+FROM psql_service ps
+WHERE ps.id = ?1
+UNION ALL
+SELECT swarm_service, status
+FROM redis_service rs
+WHERE rs.id = ?1
+`
+
+type GetPredefSwarmServiceByIdRow struct {
+	SwarmService string `json:"swarm_service"`
+	Status       string `json:"status"`
+}
+
+func (q *Queries) GetPredefSwarmServiceById(ctx context.Context, serviceID uuid.UUID) (GetPredefSwarmServiceByIdRow, error) {
+	row := q.db.QueryRowContext(ctx, getPredefSwarmServiceById, serviceID)
+	var i GetPredefSwarmServiceByIdRow
+	err := row.Scan(&i.SwarmService, &i.Status)
+	return i, err
+}
+
 const getServiceEnv = `-- name: GetServiceEnv :one
 SELECT env, build_args, build_secrets
 FROM app_service
@@ -694,5 +716,37 @@ func (q *Queries) UpdateDomianAndPort(ctx context.Context, arg UpdateDomianAndPo
 		arg.IsPublic,
 		arg.ServiceID,
 	)
+	return err
+}
+
+const updatePsqlServiceStatus = `-- name: UpdatePsqlServiceStatus :exec
+UPDATE psql_service
+SET status = ?
+WHERE id = ?
+`
+
+type UpdatePsqlServiceStatusParams struct {
+	Status string    `json:"status"`
+	ID     uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdatePsqlServiceStatus(ctx context.Context, arg UpdatePsqlServiceStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updatePsqlServiceStatus, arg.Status, arg.ID)
+	return err
+}
+
+const updateRedisServiceStatus = `-- name: UpdateRedisServiceStatus :exec
+UPDATE redis_service
+SET status = ?
+WHERE id = ?
+`
+
+type UpdateRedisServiceStatusParams struct {
+	Status string    `json:"status"`
+	ID     uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateRedisServiceStatus(ctx context.Context, arg UpdateRedisServiceStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateRedisServiceStatus, arg.Status, arg.ID)
 	return err
 }

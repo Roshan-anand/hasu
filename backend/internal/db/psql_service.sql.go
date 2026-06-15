@@ -293,7 +293,7 @@ func (q *Queries) GetOrphanVolumeByType(ctx context.Context, arg GetOrphanVolume
 }
 
 const getOrphanVolumesByOrgId = `-- name: GetOrphanVolumesByOrgId :many
-SELECT id, organization_id, volume, type, created_at
+SELECT id, organization_id, volume, type, created_at, display_name
 FROM orphan_volume
 WHERE organization_id = ?
 `
@@ -313,6 +313,7 @@ func (q *Queries) GetOrphanVolumesByOrgId(ctx context.Context, organizationID uu
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,
+			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -328,7 +329,7 @@ func (q *Queries) GetOrphanVolumesByOrgId(ctx context.Context, organizationID uu
 }
 
 const getPsqlServiceById = `-- name: GetPsqlServiceById :one
-SELECT ps.id, ps.instance_id, ps.type, ps.name, ps.swarm_service, ps.db_name, ps.db_user, ps.db_password, ps.image, ps.volume, ps.internal_url, ps.created_at, p.organization_id
+SELECT ps.id, ps.instance_id, ps.type, ps.name, ps.swarm_service, ps.db_name, ps.db_user, ps.db_password, ps.image, ps.volume, ps.internal_url, ps.created_at, ps.status, p.organization_id
 FROM psql_service ps
 JOIN instance i ON i.id = ps.instance_id
 JOIN project p ON p.id = i.project_id
@@ -348,6 +349,7 @@ type GetPsqlServiceByIdRow struct {
 	Volume         string            `json:"volume"`
 	InternalUrl    string            `json:"internal_url"`
 	CreatedAt      time.Time         `json:"created_at"`
+	Status         string            `json:"status"`
 	OrganizationID uuid.UUID         `json:"organization_id"`
 }
 
@@ -367,9 +369,27 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, serviceID uuid.UUID) (
 		&i.Volume,
 		&i.InternalUrl,
 		&i.CreatedAt,
+		&i.Status,
 		&i.OrganizationID,
 	)
 	return i, err
+}
+
+const transferOrphanVolume = `-- name: TransferOrphanVolume :exec
+UPDATE orphan_volume
+SET organization_id = ?
+WHERE id = ? AND organization_id = ?
+`
+
+type TransferOrphanVolumeParams struct {
+	OrganizationID   uuid.UUID `json:"organization_id"`
+	ID               uuid.UUID `json:"id"`
+	OrganizationID_2 uuid.UUID `json:"organization_id_2"`
+}
+
+func (q *Queries) TransferOrphanVolume(ctx context.Context, arg TransferOrphanVolumeParams) error {
+	_, err := q.db.ExecContext(ctx, transferOrphanVolume, arg.OrganizationID, arg.ID, arg.OrganizationID_2)
+	return err
 }
 
 const updateOrphanVolumeName = `-- name: UpdateOrphanVolumeName :exec
@@ -386,20 +406,6 @@ type UpdateOrphanVolumeNameParams struct {
 
 func (q *Queries) UpdateOrphanVolumeName(ctx context.Context, arg UpdateOrphanVolumeNameParams) error {
 	_, err := q.db.ExecContext(ctx, updateOrphanVolumeName, arg.DisplayName, arg.ID, arg.OrganizationID)
-const transferOrphanVolume = `-- name: TransferOrphanVolume :exec
-UPDATE orphan_volume
-SET organization_id = ?
-WHERE id = ? AND organization_id = ?
-`
-
-type TransferOrphanVolumeParams struct {
-	OrganizationID   uuid.UUID `json:"organization_id"`
-	ID               uuid.UUID `json:"id"`
-	OrganizationID_2 uuid.UUID `json:"organization_id_2"`
-}
-
-func (q *Queries) TransferOrphanVolume(ctx context.Context, arg TransferOrphanVolumeParams) error {
-	_, err := q.db.ExecContext(ctx, transferOrphanVolume, arg.OrganizationID, arg.ID, arg.OrganizationID_2)
 	return err
 }
 

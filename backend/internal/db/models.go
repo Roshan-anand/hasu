@@ -107,6 +107,7 @@ type PsqlService struct {
 	Volume       string            `json:"volume"`
 	InternalUrl  string            `json:"internal_url"`
 	CreatedAt    time.Time         `json:"created_at"`
+	Status       string            `json:"status"`
 }
 
 type RedirectSession struct {
@@ -129,6 +130,7 @@ type RedisService struct {
 	Volume       string            `json:"volume"`
 	InternalUrl  string            `json:"internal_url"`
 	CreatedAt    time.Time         `json:"created_at"`
+	Status       string            `json:"status"`
 }
 
 type Session struct {

@@ -12,6 +12,7 @@ import (
 	"github.com/Roshan-anand/godploy/internal/lib/sse"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -158,4 +159,104 @@ func (h *ServiceHandler) GetServiceLogs(c *echo.Context) error {
 			return nil
 		}
 	}
+}
+
+type PredefServiceReq struct {
+	ServiceID uuid.UUID `json:"service_id" validate:"required"`
+}
+
+// StopPredefService — stops a predefined (PSQL/Redis) service
+// Scales swarm replicas to 0, sets status to "paused"
+//
+// route: POST /api/service/stop
+func (h *ServiceHandler) StopPredefService(c *echo.Context) error {
+	b := new(PredefServiceReq)
+	q := h.Server.DB.Queries
+	docker := h.Server.Docker.Client
+
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	service, err := q.GetPredefSwarmServiceById(h.qCtx, b.ServiceID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
+	}
+
+	// inspect the current swarm service
+	swarmService, _, err := docker.ServiceInspectWithRaw(context.Background(), service.SwarmService, swarm.ServiceInspectOptions{})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error inspecting swarm service"})
+	}
+	version := swarmService.Version
+	spec := swarmService.Spec
+
+	replicas := uint64(0)
+	spec.Mode.Replicated.Replicas = &replicas
+
+	if _, err := docker.ServiceUpdate(context.Background(), service.SwarmService, version, spec, swarm.ServiceUpdateOptions{}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error stopping swarm service"})
+	}
+
+	// update status in both tables — one will be a no-op (no matching id)
+	q.UpdatePsqlServiceStatus(h.qCtx, db.UpdatePsqlServiceStatusParams{
+		Status: "paused",
+		ID:     b.ServiceID,
+	})
+	q.UpdateRedisServiceStatus(h.qCtx, db.UpdateRedisServiceStatusParams{
+		Status: "paused",
+		ID:     b.ServiceID,
+	})
+
+	return c.JSON(http.StatusOK, types.Res[struct{}]{
+		Message: "service stopped",
+	})
+}
+
+// StartPredefService — starts a predefined (PSQL/Redis) service
+// Scales swarm replicas to 1, sets status to "running"
+//
+// route: POST /api/service/start
+func (h *ServiceHandler) StartPredefService(c *echo.Context) error {
+	b := new(PredefServiceReq)
+	q := h.Server.DB.Queries
+	docker := h.Server.Docker.Client
+
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	service, err := q.GetPredefSwarmServiceById(h.qCtx, b.ServiceID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
+	}
+
+	// inspect the current swarm service
+	swarmService, _, err := docker.ServiceInspectWithRaw(context.Background(), service.SwarmService, swarm.ServiceInspectOptions{})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error inspecting swarm service"})
+	}
+	version := swarmService.Version
+	spec := swarmService.Spec
+
+	replicas := uint64(1)
+	spec.Mode.Replicated.Replicas = &replicas
+
+	if _, err := docker.ServiceUpdate(context.Background(), service.SwarmService, version, spec, swarm.ServiceUpdateOptions{}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error starting swarm service"})
+	}
+
+	// update status in both tables — one will be a no-op (no matching id)
+	q.UpdatePsqlServiceStatus(h.qCtx, db.UpdatePsqlServiceStatusParams{
+		Status: "running",
+		ID:     b.ServiceID,
+	})
+	q.UpdateRedisServiceStatus(h.qCtx, db.UpdateRedisServiceStatusParams{
+		Status: "running",
+		ID:     b.ServiceID,
+	})
+
+	return c.JSON(http.StatusOK, types.Res[struct{}]{
+		Message: "service started",
+	})
 }

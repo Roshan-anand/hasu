@@ -81,7 +81,7 @@ func (q *Queries) DeleteRedisService(ctx context.Context, id uuid.UUID) error {
 }
 
 const getRedisServiceById = `-- name: GetRedisServiceById :one
-SELECT rs.id, rs.instance_id, rs.type, rs.name, rs.swarm_service, rs.password, rs.image, rs.volume, rs.internal_url, rs.created_at, p.organization_id
+SELECT rs.id, rs.instance_id, rs.type, rs.name, rs.swarm_service, rs.password, rs.image, rs.volume, rs.internal_url, rs.created_at, rs.status, p.organization_id
 FROM redis_service rs
 JOIN instance i ON i.id = rs.instance_id
 JOIN project p ON p.id = i.project_id
@@ -99,6 +99,7 @@ type GetRedisServiceByIdRow struct {
 	Volume         string            `json:"volume"`
 	InternalUrl    string            `json:"internal_url"`
 	CreatedAt      time.Time         `json:"created_at"`
+	Status         string            `json:"status"`
 	OrganizationID uuid.UUID         `json:"organization_id"`
 }
 
@@ -116,6 +117,7 @@ func (q *Queries) GetRedisServiceById(ctx context.Context, serviceID uuid.UUID) 
 		&i.Volume,
 		&i.InternalUrl,
 		&i.CreatedAt,
+		&i.Status,
 		&i.OrganizationID,
 	)
 	return i, err

@@ -158,3 +158,22 @@ SELECT domain, port, is_public, replicas
 FROM app_service
 WHERE id = ?;
 
+-- name: GetPredefSwarmServiceById :one
+SELECT swarm_service, status
+FROM psql_service ps
+WHERE ps.id = @service_id
+UNION ALL
+SELECT swarm_service, status
+FROM redis_service rs
+WHERE rs.id = @service_id;
+
+-- name: UpdatePsqlServiceStatus :exec
+UPDATE psql_service
+SET status = ?
+WHERE id = ?;
+
+-- name: UpdateRedisServiceStatus :exec
+UPDATE redis_service
+SET status = ?
+WHERE id = ?;
+

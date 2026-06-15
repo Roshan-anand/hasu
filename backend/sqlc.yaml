@@ -19,11 +19,6 @@ sql:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"
               type: "DeploymentStatus"
 
-          - column: "psql_service.status"
-            go_type:
-              import: "github.com/Roshan-anand/godploy/internal/lib/types"
-              type: "DeploymentStatus"
-
           - column: "psql_service.type"
             go_type:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"
