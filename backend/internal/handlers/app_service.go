@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	deployjob "github.com/Roshan-anand/godploy/internal/jobs/deployment"
@@ -73,6 +74,23 @@ type RebuildServiceReq struct {
 
 type RoolbackServiceReq struct {
 	ServiceID uuid.UUID `json:"service_id" validate:"required"`
+}
+
+type GetAppServiceByIdRes struct {
+	ID           uuid.UUID              `json:"id"`
+	Name         string                 `json:"name"`
+	GhRepoName   string                 `json:"gh_repo_name"`
+	GhRepoUrl    string                 `json:"gh_repo_url"`
+	IsPublic     bool                   `json:"is_public"`
+	Branch       string                 `json:"branch"`
+	SwarmService string                 `json:"swarm_service"`
+	Domain       string                 `json:"domain"`
+	InternalUrl  string                 `json:"internal_url"`
+	Port         int32                  `json:"port"`
+	CreatedAt    time.Time              `json:"created_at"`
+	Replicas     int32                  `json:"replicas"`
+	Status       types.DeploymentStatus `json:"status"`
+	CommitMsg    string                 `json:"commit_msg"`
 }
 
 type AppServiceSettingsRes struct {
@@ -246,9 +264,31 @@ func (h *ServiceHandler) GetAppServiceById(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get service"})
 	}
 
-	return c.JSON(http.StatusOK, types.Res[db.GetAppServiceByIdRow]{
+	// get live replica count from the Docker swarm service spec
+	replicas := int32(0)
+	swarmService, _, err := h.Server.Docker.Client.ServiceInspectWithRaw(context.Background(), service.SwarmService, swarm.ServiceInspectOptions{})
+	if err == nil && swarmService.Spec.Mode.Replicated != nil && swarmService.Spec.Mode.Replicated.Replicas != nil {
+		replicas = int32(*swarmService.Spec.Mode.Replicated.Replicas)
+	}
+
+	return c.JSON(http.StatusOK, types.Res[GetAppServiceByIdRes]{
 		Message: "",
-		Data:    service,
+		Data: GetAppServiceByIdRes{
+			ID:           service.ID,
+			Name:         service.Name,
+			GhRepoName:   service.GhRepoName,
+			GhRepoUrl:    service.GhRepoUrl,
+			IsPublic:     service.IsPublic,
+			Branch:       service.Branch,
+			SwarmService: service.SwarmService,
+			Domain:       service.Domain,
+			InternalUrl:  service.InternalUrl,
+			Port:         service.Port,
+			CreatedAt:    service.CreatedAt,
+			Replicas:     replicas,
+			Status:       service.Status,
+			CommitMsg:    service.CommitMsg,
+		},
 	})
 }
 
@@ -478,13 +518,6 @@ func (h *ServiceHandler) ScaleAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error updating the swarm service"})
 	}
 
-	if err := q.UpdateAppServiceReplicas(h.qCtx, db.UpdateAppServiceReplicasParams{
-		Replicas: int32(b.Replicas),
-		ID:       b.ServiceId,
-	}); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error persisting replicas"})
-	}
-
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "successfully updated the replicas"})
 }
 
@@ -507,13 +540,23 @@ func (h *ServiceHandler) GetAppServiceSettings(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to get settings"})
 	}
 
+	// get live replica count from the Docker swarm service spec
+	replicas := int32(0)
+	swarmName, err := q.GetSwarmServiceByServiceId(h.qCtx, serviceID)
+	if err == nil {
+		swarmService, _, err := h.Server.Docker.Client.ServiceInspectWithRaw(context.Background(), swarmName, swarm.ServiceInspectOptions{})
+		if err == nil && swarmService.Spec.Mode.Replicated != nil && swarmService.Spec.Mode.Replicated.Replicas != nil {
+			replicas = int32(*swarmService.Spec.Mode.Replicated.Replicas)
+		}
+	}
+
 	return c.JSON(http.StatusOK, types.Res[AppServiceSettingsRes]{
 		Message: "",
 		Data: AppServiceSettingsRes{
 			Domain:   settings.Domain,
 			Port:     settings.Port,
 			IsPublic: settings.IsPublic,
-			Replicas: settings.Replicas,
+			Replicas: replicas,
 		},
 	})
 }
@@ -561,13 +604,6 @@ func (h *ServiceHandler) PauseAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error persisting paused status"})
 	}
 
-	if err := q.UpdateAppServiceReplicas(h.qCtx, db.UpdateAppServiceReplicasParams{
-		Replicas: 0,
-		ID:       b.ServiceID,
-	}); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error persisting replicas"})
-	}
-
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "service paused"})
 }
 
@@ -600,15 +636,7 @@ func (h *ServiceHandler) ResumeAppService(c *echo.Context) error {
 	version := swarmService.Version
 	spec := swarmService.Spec
 
-	storedReplicas, err := q.GetAppServiceReplicas(h.qCtx, b.ServiceID)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error getting stored replicas"})
-	}
-
-	resumeReplicas := uint64(storedReplicas)
-	if resumeReplicas < 1 {
-		resumeReplicas = 1
-	}
+	resumeReplicas := uint64(1)
 	spec.Mode.Replicated.Replicas = &resumeReplicas
 
 	if _, err := docker.ServiceUpdate(context.Background(), swarmName, version, spec, swarm.ServiceUpdateOptions{}); err != nil {
@@ -620,13 +648,6 @@ func (h *ServiceHandler) ResumeAppService(c *echo.Context) error {
 		ID:     currentDep.ID,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error persisting running status"})
-	}
-
-	if err := q.UpdateAppServiceReplicas(h.qCtx, db.UpdateAppServiceReplicasParams{
-		Replicas: int32(resumeReplicas),
-		ID:       b.ServiceID,
-	}); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "error persisting replicas"})
 	}
 
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "service resumed"})

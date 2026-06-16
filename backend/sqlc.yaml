@@ -54,10 +54,6 @@ sql:
             go_type:
               type: "int32"
 
-          - column: app_service.replicas
-            go_type:
-              type: "int32"
-
           - column: orphan_volume.type
             go_type:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"

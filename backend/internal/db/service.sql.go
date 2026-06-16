@@ -305,7 +305,7 @@ func (q *Queries) GetAllSwarmServiceAndImgByAppServiceId(ctx context.Context, se
 
 const getAppServiceById = `-- name: GetAppServiceById :one
 SELECT
-    a.id, a.name, a.gh_repo_name, a.gh_repo_url, a.is_public, a.branch, a.swarm_service, a.domain, a.internal_url, a.port, a.created_at, a.replicas,
+    a.id, a.name, a.gh_repo_name, a.gh_repo_url, a.is_public, a.branch, a.swarm_service, a.domain, a.internal_url, a.port, a.created_at,
     d.status, d.commit_msg
 FROM app_service a
 JOIN deployments d ON d.service_id = a.id AND d.is_current
@@ -324,7 +324,6 @@ type GetAppServiceByIdRow struct {
 	InternalUrl  string                 `json:"internal_url"`
 	Port         int32                  `json:"port"`
 	CreatedAt    time.Time              `json:"created_at"`
-	Replicas     int32                  `json:"replicas"`
 	Status       types.DeploymentStatus `json:"status"`
 	CommitMsg    string                 `json:"commit_msg"`
 }
@@ -344,7 +343,6 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppSe
 		&i.InternalUrl,
 		&i.Port,
 		&i.CreatedAt,
-		&i.Replicas,
 		&i.Status,
 		&i.CommitMsg,
 	)
@@ -404,7 +402,7 @@ func (q *Queries) GetAppServiceForRebuild(ctx context.Context, id uuid.UUID) (Ge
 }
 
 const getAppServiceOnly = `-- name: GetAppServiceOnly :one
-SELECT id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, docker_filepath, docker_contextpath, docker_buildstage, env, build_args, build_secrets, replicas, is_public, branch, swarm_service, domain, internal_url, port, created_at FROM app_service WHERE id = ?
+SELECT id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, docker_filepath, docker_contextpath, docker_buildstage, env, build_args, build_secrets, is_public, branch, swarm_service, domain, internal_url, port, created_at FROM app_service WHERE id = ?
 `
 
 func (q *Queries) GetAppServiceOnly(ctx context.Context, id uuid.UUID) (AppService, error) {
@@ -428,7 +426,6 @@ func (q *Queries) GetAppServiceOnly(ctx context.Context, id uuid.UUID) (AppServi
 		&i.Env,
 		&i.BuildArgs,
 		&i.BuildSecrets,
-		&i.Replicas,
 		&i.IsPublic,
 		&i.Branch,
 		&i.SwarmService,
@@ -440,19 +437,8 @@ func (q *Queries) GetAppServiceOnly(ctx context.Context, id uuid.UUID) (AppServi
 	return i, err
 }
 
-const getAppServiceReplicas = `-- name: GetAppServiceReplicas :one
-SELECT replicas FROM app_service WHERE id = ?
-`
-
-func (q *Queries) GetAppServiceReplicas(ctx context.Context, id uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, getAppServiceReplicas, id)
-	var replicas int32
-	err := row.Scan(&replicas)
-	return replicas, err
-}
-
 const getAppServiceSettings = `-- name: GetAppServiceSettings :one
-SELECT domain, port, is_public, replicas
+SELECT domain, port, is_public
 FROM app_service
 WHERE id = ?
 `
@@ -461,18 +447,12 @@ type GetAppServiceSettingsRow struct {
 	Domain   string `json:"domain"`
 	Port     int32  `json:"port"`
 	IsPublic bool   `json:"is_public"`
-	Replicas int32  `json:"replicas"`
 }
 
 func (q *Queries) GetAppServiceSettings(ctx context.Context, id uuid.UUID) (GetAppServiceSettingsRow, error) {
 	row := q.db.QueryRowContext(ctx, getAppServiceSettings, id)
 	var i GetAppServiceSettingsRow
-	err := row.Scan(
-		&i.Domain,
-		&i.Port,
-		&i.IsPublic,
-		&i.Replicas,
-	)
+	err := row.Scan(&i.Domain, &i.Port, &i.IsPublic)
 	return i, err
 }
 
@@ -655,22 +635,6 @@ func (q *Queries) UpdateAppServiceEnv(ctx context.Context, arg UpdateAppServiceE
 		arg.BuildSecrets,
 		arg.ID,
 	)
-	return err
-}
-
-const updateAppServiceReplicas = `-- name: UpdateAppServiceReplicas :exec
-UPDATE app_service
-SET replicas = ?
-WHERE id = ?
-`
-
-type UpdateAppServiceReplicasParams struct {
-	Replicas int32     `json:"replicas"`
-	ID       uuid.UUID `json:"id"`
-}
-
-func (q *Queries) UpdateAppServiceReplicas(ctx context.Context, arg UpdateAppServiceReplicasParams) error {
-	_, err := q.db.ExecContext(ctx, updateAppServiceReplicas, arg.Replicas, arg.ID)
 	return err
 }
 
