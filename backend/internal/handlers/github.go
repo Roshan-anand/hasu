@@ -557,7 +557,6 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 				BuildArgs:         envStr.BuildArgs,
 				BuildSecrets:      envStr.BuildSecrets,
 			})
-
 		}
 	}
 

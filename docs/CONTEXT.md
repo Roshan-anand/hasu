@@ -100,6 +100,10 @@ _Avoid_: Pause, shutdown, disable
 A user-specified health check that supersedes any Dockerfile-defined health check for a service.
 _Avoid_: Custom health check, manual health check
 
+**Service Dependency**:
+An explicit declared connection from one application **Service** to another **Service** within the same **Project Instance**, specifying an environment variable name and a target service column (e.g., `internal_url`) whose value is injected at deploy time.
+_Avoid_: Service link, env injection, auto-connect
+
 **Volume Size**:
 The configurable storage capacity for a predefined database service, set at creation and editable later.
 _Avoid_: Disk size, storage quota
@@ -125,6 +129,8 @@ _Avoid_: Disk size, storage quota
 - A **Public Service** joins the **Instance Network** and the global ingress network
 - An **Internal Service** joins only the **Instance Network**
 - A **Service** may use an **Internal URL** to communicate with another **Service** in the same **Project Instance**
+- An application **Service** may have zero or more **Service Dependencies** on other **Services** in the same **Project Instance**
+- A **Service Dependency** resolves a target **Service** column value into an environment variable at deploy time
 - A **Service** keeps a configurable **Volume Size** when it is a **Predefined Database Service**
 - A **Service** may have a **Service Domain** that is either **Auto-generated** or **Custom**
 - A **Service** may be **Paused** by setting its **Replicas** to zero
@@ -162,6 +168,15 @@ _Avoid_: Disk size, storage quota
 > **Dev:** "Does the preview service get a domain automatically?"
 > **Domain expert:** "Yes, the backend generates an **Auto-generated Domain** when the preview is created. You can override it with a **Custom Domain** in the service settings."
 
+> **Dev:** "How do I connect my backend app to a Postgres database without manually copying the connection string?"
+> **Domain expert:** "Use the **Service Dependency** feature — in your backend **Service** settings, click 'Connect Service', select the Postgres **Service**, choose the `internal_url` column, and name the environment variable `DATABASE_URL`. The system injects the current value at every deploy, and automatically rewrites it when you create a preview instance."
+
+> **Dev:** "What happens if I change the Postgres password after connecting it to my app?"
+> **Domain expert:** "The system updates the stored **Service Dependency** value in the background. Your app picks up the new connection string on its next deploy — no manual reconnection needed."
+
+> **Dev:** "Can I still set environment variables manually if I don't want to use the connect feature?"
+> **Domain expert:** "Yes, the **Service Dependency** feature is fully optional. You can still copy the **Internal URL** and paste it into your **Service** environment variables manually, just like before."
+
 ## Flagged ambiguities
 
 - `service` was previously discussed as belonging directly to an **Organization**; resolved: a **Service** belongs to a **Project Instance**, and that instance belongs to a **Project**.
@@ -171,3 +186,4 @@ _Avoid_: Disk size, storage quota
 - `account` was previously used interchangeably with user profile; resolved: use **Global Settings** for the user-level configuration and profile data.
 - `suspend` was used to describe taking a service offline; resolved: use **Pause** for application services and **Stop** for predefined database services.
 - `domain override` was used loosely; resolved: a **Service Domain** that is user-entered is a **Custom Domain**, distinct from the **Auto-generated Domain** for previews.
+- `service connection` was used ambiguously to mean both manual env copy-paste and automated dependency injection; resolved: manual copy-paste is just environment configuration, while **Service Dependency** is the explicit declared connection that the system manages and resolves at deploy time.

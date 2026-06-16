@@ -140,7 +140,7 @@ func (q *Queries) DeletePsqlService(ctx context.Context, id uuid.UUID) error {
 }
 
 const getAllAttachableOrphanVolumes = `-- name: GetAllAttachableOrphanVolumes :many
-SELECT id, organization_id, volume, type, created_at, display_name
+SELECT id, organization_id, display_name, volume, type, created_at
 FROM orphan_volume
 WHERE organization_id = ?
 `
@@ -157,10 +157,10 @@ func (q *Queries) GetAllAttachableOrphanVolumes(ctx context.Context, organizatio
 		if err := rows.Scan(
 			&i.ID,
 			&i.OrganizationID,
+			&i.DisplayName,
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,
-			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -176,7 +176,7 @@ func (q *Queries) GetAllAttachableOrphanVolumes(ctx context.Context, organizatio
 }
 
 const getAllOrphanVolumesByOrgID = `-- name: GetAllOrphanVolumesByOrgID :many
-SELECT id, organization_id, volume, type, created_at, display_name
+SELECT id, organization_id, display_name, volume, type, created_at
 FROM orphan_volume
 WHERE organization_id = ?
 `
@@ -193,10 +193,10 @@ func (q *Queries) GetAllOrphanVolumesByOrgID(ctx context.Context, organizationID
 		if err := rows.Scan(
 			&i.ID,
 			&i.OrganizationID,
+			&i.DisplayName,
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,
-			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -212,7 +212,7 @@ func (q *Queries) GetAllOrphanVolumesByOrgID(ctx context.Context, organizationID
 }
 
 const getOrphanVolumeById = `-- name: GetOrphanVolumeById :one
-SELECT id, organization_id, volume, type, created_at, display_name
+SELECT id, organization_id, display_name, volume, type, created_at
 FROM orphan_volume
 WHERE id = ?
 `
@@ -223,16 +223,16 @@ func (q *Queries) GetOrphanVolumeById(ctx context.Context, id uuid.UUID) (Orphan
 	err := row.Scan(
 		&i.ID,
 		&i.OrganizationID,
+		&i.DisplayName,
 		&i.Volume,
 		&i.Type,
 		&i.CreatedAt,
-		&i.DisplayName,
 	)
 	return i, err
 }
 
 const getOrphanVolumeByName = `-- name: GetOrphanVolumeByName :one
-SELECT id, organization_id, volume, type, created_at, display_name
+SELECT id, organization_id, display_name, volume, type, created_at
 FROM orphan_volume
 WHERE volume = ?
 `
@@ -243,16 +243,16 @@ func (q *Queries) GetOrphanVolumeByName(ctx context.Context, volume string) (Orp
 	err := row.Scan(
 		&i.ID,
 		&i.OrganizationID,
+		&i.DisplayName,
 		&i.Volume,
 		&i.Type,
 		&i.CreatedAt,
-		&i.DisplayName,
 	)
 	return i, err
 }
 
 const getOrphanVolumeByType = `-- name: GetOrphanVolumeByType :many
-SELECT id, organization_id, volume, type, created_at, display_name
+SELECT id, organization_id, display_name, volume, type, created_at
 FROM orphan_volume
 WHERE organization_id = ? AND type = ?
 `
@@ -274,10 +274,10 @@ func (q *Queries) GetOrphanVolumeByType(ctx context.Context, arg GetOrphanVolume
 		if err := rows.Scan(
 			&i.ID,
 			&i.OrganizationID,
+			&i.DisplayName,
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,
-			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -293,7 +293,7 @@ func (q *Queries) GetOrphanVolumeByType(ctx context.Context, arg GetOrphanVolume
 }
 
 const getOrphanVolumesByOrgId = `-- name: GetOrphanVolumesByOrgId :many
-SELECT id, organization_id, volume, type, created_at, display_name
+SELECT id, organization_id, display_name, volume, type, created_at
 FROM orphan_volume
 WHERE organization_id = ?
 `
@@ -310,6 +310,7 @@ func (q *Queries) GetOrphanVolumesByOrgId(ctx context.Context, organizationID uu
 		if err := rows.Scan(
 			&i.ID,
 			&i.OrganizationID,
+			&i.DisplayName,
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,

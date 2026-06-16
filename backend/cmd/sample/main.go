@@ -1,23 +1,20 @@
 package main
 
 import (
-	"sync"
-	"sync/atomic"
+	"log"
+	"os/exec"
 )
 
 func main() {
-	// workers := 3
-	wg := new(sync.WaitGroup)
-	var id atomic.Int32
 
-	for range 10 {
-		wg.Go(func() {
-			newID := id.Add(1)
-			println("Generated ID:", newID)
-		})
-	}
+	cmd := exec.Command("bash", "-c", `echo "one"`)
 
-	if wg.Wait(); true {
-		println("All goroutines completed.")
+	cmd.Args = append(cmd.Args, "&&", `echo "two"`)
+
+	res, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatalf("Error running command: %v", err)
 	}
+	log.Printf("Command output: %s", string(res))
+
 }

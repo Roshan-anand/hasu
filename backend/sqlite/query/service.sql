@@ -82,7 +82,7 @@ WHERE id = ?;
 
 -- name: GetAppServiceById :one
 SELECT
-    a.id, a.name, a.gh_repo_name, a.gh_repo_url, a.is_public, a.branch, a.swarm_service, a.domain, a.internal_url, a.port, a.created_at, a.replicas,
+    a.id, a.name, a.gh_repo_name, a.gh_repo_url, a.is_public, a.branch, a.swarm_service, a.domain, a.internal_url, a.port, a.created_at,
     d.status, d.commit_msg
 FROM app_service a
 JOIN deployments d ON d.service_id = a.id AND d.is_current
@@ -145,16 +145,8 @@ SELECT * FROM app_service WHERE id = ?;
 -- name: GetAppServicesByInstanceId :many
 SELECT id, name, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, branch FROM app_service WHERE instance_id = ?;
 
--- name: UpdateAppServiceReplicas :exec
-UPDATE app_service
-SET replicas = ?
-WHERE id = ?;
-
--- name: GetAppServiceReplicas :one
-SELECT replicas FROM app_service WHERE id = ?;
-
 -- name: GetAppServiceSettings :one
-SELECT domain, port, is_public, replicas
+SELECT domain, port, is_public
 FROM app_service
 WHERE id = ?;
 

@@ -21,7 +21,7 @@
 - [ ] 17 — Edit a Predefined Database Service and apply changes only on redeploy [easy]
 - [x] 18 — Preserve deleted database data as an Orphan Volume and show it in Storage [easy]
 - [x] 19 — Reattach a compatible Orphan Volume during Predefined Database Service creation [easy]
-- [ ] 20 — Warn about Orphan Volumes when deleting a Project [easy]
+- [ ] ~~20 — Warn about Orphan Volumes when deleting a Project [easy]~~
 - [ ] 21 — Align GitHub App manifest, webhook endpoint, and public server URL behavior [hard]
 - [ ] 22 — Decide the V1 critical-flow test gate and coverage order [hard]
 - [ ] 23 — Decide the V1 rate-limiting policy for core routes and service exposure [hard]
@@ -37,3 +37,14 @@
 - [ ] 07 — Project Deletion Warning Update: list running services per instance instead of orphan volumes [easy]
 - [ ] 08 — Predefined DB  Stop/Start: configurable stop/start  [easy]
 - [x] 09 — Orphan Volume Filters & Rename: size sort, type filter, name search, inline rename [easy]
+
+## v1 Preview Feature
+
+- [ ] 01 — DB Schema + CRUD APIs [easy]
+- [ ] 02 — Deploy-Time Env Merging [easy]
+- [ ] 03 — Frontend — Connection Management UI [easy]
+- [ ] 04 — Dependency Graph Visualization [medium]
+- [ ] 05 — Background Update Routine [easy]
+- [ ] 06 — Service Deletion Cleanup [easy]
+- [ ] 07 — Preview Dependency Cloning [easy]
+- [ ] 08 — Env Conflict Warnings + Stale Indicators [easy]

@@ -130,14 +130,10 @@
 								type="button"
 								variant="none"
 								onclick={() => (selectedAvatar = avatarPath)}
-								class={`size-15 rounded-full overflow-hidden border-2 p-1 cursor-pointer transition-all hover:scale-105
-								${selectedAvatar === avatarPath ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-muted-foreground'} `}
+								class={`size-15 rounded-full overflow-hidden border-2 p-1 cursor-pointer transition-all hover:scale-105 
+								${selectedAvatar === avatarPath ? 'border-primary ring-2 ring-primary/30 bg-primary/70' : 'border-border hover:border-muted-foreground'} `}
 							>
-								<img
-									src={avatarPath}
-									alt={avatarPath}
-									class="size-full object-cover object-center"
-								/>
+								<img src={avatarPath} alt={avatarPath} class="object-fill object-center" />
 							</Button>
 						{/each}
 					</div>
