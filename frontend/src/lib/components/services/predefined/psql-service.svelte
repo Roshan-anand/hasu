@@ -1,10 +1,9 @@
 <script lang="ts">
+	import { Copy, Eye, EyeOff, Play, Square, X } from '@lucide/svelte';
 	import { Button } from '@/components/ui/button';
-	import { Card, CardContent } from '@/components/ui/card';
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
-	import { Eye, EyeOff, Copy, Play, Square } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import {
 		useRedeployPsqlServiceMutation,
@@ -13,9 +12,10 @@
 		useStartPredefServiceMutation
 	} from '@/features/services';
 	import { useGetPsqlServiceDetailsQuery } from '@/features/services';
+	import { PredefinedLogs } from './index';
 	import FormError from '@/components/services/FormError.svelte';
 
-	const { serviceID }: { serviceID: string } = $props();
+	let { serviceID, drawerOpen }: { serviceID: string; drawerOpen: boolean } = $props();
 
 	const serviceQuery = useGetPsqlServiceDetailsQuery(() => serviceID);
 	const updatePsqlService = useUpdatePsqlServiceMutation(() => serviceID);
@@ -65,151 +65,212 @@
 	}
 </script>
 
-<section class="p-4 max-w-3xl">
-	<h1 class="text-xl font-semibold">PSQL Service</h1>
+<section class="flex h-full max-w-full flex-col bg-background text-foreground">
+	<header class="shrink-0 border-b border-border px-5 py-4">
+		<div class="flex items-start justify-between gap-4">
+			<div class="min-w-0 space-y-1">
+				<p class="text-xs font-medium text-muted-foreground">Predefined Database Service</p>
+				<h1 class="truncate text-lg font-semibold tracking-tight">PSQL Service</h1>
+			</div>
+			<Button
+				variant="ghost"
+				size="icon"
+				class="-mr-1 h-8 w-8 shrink-0"
+				onclick={() => (drawerOpen = false)}
+				aria-label="Close service drawer"
+			>
+				<X class="h-4 w-4" />
+			</Button>
+		</div>
+	</header>
 
 	{#if serviceQuery.isPending}
-		<div class="mt-4 flex flex-col gap-4">
-			<Skeleton class="h-40 w-full" />
-			<Skeleton class="h-24 w-full" />
+		<div class="flex flex-1 flex-col gap-6 px-5 py-5">
+			<Skeleton class="h-20 w-full" />
+			<div class="space-y-3">
+				<Skeleton class="h-8 w-full" />
+				<Skeleton class="h-8 w-full" />
+				<Skeleton class="h-8 w-full" />
+			</div>
+			<Skeleton class="h-56 w-full" />
 		</div>
 	{:else if serviceQuery.isError}
-		<p class="mt-4 text-red-500">Failed to load service details</p>
+		<div class="px-5 py-5">
+			<p
+				class="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+			>
+				Failed to load service details
+			</p>
+		</div>
 	{:else if serviceQuery.data}
 		{@const details = serviceQuery.data}
 
-		<Card class="mt-4">
-			<CardContent class="space-y-6 py-6">
-				<div class="flex items-center justify-between">
-					<div class="space-y-1">
-						<div class="flex items-center gap-3">
-							<h2 class="text-lg font-semibold">{details.name}</h2>
+		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+			<!-- Drawer layout keeps operator actions visible while using plain form rows instead of card wrappers. -->
+			<div class="space-y-6 px-5 py-5">
+				<section class="space-y-4">
+					<div
+						class="flex flex-col gap-4 min-[720px]:flex-row min-[720px]:items-start min-[720px]:justify-between"
+					>
+						<div class="min-w-0 space-y-3">
+							<div class="flex flex-wrap items-center gap-2">
+								<h2 class="truncate text-base font-semibold">{details.name}</h2>
+								{#if isRunning}
+									<span
+										class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300"
+									>
+										<span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+										Running
+									</span>
+								{:else if isPaused}
+									<span
+										class="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300"
+									>
+										<span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+										Paused
+									</span>
+								{/if}
+							</div>
+
+							<div class="space-y-1.5">
+								<p class="text-xs font-medium text-muted-foreground">Internal URL</p>
+								<div class="flex min-w-0 items-center gap-2 rounded-md bg-muted px-2.5 py-2">
+									<code class="min-w-0 flex-1 truncate text-xs text-foreground"
+										>{details.internal_url}</code
+									>
+									<button
+										type="button"
+										onclick={async () => {
+											try {
+												await navigator.clipboard.writeText(details.internal_url);
+												toast.success('Internal URL copied to clipboard');
+											} catch {
+												toast.error('Failed to copy to clipboard');
+											}
+										}}
+										class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+										title="Copy internal URL"
+										aria-label="Copy internal URL"
+									>
+										<Copy class="h-3.5 w-3.5" />
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="flex shrink-0 flex-wrap gap-2">
 							{#if isRunning}
-								<span
-									class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400"
+								<Button
+									variant="outline"
+									class="border-amber-500/35 bg-amber-500/10 text-amber-800 hover:bg-amber-500/15 hover:text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200 dark:hover:bg-amber-400/15 dark:hover:text-amber-100"
+									onclick={() => stopService.mutate()}
+									disabled={stopService.isPending}
 								>
-									<span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-									Running
-								</span>
+									{#if stopService.isPending}
+										Stopping...
+									{:else}
+										<Square class="mr-1.5 h-4 w-4" />
+										Stop
+									{/if}
+								</Button>
 							{:else if isPaused}
-								<span
-									class="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+								<Button
+									variant="outline"
+									class="border-emerald-500/35 bg-emerald-500/10 text-emerald-800 hover:bg-emerald-500/15 hover:text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200 dark:hover:bg-emerald-400/15 dark:hover:text-emerald-100"
+									onclick={() => startService.mutate()}
+									disabled={startService.isPending}
 								>
-									<span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-									Paused
-								</span>
+									{#if startService.isPending}
+										Starting...
+									{:else}
+										<Play class="mr-1.5 h-4 w-4" />
+										Start
+									{/if}
+								</Button>
 							{/if}
-						</div>
-						<div class="flex items-center gap-2">
-							<p class="text-sm text-muted-foreground">{details.internal_url}</p>
-							<button
-								type="button"
-								onclick={async () => {
-									try {
-										await navigator.clipboard.writeText(details.internal_url);
-										toast.success('Internal URL copied to clipboard');
-									} catch {
-										toast.error('Failed to copy to clipboard');
-									}
-								}}
-								class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-								title="Copy internal URL"
-							>
-								<Copy class="h-3.5 w-3.5" />
-							</button>
-						</div>
-					</div>
-					<div class="flex items-center gap-2">
-						{#if isRunning}
 							<Button
-								variant="secondary"
-								onclick={() => stopService.mutate()}
-								disabled={stopService.isPending}
+								variant="outline"
+								onclick={() => redeployPsqlService.mutate({ service_id: serviceID })}
+								disabled={redeployPsqlService.isPending || isPaused}
 							>
-								{#if stopService.isPending}
-									Stopping...
-								{:else}
-									<Square class="mr-1.5 h-4 w-4" />
-									Stop
-								{/if}
-							</Button>
-						{:else if isPaused}
-							<Button
-								variant="default"
-								onclick={() => startService.mutate()}
-								disabled={startService.isPending}
-							>
-								{#if startService.isPending}
-									Starting...
-								{:else}
-									<Play class="mr-1.5 h-4 w-4" />
-									Start
-								{/if}
-							</Button>
-						{/if}
-						<Button
-							variant="outline"
-							onclick={() => redeployPsqlService.mutate({ service_id: serviceID })}
-							disabled={redeployPsqlService.isPending || isPaused}
-						>
-							{redeployPsqlService.isPending ? 'Redeploying...' : 'Redeploy'}
-						</Button>
-					</div>
-				</div>
-
-				<form class="flex flex-col gap-4" onsubmit={handleSubmit}>
-					<div class="space-y-1.5">
-						<Label class="my-1" for="db_name">Database Name</Label>
-						<Input id="db_name" bind:value={dbName} disabled={updatePsqlService.isPending} />
-						<FormError errors={errors.db_name ? [errors.db_name] : []} />
-					</div>
-
-					<div class="space-y-1.5">
-						<Label class="my-1" for="db_user">Database User</Label>
-						<Input id="db_user" bind:value={dbUser} disabled={updatePsqlService.isPending} />
-						<FormError errors={errors.db_user ? [errors.db_user] : []} />
-					</div>
-
-					<div class="space-y-1.5">
-						<Label class="my-1" for="db_password">Database Password</Label>
-						<div class="relative">
-							<Input
-								id="db_password"
-								type={isPasswordVisible ? 'text' : 'password'}
-								bind:value={dbPassword}
-								disabled={updatePsqlService.isPending}
-								class="pr-10"
-							/>
-							<Button
-								variant="ghost"
-								size="sm"
-								class="absolute right-2 top-1/2 h-7 w-7 -translate-y-1/2 p-0"
-								type="button"
-								onclick={() => {
-									isPasswordVisible = !isPasswordVisible;
-								}}
-								disabled={updatePsqlService.isPending}
-							>
-								{#if isPasswordVisible}
-									<EyeOff class="h-4 w-4" />
-								{:else}
-									<Eye class="h-4 w-4" />
-								{/if}
-								<span class="sr-only">Toggle password visibility</span>
+								{redeployPsqlService.isPending ? 'Redeploying...' : 'Redeploy'}
 							</Button>
 						</div>
-						<FormError errors={errors.db_password ? [errors.db_password] : []} />
+					</div>
+				</section>
+
+				<form class="border-t border-border pt-5" onsubmit={handleSubmit}>
+					<div class="mb-5 space-y-1">
+						<h3 class="text-sm font-semibold">Connection settings</h3>
+						<p class="text-sm text-muted-foreground">
+							Changes are saved to service config. Redeploy when runtime values need to apply.
+						</p>
 					</div>
 
-					<div class="flex justify-end">
+					<div class="space-y-4">
+						<div class="grid gap-2 min-[720px]:grid-cols-[10rem_1fr] min-[720px]:items-start">
+							<Label class="pt-1.5 text-sm" for="db_name">Database name</Label>
+							<div class="space-y-1.5">
+								<Input id="db_name" bind:value={dbName} disabled={updatePsqlService.isPending} />
+								<FormError errors={errors.db_name ? [errors.db_name] : []} />
+							</div>
+						</div>
+
+						<div class="grid gap-2 min-[720px]:grid-cols-[10rem_1fr] min-[720px]:items-start">
+							<Label class="pt-1.5 text-sm" for="db_user">Database user</Label>
+							<div class="space-y-1.5">
+								<Input id="db_user" bind:value={dbUser} disabled={updatePsqlService.isPending} />
+								<FormError errors={errors.db_user ? [errors.db_user] : []} />
+							</div>
+						</div>
+
+						<div class="grid gap-2 min-[720px]:grid-cols-[10rem_1fr] min-[720px]:items-start">
+							<Label class="pt-1.5 text-sm" for="db_password">Database password</Label>
+							<div class="space-y-1.5">
+								<div class="relative">
+									<Input
+										id="db_password"
+										type={isPasswordVisible ? 'text' : 'password'}
+										bind:value={dbPassword}
+										disabled={updatePsqlService.isPending}
+										class="pr-10"
+									/>
+									<Button
+										variant="ghost"
+										size="sm"
+										class="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0"
+										type="button"
+										onclick={() => {
+											isPasswordVisible = !isPasswordVisible;
+										}}
+										disabled={updatePsqlService.isPending}
+									>
+										{#if isPasswordVisible}
+											<EyeOff class="h-4 w-4" />
+										{:else}
+											<Eye class="h-4 w-4" />
+										{/if}
+										<span class="sr-only">Toggle password visibility</span>
+									</Button>
+								</div>
+								<FormError errors={errors.db_password ? [errors.db_password] : []} />
+							</div>
+						</div>
+					</div>
+
+					<div class="mt-6 flex justify-end border-t border-border pt-4">
 						<Button type="submit" disabled={updatePsqlService.isPending}>
-							{updatePsqlService.isPending ? 'Saving...' : 'Save'}
+							{updatePsqlService.isPending ? 'Saving...' : 'Save changes'}
 						</Button>
 					</div>
 				</form>
-			</CardContent>
-		</Card>
+			</div>
+
+			<PredefinedLogs {serviceID} open={drawerOpen} />
+		</div>
 	{:else}
-		<p class="mt-4 text-muted-foreground">Service not found</p>
+		<div class="px-5 py-5">
+			<p class="text-sm text-muted-foreground">Service not found</p>
+		</div>
 	{/if}
 </section>

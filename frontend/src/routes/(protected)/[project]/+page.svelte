@@ -214,19 +214,9 @@
 		class="border-l bg-background shadow border border-r-0 w-2/3"
 		showOverlay={true}
 	>
-		<div class="flex items-center justify-between border-b px-4 py-3 border">
-			<div class="min-w-0">
-				<p class="text-sm font-semibold">Service details</p>
-				<p class="text-xs text-muted-foreground">Manage selected service without leaving page</p>
-			</div>
-			<Button variant="ghost" size="icon" class="h-8 w-8" onclick={() => (drawerOpen = false)}>
-				<X class="h-4 w-4" />
-			</Button>
-		</div>
-
 		<div class="min-h-0 flex-1 overflow-y-auto">
 			{#if selectedServiceType === 'psql'}
-				<PsqlService serviceID={selectedServiceId} />
+				<PsqlService serviceID={selectedServiceId} {drawerOpen} />
 			{:else}
 				<p class="p-4 text-muted-foreground">Service details coming soon</p>
 			{/if}
