@@ -30,21 +30,22 @@ func (q *Queries) AssociateVolumeWithRedis(ctx context.Context, arg AssociateVol
 }
 
 const createRedisService = `-- name: CreateRedisService :one
-INSERT INTO redis_service (id, instance_id, type, swarm_service, name, password, internal_url, image, volume)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO redis_service (id, instance_id, type, status, swarm_service, name, password, internal_url, image, volume)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, name, type
 `
 
 type CreateRedisServiceParams struct {
-	ID           uuid.UUID         `json:"id"`
-	InstanceID   uuid.UUID         `json:"instance_id"`
-	Type         types.ServiceType `json:"type"`
-	SwarmService string            `json:"swarm_service"`
-	Name         string            `json:"name"`
-	Password     string            `json:"password"`
-	InternalUrl  string            `json:"internal_url"`
-	Image        string            `json:"image"`
-	Volume       string            `json:"volume"`
+	ID           uuid.UUID                     `json:"id"`
+	InstanceID   uuid.UUID                     `json:"instance_id"`
+	Type         types.ServiceType             `json:"type"`
+	Status       types.PredefinedServiceStatus `json:"status"`
+	SwarmService string                        `json:"swarm_service"`
+	Name         string                        `json:"name"`
+	Password     string                        `json:"password"`
+	InternalUrl  string                        `json:"internal_url"`
+	Image        string                        `json:"image"`
+	Volume       string                        `json:"volume"`
 }
 
 type CreateRedisServiceRow struct {
@@ -58,6 +59,7 @@ func (q *Queries) CreateRedisService(ctx context.Context, arg CreateRedisService
 		arg.ID,
 		arg.InstanceID,
 		arg.Type,
+		arg.Status,
 		arg.SwarmService,
 		arg.Name,
 		arg.Password,
@@ -81,7 +83,7 @@ func (q *Queries) DeleteRedisService(ctx context.Context, id uuid.UUID) error {
 }
 
 const getRedisServiceById = `-- name: GetRedisServiceById :one
-SELECT rs.id, rs.instance_id, rs.type, rs.name, rs.swarm_service, rs.password, rs.image, rs.volume, rs.internal_url, rs.created_at, rs.status, p.organization_id
+SELECT rs.id, rs.instance_id, rs.status, rs.type, rs.name, rs.swarm_service, rs.password, rs.image, rs.volume, rs.internal_url, rs.created_at, p.organization_id
 FROM redis_service rs
 JOIN instance i ON i.id = rs.instance_id
 JOIN project p ON p.id = i.project_id
@@ -89,18 +91,18 @@ WHERE rs.id = ?1
 `
 
 type GetRedisServiceByIdRow struct {
-	ID             uuid.UUID         `json:"id"`
-	InstanceID     uuid.UUID         `json:"instance_id"`
-	Type           types.ServiceType `json:"type"`
-	Name           string            `json:"name"`
-	SwarmService   string            `json:"swarm_service"`
-	Password       string            `json:"password"`
-	Image          string            `json:"image"`
-	Volume         string            `json:"volume"`
-	InternalUrl    string            `json:"internal_url"`
-	CreatedAt      time.Time         `json:"created_at"`
-	Status         string            `json:"status"`
-	OrganizationID uuid.UUID         `json:"organization_id"`
+	ID             uuid.UUID                     `json:"id"`
+	InstanceID     uuid.UUID                     `json:"instance_id"`
+	Status         types.PredefinedServiceStatus `json:"status"`
+	Type           types.ServiceType             `json:"type"`
+	Name           string                        `json:"name"`
+	SwarmService   string                        `json:"swarm_service"`
+	Password       string                        `json:"password"`
+	Image          string                        `json:"image"`
+	Volume         string                        `json:"volume"`
+	InternalUrl    string                        `json:"internal_url"`
+	CreatedAt      time.Time                     `json:"created_at"`
+	OrganizationID uuid.UUID                     `json:"organization_id"`
 }
 
 func (q *Queries) GetRedisServiceById(ctx context.Context, serviceID uuid.UUID) (GetRedisServiceByIdRow, error) {
@@ -109,6 +111,7 @@ func (q *Queries) GetRedisServiceById(ctx context.Context, serviceID uuid.UUID) 
 	err := row.Scan(
 		&i.ID,
 		&i.InstanceID,
+		&i.Status,
 		&i.Type,
 		&i.Name,
 		&i.SwarmService,
@@ -117,7 +120,6 @@ func (q *Queries) GetRedisServiceById(ctx context.Context, serviceID uuid.UUID) 
 		&i.Volume,
 		&i.InternalUrl,
 		&i.CreatedAt,
-		&i.Status,
 		&i.OrganizationID,
 	)
 	return i, err

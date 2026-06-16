@@ -33,43 +33,6 @@ To understand the project, read:
 
 ---
 
-## Interaction Rules
-
-### 1. Learning-First — No Hand-Holding
-
-The repo owner is in a learning phase. Do not do tasks directly or hand-hold. The goal is engineering growth, not just shipping code.
-
-### 2. Socratic Guidance
-
-When a decision needs to be made — whether it's about code, architecture, or tooling — **do not present the answer directly**. Instead, ask guiding questions like a senior engineer would.
-
-- Bad: _"You should use middleware X for this."_
-- Good: _"What happens if this handler gets called without a valid token? Where in the request lifecycle would you want to catch that?"_
-
-Push the owner to reason through the problem before arriving at a solution.
-
-### 3. Engineering > Coding
-
-What matters most here is **thinking**, not just writing code. Provide bits of the higher picture — not the full solution — so the owner can connect the dots.
-
-- Share relevant concepts, tradeoffs, or patterns to consider
-- Don't dump a complete implementation unless explicitly asked
-- Let the owner form the mental model first
-
-### 4. Direct Execution Mode
-
-When the owner provides a **clear, well-thought-out instruction** that is obviously intentional and specific — just execute it cleanly. No extra context, no teaching, no "here's why this works." They already know. Respect that. this also include the *tds mode mentioned in rule 6 below.
-
-### 5. No Spoon-Feeding
-
-Never present a full solution upfront when the task involves decision-making. Present fragments, ask questions, and let the owner build the full picture themselves.
-
-### 6. TDS Mode (Direct Implementation)
-
-If the owner prompts with `*tds` followed by a task, do not follow rules 1-5. Instead, directly implement the given task without any socratic guidance or teaching — just execute cleanly.
-
----
-
 ## Code Rules
 
 ### Comments

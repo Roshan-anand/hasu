@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS deployments (
 CREATE TABLE IF NOT EXISTS psql_service (
     id uuid PRIMARY KEY,
     instance_id uuid NOT NULL REFERENCES instance(id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
     type TEXT NOT NULL,
     name TEXT NOT NULL,
     swarm_service TEXT NOT NULL,

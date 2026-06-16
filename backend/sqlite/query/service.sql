@@ -1,13 +1,13 @@
 -- name: GetAllService :many
-SELECT ps.id, ps.type, ps.name, '' AS gh_repo_name, '' AS gh_repo_url, '' AS git_provider, '' AS branch_name, ps.created_at
+SELECT ps.id, ps.type, ps.name, ps.status, '' AS gh_repo_name, '' AS gh_repo_url, '' AS git_provider, '' AS branch_name, ps.created_at
 FROM psql_service ps
 WHERE ps.instance_id = @instance_id
 UNION ALL
-SELECT rs.id, rs.type, rs.name, '' AS gh_repo_name, '' AS gh_repo_url, '' AS git_provider, '' AS branch_name, rs.created_at
+SELECT rs.id, rs.type, rs.name, rs.status, '' AS gh_repo_name, '' AS gh_repo_url, '' AS git_provider, '' AS branch_name, rs.created_at
 FROM redis_service rs
 WHERE rs.instance_id = @instance_id
 UNION ALL
-SELECT aps.id, aps.type, aps.name, aps.gh_repo_url, aps.gh_repo_url, aps.git_provider, aps.branch, aps.created_at
+SELECT aps.id, aps.type, aps.name, '' AS status,aps.gh_repo_url, aps.gh_repo_url, aps.git_provider, aps.branch, aps.created_at
 FROM app_service aps
 WHERE aps.instance_id = @instance_id;
 

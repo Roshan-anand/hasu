@@ -7,9 +7,12 @@ type ServiceListBase = {
 	created_at: string;
 };
 
+type PredefinedServiceStatus = 'running' | 'paused';
+
 export type ServiceListResponse =
 	| (ServiceListBase & {
 			type: PsqlServiceName;
+			status: PredefinedServiceStatus;
 	  })
 	| (ServiceListBase & {
 			type: AppServiceName;
@@ -115,7 +118,7 @@ export type PsqlServiceDetails = {
 	db_password: string;
 	image: string;
 	internal_url: string;
-	status: string;
+	status: PredefinedServiceStatus;
 	created_at: string;
 };
 

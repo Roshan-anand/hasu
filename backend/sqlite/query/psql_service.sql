@@ -1,6 +1,6 @@
 -- name: CreatePsqlService :one
-INSERT INTO psql_service (id, instance_id, type, swarm_service, name, db_name, db_user, db_password, internal_url, image, volume)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO psql_service (id, instance_id, type, status, swarm_service, name, db_name, db_user, db_password, internal_url, image, volume)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, name, type;
 
 -- name: AssociateVolumeWithPsql :exec

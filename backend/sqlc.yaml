@@ -24,10 +24,20 @@ sql:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"
               type: "ServiceType"
 
+          - column: "psql_service.status"
+            go_type:
+              import: "github.com/Roshan-anand/godploy/internal/lib/types"
+              type: "PredefinedServiceStatus"
+
           - column: "redis_service.type"
             go_type:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"
               type: "ServiceType"
+
+          - column: "redis_service.status"
+            go_type:
+              import: "github.com/Roshan-anand/godploy/internal/lib/types"
+              type: "PredefinedServiceStatus"
 
           - column: "app_service.type"
             go_type:

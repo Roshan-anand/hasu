@@ -53,15 +53,16 @@ CREATE TABLE service_dependencies (
 
 ## Available Columns per Service Type
 
-| Service Type | Connectable Columns |
-|---|---|
-| `app` | `internal_url`, `domain` |
-| `psql` | `internal_url`, `db_name`, `db_user`, `db_password` |
-| `redis` | `internal_url`, `password`, `name` |
+| Service Type | Connectable Columns                                 |
+| ------------ | --------------------------------------------------- |
+| `app`        | `internal_url`, `domain`                            |
+| `psql`       | `internal_url`, `db_name`, `db_user`, `db_password` |
+| `redis`      | `internal_url`, `password`, `name`                  |
 
 ## UX Flow
 
 ### Connect Service
+
 1. User navigates to application Service settings → Environment variables section
 2. Clicks **"Connect Service"** button
 3. Modal/drawer opens with:
@@ -74,11 +75,13 @@ CREATE TABLE service_dependencies (
 6. New connections appear in env vars list with visual indicator showing they're dependency-managed
 
 ### Edit Connection
+
 1. User clicks row in connections list
 2. Same form reopens pre-filled → user changes env var name or target column
 3. Save → server updates record → toast "Don't forget to redeploy"
 
 ### Delete Connection
+
 1. User clicks delete icon on connection row
 2. Confirmation dialog
 3. Delete → server removes record → toast "Don't forget to redeploy"
@@ -125,6 +128,7 @@ Triggered when a service's connectable columns change (e.g., Postgres password r
 ## Service Deletion Cleanup
 
 When any service is deleted:
+
 1. Delete `service_dependencies WHERE app_service_id = ?` (this service's outgoing connections)
 2. Delete `service_dependencies WHERE dependency_service_id = ?` (other services' connections to this service)
 
@@ -133,6 +137,7 @@ When any service is deleted:
 Rule: **Dependency env vars override user-defined env vars.**
 
 If user has manual env `DATABASE_URL=postgres://old` AND dependency connection for `DATABASE_URL` pointing to mydb `internal_url`:
+
 - At deploy time: dependency value wins → `DATABASE_URL=postgres://user:pass@mydb-abc:5432/mydb`
 - UI shows a warning indicator on conflicting vars
 

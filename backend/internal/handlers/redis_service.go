@@ -186,6 +186,7 @@ func (h *ServiceHandler) CreateRedisService(c *echo.Context) error {
 		ID:           security.GeneratePrimaryKey(),
 		InstanceID:   b.InstanceID,
 		Type:         types.RedisServiceType,
+		Status:       types.PredefServiceRunning,
 		SwarmService: serviceName,
 		Name:         b.Name,
 		Password:     b.Password,

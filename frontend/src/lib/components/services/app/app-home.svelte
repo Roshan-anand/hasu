@@ -14,7 +14,6 @@
 	} from '@/features/services';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import type { ServiceType } from '@/types';
 	import { toast } from 'svelte-sonner';
 	import AppServicePRPreviewButton from './AppServicePRPreviewButton.svelte';
 	import { X } from '@lucide/svelte';
@@ -114,8 +113,7 @@
 									{
 										onSuccess: ({ data }) => {
 											goto(
-												resolve('/(protected)/[project]/[service_type]/[service]?tab=deployment', {
-													service_type: 'app' as ServiceType,
+												resolve('/(protected)/[project]/[service]?tab=deployment', {
 													project,
 													service: data
 												})

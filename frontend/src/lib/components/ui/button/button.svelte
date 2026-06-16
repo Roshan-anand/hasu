@@ -1,5 +1,4 @@
 <script lang="ts" module>
-	/* eslint-disable svelte/no-navigation-without-resolve */
 	import type { ResolvedPathname } from '$app/types';
 	import { cn, type WithElementRef } from '@/utils.js';
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
@@ -22,7 +21,6 @@
 					'hover:bg-accent-error-bg focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40  text-accent-error-highlight focus-visible:border-destructive/40 dark:hover:bg-accent-error-bg',
 				destructivesolid:
 					'bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30',
-
 				link: 'text-primary underline-offset-4 hover:underline',
 				none: ''
 			},
@@ -72,6 +70,7 @@
 </script>
 
 {#if href}
+	<!-- eslint-disable svelte/no-navigation-without-resolve -->
 	<a
 		bind:this={ref}
 		data-slot="button"

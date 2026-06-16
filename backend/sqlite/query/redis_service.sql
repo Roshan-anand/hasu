@@ -1,6 +1,6 @@
 -- name: CreateRedisService :one
-INSERT INTO redis_service (id, instance_id, type, swarm_service, name, password, internal_url, image, volume)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO redis_service (id, instance_id, type, status, swarm_service, name, password, internal_url, image, volume)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, name, type;
 
 -- name: AssociateVolumeWithRedis :exec

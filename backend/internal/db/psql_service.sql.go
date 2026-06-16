@@ -70,23 +70,24 @@ func (q *Queries) CreateOrphanVolume(ctx context.Context, arg CreateOrphanVolume
 }
 
 const createPsqlService = `-- name: CreatePsqlService :one
-INSERT INTO psql_service (id, instance_id, type, swarm_service, name, db_name, db_user, db_password, internal_url, image, volume)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO psql_service (id, instance_id, type, status, swarm_service, name, db_name, db_user, db_password, internal_url, image, volume)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, name, type
 `
 
 type CreatePsqlServiceParams struct {
-	ID           uuid.UUID         `json:"id"`
-	InstanceID   uuid.UUID         `json:"instance_id"`
-	Type         types.ServiceType `json:"type"`
-	SwarmService string            `json:"swarm_service"`
-	Name         string            `json:"name"`
-	DbName       string            `json:"db_name"`
-	DbUser       string            `json:"db_user"`
-	DbPassword   string            `json:"db_password"`
-	InternalUrl  string            `json:"internal_url"`
-	Image        string            `json:"image"`
-	Volume       string            `json:"volume"`
+	ID           uuid.UUID                     `json:"id"`
+	InstanceID   uuid.UUID                     `json:"instance_id"`
+	Type         types.ServiceType             `json:"type"`
+	Status       types.PredefinedServiceStatus `json:"status"`
+	SwarmService string                        `json:"swarm_service"`
+	Name         string                        `json:"name"`
+	DbName       string                        `json:"db_name"`
+	DbUser       string                        `json:"db_user"`
+	DbPassword   string                        `json:"db_password"`
+	InternalUrl  string                        `json:"internal_url"`
+	Image        string                        `json:"image"`
+	Volume       string                        `json:"volume"`
 }
 
 type CreatePsqlServiceRow struct {
@@ -100,6 +101,7 @@ func (q *Queries) CreatePsqlService(ctx context.Context, arg CreatePsqlServicePa
 		arg.ID,
 		arg.InstanceID,
 		arg.Type,
+		arg.Status,
 		arg.SwarmService,
 		arg.Name,
 		arg.DbName,
@@ -314,7 +316,6 @@ func (q *Queries) GetOrphanVolumesByOrgId(ctx context.Context, organizationID uu
 			&i.Volume,
 			&i.Type,
 			&i.CreatedAt,
-			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -330,7 +331,7 @@ func (q *Queries) GetOrphanVolumesByOrgId(ctx context.Context, organizationID uu
 }
 
 const getPsqlServiceById = `-- name: GetPsqlServiceById :one
-SELECT ps.id, ps.instance_id, ps.type, ps.name, ps.swarm_service, ps.db_name, ps.db_user, ps.db_password, ps.image, ps.volume, ps.internal_url, ps.created_at, ps.status, p.organization_id
+SELECT ps.id, ps.instance_id, ps.status, ps.type, ps.name, ps.swarm_service, ps.db_name, ps.db_user, ps.db_password, ps.image, ps.volume, ps.internal_url, ps.created_at, p.organization_id
 FROM psql_service ps
 JOIN instance i ON i.id = ps.instance_id
 JOIN project p ON p.id = i.project_id
@@ -338,20 +339,20 @@ WHERE ps.id = ?1
 `
 
 type GetPsqlServiceByIdRow struct {
-	ID             uuid.UUID         `json:"id"`
-	InstanceID     uuid.UUID         `json:"instance_id"`
-	Type           types.ServiceType `json:"type"`
-	Name           string            `json:"name"`
-	SwarmService   string            `json:"swarm_service"`
-	DbName         string            `json:"db_name"`
-	DbUser         string            `json:"db_user"`
-	DbPassword     string            `json:"db_password"`
-	Image          string            `json:"image"`
-	Volume         string            `json:"volume"`
-	InternalUrl    string            `json:"internal_url"`
-	CreatedAt      time.Time         `json:"created_at"`
-	Status         string            `json:"status"`
-	OrganizationID uuid.UUID         `json:"organization_id"`
+	ID             uuid.UUID                     `json:"id"`
+	InstanceID     uuid.UUID                     `json:"instance_id"`
+	Status         types.PredefinedServiceStatus `json:"status"`
+	Type           types.ServiceType             `json:"type"`
+	Name           string                        `json:"name"`
+	SwarmService   string                        `json:"swarm_service"`
+	DbName         string                        `json:"db_name"`
+	DbUser         string                        `json:"db_user"`
+	DbPassword     string                        `json:"db_password"`
+	Image          string                        `json:"image"`
+	Volume         string                        `json:"volume"`
+	InternalUrl    string                        `json:"internal_url"`
+	CreatedAt      time.Time                     `json:"created_at"`
+	OrganizationID uuid.UUID                     `json:"organization_id"`
 }
 
 func (q *Queries) GetPsqlServiceById(ctx context.Context, serviceID uuid.UUID) (GetPsqlServiceByIdRow, error) {
@@ -360,6 +361,7 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, serviceID uuid.UUID) (
 	err := row.Scan(
 		&i.ID,
 		&i.InstanceID,
+		&i.Status,
 		&i.Type,
 		&i.Name,
 		&i.SwarmService,
@@ -370,7 +372,6 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, serviceID uuid.UUID) (
 		&i.Volume,
 		&i.InternalUrl,
 		&i.CreatedAt,
-		&i.Status,
 		&i.OrganizationID,
 	)
 	return i, err

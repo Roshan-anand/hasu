@@ -322,6 +322,7 @@ func (h *GitHandler) GetGithubRepoList(c *echo.Context) error {
 	// create a new github client
 	gh, err := ghservice.New(q, appID)
 	if err != nil {
+		fmt.Println("err new gh service :", err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github repos"})
 	}
 
@@ -335,6 +336,7 @@ func (h *GitHandler) GetGithubRepoList(c *echo.Context) error {
 	for {
 		pageRepos, resp, err := gh.Client.Apps.ListRepos(h.ghCtx, opts)
 		if err != nil {
+			fmt.Println("err list repo :", err)
 			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get github repos"})
 		}
 

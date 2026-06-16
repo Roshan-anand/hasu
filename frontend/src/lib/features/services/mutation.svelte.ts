@@ -81,9 +81,8 @@ export function useCreateServiceMutation(getProjectName: () => string) {
 			});
 			toast.success(message || 'App Service created successfully');
 			goto(
-				resolve('/(protected)/[project]/[service_type]/[service]?tab=deployment', {
+				resolve('/(protected)/[project]/[service]?tab=deployment', {
 					project: getProjectName(),
-					service_type: data.type,
 					service: data.name
 				})
 			);

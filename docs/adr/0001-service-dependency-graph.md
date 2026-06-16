@@ -13,6 +13,7 @@ Godploy manages multiple service types (application services, PostgreSQL, Redis)
 - Prevents future features like "deploy only services affected by this PR" from knowing the dependency topology
 
 The product needs an explicit, optional dependency declaration mechanism that:
+
 1. Lets users connect services via UI without manual copy-paste
 2. Automatically rewrites connections during preview cloning
 3. Remains fully optional so existing manual env configuration continues to work

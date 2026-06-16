@@ -59,7 +59,7 @@ func (h *ServiceHandler) GetAllServices(c *echo.Context) error {
 	})
 }
 
-// get all services of a project
+// get given service ID
 //
 // route: GET /api/service/:name?instance_id=
 func (h *ServiceHandler) GetServiceID(c *echo.Context) error {
@@ -165,8 +165,75 @@ type PredefServiceReq struct {
 	ServiceID uuid.UUID `json:"service_id" validate:"required"`
 }
 
+// GetPredefServiceLogs — stream logs for a predefined (PSQL/Redis) service
+//
+// route: GET /api/service/predef/logs?service_id
+func (h *ServiceHandler) GetPredefServiceLogs(c *echo.Context) error {
+	q := h.Server.DB.Queries
+
+	serviceID, err := uuid.Parse(c.QueryParam("service_id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid service id"})
+	}
+
+	service, err := q.GetPredefSwarmServiceById(h.qCtx, serviceID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "predefined service not found"})
+	}
+
+	serviceLogs, err := h.Server.Docker.Client.ServiceLogs(context.Background(), service.SwarmService, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Timestamps: true,
+		Follow:     true,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to get service logs"})
+	}
+	defer serviceLogs.Close()
+
+	// setup sse headers
+	w := c.Response()
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	sse := sse.NewSSE(w)
+
+	reader := bufio.NewReader(serviceLogs)
+
+	streamErr := make(chan error, 1)
+
+	go func() {
+		for {
+			line, err := reader.ReadString('\n')
+			if len(line) > 0 {
+				sse.SendEvent("log", []byte(line))
+			}
+
+			if err != nil {
+				fmt.Printf("error streaming predef service logs: %v", err)
+				streamErr <- err
+				return
+			}
+		}
+	}()
+
+	for {
+		select {
+		case err := <-streamErr:
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to stream predef service logs"})
+			}
+			return nil
+
+		case <-c.Request().Context().Done():
+			log.Printf("SSE client disconnected (predef logs), ip: %v", c.RealIP())
+			return nil
+		}
+	}
+}
+
 // StopPredefService — stops a predefined (PSQL/Redis) service
-// Scales swarm replicas to 0, sets status to "paused"
 //
 // route: POST /api/service/stop
 func (h *ServiceHandler) StopPredefService(c *echo.Context) error {
@@ -200,11 +267,11 @@ func (h *ServiceHandler) StopPredefService(c *echo.Context) error {
 
 	// update status in both tables — one will be a no-op (no matching id)
 	q.UpdatePsqlServiceStatus(h.qCtx, db.UpdatePsqlServiceStatusParams{
-		Status: "paused",
+		Status: types.PredefServicePaused,
 		ID:     b.ServiceID,
 	})
 	q.UpdateRedisServiceStatus(h.qCtx, db.UpdateRedisServiceStatusParams{
-		Status: "paused",
+		Status: types.PredefServicePaused,
 		ID:     b.ServiceID,
 	})
 
@@ -214,7 +281,6 @@ func (h *ServiceHandler) StopPredefService(c *echo.Context) error {
 }
 
 // StartPredefService — starts a predefined (PSQL/Redis) service
-// Scales swarm replicas to 1, sets status to "running"
 //
 // route: POST /api/service/start
 func (h *ServiceHandler) StartPredefService(c *echo.Context) error {
@@ -248,11 +314,11 @@ func (h *ServiceHandler) StartPredefService(c *echo.Context) error {
 
 	// update status in both tables — one will be a no-op (no matching id)
 	q.UpdatePsqlServiceStatus(h.qCtx, db.UpdatePsqlServiceStatusParams{
-		Status: "running",
+		Status: types.PredefServiceRunning,
 		ID:     b.ServiceID,
 	})
 	q.UpdateRedisServiceStatus(h.qCtx, db.UpdateRedisServiceStatusParams{
-		Status: "running",
+		Status: types.PredefServiceRunning,
 		ID:     b.ServiceID,
 	})
 

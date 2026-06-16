@@ -48,7 +48,7 @@ type DeploymentServiceParams struct {
 	BuildArgs         []string  `validate:"required"`
 	BuildSecrets      []string  `validate:"required"`
 	IsPublic          bool      `validate:"required"`
-	InstanceID        uuid.UUID `validate:"omnitempty"`
+	InstanceID        uuid.UUID
 }
 
 // starts the deployment work pipeline

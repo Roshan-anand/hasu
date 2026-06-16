@@ -14,10 +14,6 @@
 
 	const deleteAppServiceMutation = useDeleteAppServiceMutation();
 
-	function openDialog() {
-		dialogOpen = true;
-	}
-
 	function closeDialog() {
 		if (deleteAppServiceMutation.isPending) return;
 		dialogOpen = false;
@@ -36,7 +32,15 @@
 	}
 </script>
 
-<Button variant="destructive" size="sm" class="z-20" onclick={openDialog}>
+<Button
+	variant="destructive"
+	size="sm"
+	class="z-20"
+	onclick={(e) => {
+		e.stopPropagation();
+		dialogOpen = true;
+	}}
+>
 	<Trash2 />
 	Delete
 </Button>

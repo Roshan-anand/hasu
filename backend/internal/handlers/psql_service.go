@@ -191,6 +191,7 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 		ID:           security.GeneratePrimaryKey(),
 		InstanceID:   b.InstanceID,
 		Type:         types.PsqlServiceType,
+		Status:       types.PredefServiceRunning,
 		SwarmService: serviceName,
 		Name:         b.Name,
 		DbName:       b.DbName,

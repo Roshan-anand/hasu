@@ -43,6 +43,13 @@ const (
 	DeploymentPaused   DeploymentStatus = "paused"
 )
 
+type PredefinedServiceStatus string
+
+const (
+	PredefServiceRunning PredefinedServiceStatus = "running"
+	PredefServicePaused  PredefinedServiceStatus = "paused"
+)
+
 type Res[T any] struct {
 	Message string `json:"message" validate:"required"`
 	Data    T      `json:"data"`
