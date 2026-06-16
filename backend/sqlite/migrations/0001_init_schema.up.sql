@@ -67,7 +67,6 @@ CREATE TABLE IF NOT EXISTS app_service (
     build_args BLOB,
     build_secrets BLOB,
     -- swarm related column
-    replicas INTEGER NOT NULL DEFAULT 1,
     is_public BOOLEAN NOT NULL,
     branch TEXT NOT NULL,
     swarm_service TEXT NOT NULL,
