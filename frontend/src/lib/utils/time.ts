@@ -11,6 +11,8 @@ const DIVISIONS: { amount: number; unit: Intl.RelativeTimeFormatUnit }[] = [
 ];
 
 export function timeAgo(date: string | Date): string {
+	if (!date) return '~~~';
+
 	const now = Date.now();
 	const then = typeof date === 'string' ? Date.parse(date) : date.getTime();
 	let duration = (then - now) / 1000;

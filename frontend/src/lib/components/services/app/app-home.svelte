@@ -3,7 +3,6 @@
 	import { Skeleton } from '@/components/ui/skeleton';
 	import Icon from '@iconify/svelte';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
-	import AppLogs from './app-logs.svelte';
 	import { ChevronRight, ChevronDown } from '@lucide/svelte';
 	import { Button } from '@/components/ui/button';
 	import { useRebuildServiceMutation, useRollbackServiceMutation } from '@/features/deployments';
@@ -18,6 +17,7 @@
 	import AppServicePRPreviewButton from './AppServicePRPreviewButton.svelte';
 	import { X } from '@lucide/svelte';
 	import type { PRInfo } from '@/features/services';
+	import StreamLogs from '../stream-logs.svelte';
 
 	let { serviceID, project }: { serviceID: string; project: string } = $props();
 
@@ -199,7 +199,11 @@
 					<span> application logs </span>
 				</Collapsible.Trigger>
 				<Collapsible.Content>
-					<AppLogs {serviceID} {open} />
+					<StreamLogs
+						url={`/api/service/logs?service_id=${serviceID}`}
+						{open}
+						emptyText="Waiting for server logs..."
+					/>
 				</Collapsible.Content>
 			</Collapsible.Root>
 		</CardContent>

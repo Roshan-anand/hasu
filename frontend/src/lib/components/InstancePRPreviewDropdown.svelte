@@ -106,7 +106,7 @@
 									{serviceName}
 								</h4>
 								<div class="space-y-1">
-									{#each prList as pr (pr.id)}
+									{#each prList as pr, i (pr.id || i)}
 										{@const isSelected = selectedPRState?.pr.id === pr.id}
 										<button
 											type="button"

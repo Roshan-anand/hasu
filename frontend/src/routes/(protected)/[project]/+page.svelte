@@ -116,7 +116,7 @@
 			{/snippet}
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content align="end" class="w-40">
-			{#each createOptions as option (option.name)}
+			{#each createOptions as option, i (option.name || i)}
 				<!-- eslint-disable svelte/no-navigation-without-resolve -->
 				<DropdownMenu.Item onSelect={() => goto(option.link)}>
 					{option.name}
@@ -135,7 +135,7 @@
 		<p class="text-destructive">Failed to load services</p>
 	{:else if filteredServices.length > 0}
 		<div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
-			{#each filteredServices as service (service.id)}
+			{#each filteredServices as service, i (service.id || i)}
 				{@const isApp = service.type === 'app'}
 				<button
 					class="group flex flex-col gap-3 rounded-lg border bg-card p-4 text-left transition-shadow hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -173,7 +173,7 @@
 								class="inline-flex items-center gap-1.5 self-start rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground no-underline"
 							>
 								<Icon icon="akar-icons:github-fill" class="size-3" />
-								<span class="max-w-[160px] truncate">{service.gh_repo_name}</span>
+								<span class="max-w-40 truncate">{service.gh_repo_name}</span>
 								<ExternalLink class="size-3 shrink-0" />
 							</a>
 						{:else}

@@ -42,7 +42,7 @@
 	}
 </script>
 
-<Button variant="destructive" size="sm" class="z-20" onclick={openDialog}>
+<Button variant="destructive" class="w-full" onclick={openDialog}>
 	<Trash2 />
 	Delete
 </Button>

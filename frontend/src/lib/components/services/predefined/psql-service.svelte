@@ -1,27 +1,20 @@
 <script lang="ts">
-	import { Copy, Eye, EyeOff, Play, Square, X } from '@lucide/svelte';
+	import { Copy, Eye, EyeOff, X } from '@lucide/svelte';
 	import { Button } from '@/components/ui/button';
 	import { Input } from '@/components/ui/input';
 	import { Label } from '@/components/ui/label';
 	import { Skeleton } from '@/components/ui/skeleton';
 	import { toast } from 'svelte-sonner';
-	import {
-		useRedeployPsqlServiceMutation,
-		useUpdatePsqlServiceMutation,
-		useStopPredefServiceMutation,
-		useStartPredefServiceMutation
-	} from '@/features/services';
+	import { useUpdatePsqlServiceMutation } from '@/features/services';
 	import { useGetPsqlServiceDetailsQuery } from '@/features/services';
-	import { PredefinedLogs } from './index';
+	import StreamLogs from '../stream-logs.svelte';
 	import FormError from '@/components/services/FormError.svelte';
+	import PsqlSettings from './psql-settings.svelte';
 
 	let { serviceID, drawerOpen }: { serviceID: string; drawerOpen: boolean } = $props();
 
 	const serviceQuery = useGetPsqlServiceDetailsQuery(() => serviceID);
 	const updatePsqlService = useUpdatePsqlServiceMutation(() => serviceID);
-	const redeployPsqlService = useRedeployPsqlServiceMutation();
-	const stopService = useStopPredefServiceMutation(() => serviceID);
-	const startService = useStartPredefServiceMutation(() => serviceID);
 
 	const isRunning = $derived(serviceQuery.data?.status === 'running');
 	const isPaused = $derived(serviceQuery.data?.status === 'paused');
@@ -32,6 +25,10 @@
 	let dbUser = $state('');
 	let dbPassword = $state('');
 
+	let originalDbName = $state('');
+	let originalDbUser = $state('');
+	let originalDbPassword = $state('');
+
 	let errors = $state<{ db_name?: string; db_user?: string; db_password?: string }>({});
 
 	$effect(() => {
@@ -40,8 +37,15 @@
 			dbName = db_name;
 			dbUser = db_user;
 			dbPassword = db_password;
+			originalDbName = db_name;
+			originalDbUser = db_user;
+			originalDbPassword = db_password;
 		}
 	});
+
+	let hasChanges = $derived(
+		dbName !== originalDbName || dbUser !== originalDbUser || dbPassword !== originalDbPassword
+	);
 
 	function validate(): boolean {
 		const next: typeof errors = {};
@@ -56,12 +60,21 @@
 	function handleSubmit(e: Event) {
 		e.preventDefault();
 		if (!validate()) return;
-		updatePsqlService.mutate({
-			service_id: serviceID,
-			db_name: dbName.trim(),
-			db_user: dbUser.trim(),
-			db_password: dbPassword
-		});
+		updatePsqlService.mutate(
+			{
+				service_id: serviceID,
+				db_name: dbName.trim(),
+				db_user: dbUser.trim(),
+				db_password: dbPassword
+			},
+			{
+				onSuccess: () => {
+					originalDbName = dbName;
+					originalDbUser = dbUser;
+					originalDbPassword = dbPassword;
+				}
+			}
+		);
 	}
 </script>
 
@@ -103,7 +116,7 @@
 			</p>
 		</div>
 	{:else if serviceQuery.data}
-		{@const details = serviceQuery.data}
+		{@const { name, internal_url } = serviceQuery.data}
 
 		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
 			<!-- Drawer layout keeps operator actions visible while using plain form rows instead of card wrappers. -->
@@ -114,7 +127,7 @@
 					>
 						<div class="min-w-0 space-y-3">
 							<div class="flex flex-wrap items-center gap-2">
-								<h2 class="truncate text-base font-semibold">{details.name}</h2>
+								<h2 class="truncate text-base font-semibold">{name}</h2>
 								{#if isRunning}
 									<span
 										class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300"
@@ -135,14 +148,13 @@
 							<div class="space-y-1.5">
 								<p class="text-xs font-medium text-muted-foreground">Internal URL</p>
 								<div class="flex min-w-0 items-center gap-2 rounded-md bg-muted px-2.5 py-2">
-									<code class="min-w-0 flex-1 truncate text-xs text-foreground"
-										>{details.internal_url}</code
+									<code class="min-w-0 flex-1 truncate text-xs text-foreground">{internal_url}</code
 									>
 									<button
 										type="button"
 										onclick={async () => {
 											try {
-												await navigator.clipboard.writeText(details.internal_url);
+												await navigator.clipboard.writeText(internal_url);
 												toast.success('Internal URL copied to clipboard');
 											} catch {
 												toast.error('Failed to copy to clipboard');
@@ -158,44 +170,7 @@
 							</div>
 						</div>
 
-						<div class="flex shrink-0 flex-wrap gap-2">
-							{#if isRunning}
-								<Button
-									variant="outline"
-									class="border-amber-500/35 bg-amber-500/10 text-amber-800 hover:bg-amber-500/15 hover:text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200 dark:hover:bg-amber-400/15 dark:hover:text-amber-100"
-									onclick={() => stopService.mutate()}
-									disabled={stopService.isPending}
-								>
-									{#if stopService.isPending}
-										Stopping...
-									{:else}
-										<Square class="mr-1.5 h-4 w-4" />
-										Stop
-									{/if}
-								</Button>
-							{:else if isPaused}
-								<Button
-									variant="outline"
-									class="border-emerald-500/35 bg-emerald-500/10 text-emerald-800 hover:bg-emerald-500/15 hover:text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200 dark:hover:bg-emerald-400/15 dark:hover:text-emerald-100"
-									onclick={() => startService.mutate()}
-									disabled={startService.isPending}
-								>
-									{#if startService.isPending}
-										Starting...
-									{:else}
-										<Play class="mr-1.5 h-4 w-4" />
-										Start
-									{/if}
-								</Button>
-							{/if}
-							<Button
-								variant="outline"
-								onclick={() => redeployPsqlService.mutate({ service_id: serviceID })}
-								disabled={redeployPsqlService.isPending || isPaused}
-							>
-								{redeployPsqlService.isPending ? 'Redeploying...' : 'Redeploy'}
-							</Button>
-						</div>
+						<PsqlSettings {serviceID} {name} />
 					</div>
 				</section>
 
@@ -259,14 +234,14 @@
 					</div>
 
 					<div class="mt-6 flex justify-end border-t border-border pt-4">
-						<Button type="submit" disabled={updatePsqlService.isPending}>
+						<Button type="submit" disabled={updatePsqlService.isPending || !hasChanges}>
 							{updatePsqlService.isPending ? 'Saving...' : 'Save changes'}
 						</Button>
 					</div>
 				</form>
 			</div>
 
-			<PredefinedLogs {serviceID} open={drawerOpen} />
+			<StreamLogs url={`/api/service/logs?service_id=${serviceID}`} open={drawerOpen} />
 		</div>
 	{:else}
 		<div class="px-5 py-5">
