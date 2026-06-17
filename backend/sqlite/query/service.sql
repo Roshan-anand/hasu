@@ -12,15 +12,15 @@ FROM app_service aps
 WHERE aps.instance_id = @instance_id;
 
 -- name: GetServiceID :one
-SELECT ps.id 
+SELECT ps.id
 FROM psql_service ps
 WHERE ps.instance_id = @instance_id AND ps.name = @name
 UNION ALL
-SELECT rs.id 
+SELECT rs.id
 FROM redis_service rs
 WHERE rs.instance_id = @instance_id AND rs.name = @name
 UNION ALL
-SELECT aps.id 
+SELECT aps.id
 FROM app_service aps
 WHERE aps.instance_id = @instance_id AND aps.name = @name;
 
@@ -96,6 +96,12 @@ FROM app_service a
 JOIN deployments d ON d.service_id = a.id AND d.is_current
 WHERE a.id = ?;
 
+-- name: GetAppServiceRepoInfo :one
+SELECT
+    a.id, a.name, a.gh_app_id, a.gh_repo_id, a.branch
+FROM app_service a
+WHERE a.id = ?;
+
 -- name: DeleteAppService :exec
 DELETE FROM app_service
 WHERE id = ?;
@@ -120,13 +126,8 @@ FROM redis_service rs
 WHERE rs.id = @service_id;
 
 -- name: GetAllAppServicesByRepo :many
-SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
-    a.build_path, a.watch_path, a.env, a.build_args, a.build_secrets,
-    a.docker_filepath, a.docker_contextpath, a.docker_buildstage,
-    a.branch, a.swarm_service, a.domain, a.port,
-    d.id AS deployment_id, d.status AS deployment_status
+SELECT a.id
 FROM app_service a
-JOIN deployments d ON d.service_id = a.id AND d.is_current
 WHERE a.gh_repo_id = ? AND a.branch = ?;
 
 -- name: GetDomainAndPortByServiceId :one
@@ -168,4 +169,3 @@ WHERE id = ?;
 UPDATE redis_service
 SET status = ?
 WHERE id = ?;
-

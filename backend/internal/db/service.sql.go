@@ -132,13 +132,8 @@ func (q *Queries) DeleteAppService(ctx context.Context, id uuid.UUID) error {
 }
 
 const getAllAppServicesByRepo = `-- name: GetAllAppServicesByRepo :many
-SELECT a.id AS service_id, a.name, a.gh_repo_url, a.gh_app_id,
-    a.build_path, a.watch_path, a.env, a.build_args, a.build_secrets,
-    a.docker_filepath, a.docker_contextpath, a.docker_buildstage,
-    a.branch, a.swarm_service, a.domain, a.port,
-    d.id AS deployment_id, d.status AS deployment_status
+SELECT a.id
 FROM app_service a
-JOIN deployments d ON d.service_id = a.id AND d.is_current
 WHERE a.gh_repo_id = ? AND a.branch = ?
 `
 
@@ -147,59 +142,19 @@ type GetAllAppServicesByRepoParams struct {
 	Branch   string `json:"branch"`
 }
 
-type GetAllAppServicesByRepoRow struct {
-	ServiceID         uuid.UUID              `json:"service_id"`
-	Name              string                 `json:"name"`
-	GhRepoUrl         string                 `json:"gh_repo_url"`
-	GhAppID           int64                  `json:"gh_app_id"`
-	BuildPath         string                 `json:"build_path"`
-	WatchPath         string                 `json:"watch_path"`
-	Env               []byte                 `json:"env"`
-	BuildArgs         []byte                 `json:"build_args"`
-	BuildSecrets      []byte                 `json:"build_secrets"`
-	DockerFilepath    string                 `json:"docker_filepath"`
-	DockerContextpath string                 `json:"docker_contextpath"`
-	DockerBuildstage  string                 `json:"docker_buildstage"`
-	Branch            string                 `json:"branch"`
-	SwarmService      string                 `json:"swarm_service"`
-	Domain            string                 `json:"domain"`
-	Port              int32                  `json:"port"`
-	DeploymentID      uuid.UUID              `json:"deployment_id"`
-	DeploymentStatus  types.DeploymentStatus `json:"deployment_status"`
-}
-
-func (q *Queries) GetAllAppServicesByRepo(ctx context.Context, arg GetAllAppServicesByRepoParams) ([]GetAllAppServicesByRepoRow, error) {
+func (q *Queries) GetAllAppServicesByRepo(ctx context.Context, arg GetAllAppServicesByRepoParams) ([]uuid.UUID, error) {
 	rows, err := q.db.QueryContext(ctx, getAllAppServicesByRepo, arg.GhRepoID, arg.Branch)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetAllAppServicesByRepoRow
+	var items []uuid.UUID
 	for rows.Next() {
-		var i GetAllAppServicesByRepoRow
-		if err := rows.Scan(
-			&i.ServiceID,
-			&i.Name,
-			&i.GhRepoUrl,
-			&i.GhAppID,
-			&i.BuildPath,
-			&i.WatchPath,
-			&i.Env,
-			&i.BuildArgs,
-			&i.BuildSecrets,
-			&i.DockerFilepath,
-			&i.DockerContextpath,
-			&i.DockerBuildstage,
-			&i.Branch,
-			&i.SwarmService,
-			&i.Domain,
-			&i.Port,
-			&i.DeploymentID,
-			&i.DeploymentStatus,
-		); err != nil {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -439,6 +394,34 @@ func (q *Queries) GetAppServiceOnly(ctx context.Context, id uuid.UUID) (AppServi
 	return i, err
 }
 
+const getAppServiceRepoInfo = `-- name: GetAppServiceRepoInfo :one
+SELECT
+    a.id, a.name, a.gh_app_id, a.gh_repo_id, a.branch
+FROM app_service a
+WHERE a.id = ?
+`
+
+type GetAppServiceRepoInfoRow struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	GhAppID  int64     `json:"gh_app_id"`
+	GhRepoID int64     `json:"gh_repo_id"`
+	Branch   string    `json:"branch"`
+}
+
+func (q *Queries) GetAppServiceRepoInfo(ctx context.Context, id uuid.UUID) (GetAppServiceRepoInfoRow, error) {
+	row := q.db.QueryRowContext(ctx, getAppServiceRepoInfo, id)
+	var i GetAppServiceRepoInfoRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.GhAppID,
+		&i.GhRepoID,
+		&i.Branch,
+	)
+	return i, err
+}
+
 const getAppServiceSettings = `-- name: GetAppServiceSettings :one
 SELECT domain, port, is_public
 FROM app_service
@@ -563,15 +546,15 @@ func (q *Queries) GetServiceEnv(ctx context.Context, id uuid.UUID) (GetServiceEn
 }
 
 const getServiceID = `-- name: GetServiceID :one
-SELECT ps.id 
+SELECT ps.id
 FROM psql_service ps
 WHERE ps.instance_id = ?1 AND ps.name = ?2
 UNION ALL
-SELECT rs.id 
+SELECT rs.id
 FROM redis_service rs
 WHERE rs.instance_id = ?1 AND rs.name = ?2
 UNION ALL
-SELECT aps.id 
+SELECT aps.id
 FROM app_service aps
 WHERE aps.instance_id = ?1 AND aps.name = ?2
 `

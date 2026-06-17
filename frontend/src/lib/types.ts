@@ -27,7 +27,9 @@ export type AppService = {
 
 export type ServiceDeployment = {
 	id: string;
+	is_current: boolean;
 	status: string;
+	commit_hash: string;
 	commit_msg: string;
 	branch_name: string;
 	created_at: string;

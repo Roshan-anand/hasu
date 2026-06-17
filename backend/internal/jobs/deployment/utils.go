@@ -2,22 +2,40 @@ package deployjob
 
 import (
 	"bufio"
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 
+	"github.com/Roshan-anand/godploy/internal/db"
 	"github.com/Roshan-anand/godploy/internal/jobs/logbroker"
+	"github.com/Roshan-anand/godploy/internal/lib/security"
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/creack/pty"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/google/uuid"
 )
 
-// returns a formatted title string for the logs
-func getTitle(msg string) string {
-	return fmt.Sprintf("\n-----------------------------------\n\n %s \n------------------------------------\n", msg)
+type DeploymentServiceUtils struct {
+	DeploymentID      uuid.UUID `validate:"required"`
+	Token             string    `validate:"required"`
+	Url               string    `validate:"required"`
+	Branch            string    `validate:"required"`
+	OutputPath        string    `validate:"required"`
+	BuildPath         string    `validate:"required"`
+	DockerFilePath    string
+	DockerContextPath string
+	DockerBuildStage  string
+	ImgName           string   `validate:"required"`
+	Env               []string `validate:"required"`
+	BuildArgs         []string `validate:"required"`
+	BuildSecrets      []string `validate:"required"`
 }
 
 // scans the reader line by line and publish the logs
@@ -109,7 +127,7 @@ func (d *deployData) getBaseSpec() *swarm.ServiceSpec {
 }
 
 // helper function to get the docker build command based on the given parameters
-func (d *DeploymentServiceParams) getDockerBuildCmd(outputPath string) *exec.Cmd {
+func (d *DeploymentServiceUtils) getDockerBuildCmd(outputPath string) *exec.Cmd {
 	// 	"--secret", "id=npm_token,src=/tmp/npm_token",
 	// 	"--secret", "id=github_token,src=/tmp/github_token",
 
@@ -145,18 +163,22 @@ func (d *DeploymentServiceParams) getDockerBuildCmd(outputPath string) *exec.Cmd
 }
 
 // helper function to get the git clone command based on the repo type
-func (d *DeploymentServiceParams) getCloneRepoCmd(codeStoreDir string) (*exec.Cmd, string) {
-	outputPath := path.Join(codeStoreDir, d.SwarmService)
-	repoUrl := fmt.Sprintf("https://oauth2:%s@%s", d.Token, d.Url)
+func (d *DeploymentServiceUtils) getCloneRepoCmd() *exec.Cmd {
+	repoURL := fmt.Sprintf("https://oauth2:%s@%s", d.Token, d.Url)
 
-	var cmdStr string
-	if d.RepoType == RepoPR {
-		cmdStr = fmt.Sprintf("git clone --depth 1 %s %s && git -C %s checkout %s", repoUrl, outputPath, outputPath, d.Branch)
-	} else {
-		cmdStr = fmt.Sprintf("git clone --branch %s --depth 1 %s %s", d.Branch, repoUrl, outputPath)
-	}
+	cmdStr := fmt.Sprintf(`
+		git clone --depth 1 %s %s &&
+		git -C %s fetch --depth 1 origin %s &&
+		git -C %s switch -C deploy_branch FETCH_HEAD
+	`,
+		strconv.Quote(repoURL),
+		strconv.Quote(d.OutputPath),
+		strconv.Quote(d.OutputPath),
+		strconv.Quote(d.Branch),
+		strconv.Quote(d.OutputPath),
+	)
 
-	return exec.Command("bash", "-c", cmdStr), outputPath
+	return exec.Command("bash", "-c", cmdStr)
 }
 
 // helper fucntion to fill deploy data
@@ -171,21 +193,10 @@ func (d *DeploymentServiceParams) getDeployData(network string) *deployData {
 	}
 }
 
-// helper function to fill redeploy data
-func (d *DeploymentServiceParams) getReDeployData() *reDeployData {
-	return &reDeployData{
-		deploymentID: d.DeploymentID,
-		swarmService: d.SwarmService,
-		isPublic:     d.IsPublic,
-		env:          d.Env,
-		imgName:      d.ImgName,
-	}
-}
-
 // helper function to get the service network, if not exist create a new one
 func (d *DeploymentService) getServiceNetwork(instanceID uuid.UUID) (string, error) {
 	// get instance network
-	network, err := d.q.GetInstanceNetwork(d.qCtx, instanceID)
+	network, err := d.db.Queries.GetInstanceNetwork(d.qCtx, instanceID)
 	if err != nil {
 		return "", err
 	}
@@ -198,4 +209,142 @@ func (d *DeploymentService) getServiceNetwork(instanceID uuid.UUID) (string, err
 	}
 
 	return network, nil
+}
+
+// helper function to create a new deployment and update the previous deployment status
+func (d *RebuildServiceParams) createNewDeploymentData(data *DeploymentService, s *db.GetAppServiceForRebuildRow) (uuid.UUID, error) {
+	var newStatus types.DeploymentStatus
+	switch s.DeploymentStatus {
+	case types.DeploymentReady:
+		newStatus = types.DeploymentInactive
+	default:
+		newStatus = types.DeploymentPruned
+	}
+
+	// start a new db transaction
+	tx, err := data.db.Pool.BeginTx(context.Background(), nil)
+	if err != nil {
+		fmt.Println("RebuildWorker: error starting transaction:", err)
+		return uuid.UUID{}, err
+	}
+	tq := data.db.Queries.WithTx(tx)
+
+	// change deployment status
+	// update the previous deployment is_latest to false
+	if err := tq.DownGradeDeployment(data.qCtx, db.DownGradeDeploymentParams{
+		DeploymentID: s.DeploymentID,
+		Status:       newStatus,
+	}); err != nil {
+		tx.Rollback()
+		fmt.Println("RebuildWorker: error downgrading deployment:", err)
+		return uuid.UUID{}, err
+	}
+
+	// create a new deployment
+	dID, err := tq.CreateDeployment(data.qCtx, db.CreateDeploymentParams{
+		ID:         security.GeneratePrimaryKey(),
+		ServiceID:  s.ID,
+		CommitHash: d.CommitHash,
+		CommitMsg:  d.CommitMsg,
+		IsCurrent:  true,
+	})
+	if err != nil {
+		tx.Rollback()
+		fmt.Println("RebuildWorker: error creating new deployment:", err)
+		return uuid.UUID{}, err
+	}
+
+	if tx.Commit() != nil {
+		fmt.Println("RebuildWorker: error committing transaction:", err)
+		return uuid.UUID{}, err
+	}
+
+	return dID, nil
+}
+
+// helper function to create a new instance of deployment utils with validation
+func (d *DeploymentService) newDeploymentServiceUtils(data *DeploymentServiceUtils) (*DeploymentServiceUtils, error) {
+	if err := d.v.Struct(data); err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+// deployment utils function to pull the code from the repo and return the output path
+func (d *DeploymentServiceUtils) pullCode(data *DeploymentService) error {
+	log := data.log
+	q := data.db.Queries
+
+	log.PublishLog(&logbroker.PubData{
+		ID:  d.DeploymentID,
+		Msg: infoMsg("Pulling code from" + d.Url),
+	})
+
+	// update the deployment status to building
+	if err := q.UpdateDeploymentStatus(context.Background(), db.UpdateDeploymentStatusParams{
+		Status: types.DeploymentBuilding,
+		ID:     d.DeploymentID,
+	}); err != nil {
+		fmt.Printf("PullWorker: error updating deployment status: %v\n", err)
+	}
+
+	// clone the repo and get the code path
+	cmd := d.getCloneRepoCmd()
+	if err := runWorkerCmd(log, d.DeploymentID, cmd, "pull"); err != nil {
+		return err
+	}
+
+	log.PublishLog(&logbroker.PubData{
+		ID:  d.DeploymentID,
+		Msg: successMsg("Finished pulling " + d.Url),
+	})
+
+	return nil
+}
+
+// deployment utils function to build the docker image and update the deployment with the image name
+func (d *DeploymentServiceUtils) buildImg(data *DeploymentService) error {
+	log := data.log
+	q := data.db.Queries
+
+	log.PublishLog(&logbroker.PubData{
+		ID:  d.DeploymentID,
+		Msg: infoMsg("Building the image " + d.ImgName),
+	})
+
+	// generate a new docker build cmd
+	buildCmd := d.getDockerBuildCmd(d.OutputPath)
+
+	if err := runWorkerCmd(log, d.DeploymentID, buildCmd, "build"); err != nil {
+		fmt.Printf("BuildWorker: error running command: %v\n", err)
+		return err
+	}
+
+	// update the deployment with the built image name
+	if err := q.SetDeploymentImageName(data.qCtx, db.SetDeploymentImageNameParams{
+		ID: d.DeploymentID,
+		Image: sql.NullString{
+			Valid:  true,
+			String: d.ImgName,
+		},
+	}); err != nil {
+		fmt.Printf("BuildWorker: error updating deployment image name: %v\n", err)
+		return fmt.Errorf("something went wrong")
+	}
+
+	log.PublishLog(&logbroker.PubData{
+		ID:  d.DeploymentID,
+		Msg: successMsg("Finished building image :" + d.ImgName),
+	})
+
+	// remove the code folder
+	go func() {
+		if err := os.RemoveAll(d.OutputPath); err != nil {
+			fmt.Printf("BuildWorker: error removing code folder: %v\n", err)
+		}
+		fmt.Println("succesfully removed :", d.OutputPath)
+	}()
+
+	return nil
 }

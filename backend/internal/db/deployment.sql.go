@@ -14,6 +14,19 @@ import (
 	"github.com/google/uuid"
 )
 
+const checkIsCurrentDeployment = `-- name: CheckIsCurrentDeployment :one
+SELECT is_current
+FROM deployments
+WHERE id = ?
+`
+
+func (q *Queries) CheckIsCurrentDeployment(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkIsCurrentDeployment, id)
+	var is_current bool
+	err := row.Scan(&is_current)
+	return is_current, err
+}
+
 const createDeployment = `-- name: CreateDeployment :one
 INSERT INTO deployments (id, service_id, commit_hash, commit_msg, is_current)
 VALUES (?, ?, ?, ?, ?)
@@ -115,6 +128,45 @@ func (q *Queries) GetDeploymentStatus(ctx context.Context, id uuid.UUID) (types.
 }
 
 const getDeploymentsByServiceID = `-- name: GetDeploymentsByServiceID :many
+SELECT d.id, d.is_current, d.service_id, d.status, d.commit_hash, d.commit_msg, d.image, d.created_at
+FROM deployments d
+WHERE d.service_id = ?
+ORDER BY d.created_at DESC
+`
+
+func (q *Queries) GetDeploymentsByServiceID(ctx context.Context, serviceID uuid.UUID) ([]Deployment, error) {
+	rows, err := q.db.QueryContext(ctx, getDeploymentsByServiceID, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Deployment
+	for rows.Next() {
+		var i Deployment
+		if err := rows.Scan(
+			&i.ID,
+			&i.IsCurrent,
+			&i.ServiceID,
+			&i.Status,
+			&i.CommitHash,
+			&i.CommitMsg,
+			&i.Image,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDeploymentsWithSwarmByServiceID = `-- name: GetDeploymentsWithSwarmByServiceID :many
 SELECT d.id, d.is_current, d.service_id, d.status, d.commit_hash, d.commit_msg, d.image, d.created_at, aps.swarm_service
 FROM deployments d
 JOIN app_service aps ON d.service_id = aps.id
@@ -122,7 +174,7 @@ WHERE d.service_id = ?
 ORDER BY d.created_at DESC
 `
 
-type GetDeploymentsByServiceIDRow struct {
+type GetDeploymentsWithSwarmByServiceIDRow struct {
 	ID           uuid.UUID              `json:"id"`
 	IsCurrent    bool                   `json:"is_current"`
 	ServiceID    uuid.UUID              `json:"service_id"`
@@ -134,15 +186,15 @@ type GetDeploymentsByServiceIDRow struct {
 	SwarmService string                 `json:"swarm_service"`
 }
 
-func (q *Queries) GetDeploymentsByServiceID(ctx context.Context, serviceID uuid.UUID) ([]GetDeploymentsByServiceIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getDeploymentsByServiceID, serviceID)
+func (q *Queries) GetDeploymentsWithSwarmByServiceID(ctx context.Context, serviceID uuid.UUID) ([]GetDeploymentsWithSwarmByServiceIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDeploymentsWithSwarmByServiceID, serviceID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetDeploymentsByServiceIDRow
+	var items []GetDeploymentsWithSwarmByServiceIDRow
 	for rows.Next() {
-		var i GetDeploymentsByServiceIDRow
+		var i GetDeploymentsWithSwarmByServiceIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.IsCurrent,

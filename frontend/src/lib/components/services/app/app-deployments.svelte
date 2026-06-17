@@ -44,24 +44,28 @@
 				<span class="text-right">Actions</span>
 			</div>
 
-			{#each deploymentsQuery.data as deployment (deployment.id)}
+			{#each deploymentsQuery.data as { id, commit_msg, status, created_at, is_current } (id)}
 				<div
 					class="grid grid-cols-[1.5fr_1fr_1fr_auto] items-center gap-2 border-b px-3 py-2 text-sm last:border-b-0"
 				>
-					<p class="truncate">{deployment.commit_msg}</p>
-					<p class="capitalize">{deployment.status}</p>
-					<p>{new Date(deployment.created_at).toLocaleString()}</p>
+					<p class="truncate">{commit_msg}</p>
+					<p class="capitalize">{status}</p>
+					<p>{new Date(created_at).toLocaleString()}</p>
 
 					<div class="flex items-center justify-end gap-2">
-						<DeployementLogs deploymentId={deployment.id} deploymentName={deployment.id} />
-						<Button
-							variant="destructive"
-							size="sm"
-							disabled={deleteDeploymentMutation.isPending}
-							onclick={() => deleteDeployment(deployment.id)}
-						>
-							Delete
-						</Button>
+						<!-- TODO : impliment deployment name  -->
+						<DeployementLogs deploymentId={id} deploymentName={id} />
+
+						{#if !is_current}
+							<Button
+								variant="destructive"
+								size="sm"
+								disabled={deleteDeploymentMutation.isPending}
+								onclick={() => deleteDeployment(id)}
+							>
+								Delete
+							</Button>
+						{/if}
 					</div>
 				</div>
 			{/each}

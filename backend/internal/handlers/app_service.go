@@ -12,6 +12,7 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	deployjob "github.com/Roshan-anand/godploy/internal/jobs/deployment"
+	"github.com/Roshan-anand/godploy/internal/lib/docker"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/Roshan-anand/godploy/internal/lib/utils"
@@ -145,15 +146,15 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	}
 
 	// used as unique image and service name
-	unique := generateServiceAndImgName(b.Name, b.DefaultBranch)
+	unique := docker.GenerateServiceAndImgName(b.Name, b.DefaultBranch)
 
 	// clear the evnironment array
-	b.Env = cleanArray(b.Env)
-	b.BuildArgs = cleanArray(b.BuildArgs)
-	b.BuildSecrets = cleanArray(b.BuildSecrets)
+	b.Env = utils.CleanArray(b.Env)
+	b.BuildArgs = utils.CleanArray(b.BuildArgs)
+	b.BuildSecrets = utils.CleanArray(b.BuildSecrets)
 
 	// convert into bytes
-	envByte, err := MarshalServiceEnv(&ServiceEnvArray{
+	envByte, err := utils.MarshalServiceEnv(&utils.ServiceEnvArray{
 		Env:          b.Env,
 		BuildArgs:    b.BuildArgs,
 		BuildSecrets: b.BuildSecrets,
@@ -220,13 +221,11 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 	}
 
 	// push a new deployment job to the queue
-	h.Server.Services.Deployment.Submit(context.Background(), &deployjob.DeploymentServiceParams{
-		JobType:           deployjob.DeployJob,
-		InstanceID:        b.InstanceID,
+	if err := h.Server.Services.Deployment.AssignDeploy(context.Background(), &deployjob.DeploymentServiceParams{
 		DeploymentID:      dID,
+		InstanceID:        b.InstanceID,
 		Token:             ghData.Token,
 		Url:               url,
-		RepoType:          deployjob.RepoBranch,
 		Branch:            b.DefaultBranch,
 		SwarmService:      unique.ServiceName,
 		BuildPath:         b.BuildPath,
@@ -238,7 +237,10 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		BuildArgs:         b.BuildArgs,
 		BuildSecrets:      b.BuildSecrets,
 		IsPublic:          b.Public,
-	})
+	}); err != nil {
+		fmt.Println("error assigning deploy job:", err)
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
+	}
 
 	return c.JSON(http.StatusOK, types.Res[db.CreateAppServiceRow]{
 		Message: "",
@@ -258,6 +260,7 @@ func (h *ServiceHandler) GetAppServiceById(c *echo.Context) error {
 	service, err := h.Server.DB.Queries.GetAppServiceById(h.qCtx, serviceID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Println("service not found ", err)
 			return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
 		}
 		fmt.Println("error getting service by id:", err)
@@ -330,7 +333,7 @@ func (h *ServiceHandler) GetServiceEnv(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get branch domain"})
 	}
 
-	envString, err := UnmarshalServiceEnv(&ServiceEnvByte{
+	envString, err := utils.UnmarshalServiceEnv(&utils.ServiceEnvByte{
 		Env:          e.Env,
 		BuildArgs:    e.BuildArgs,
 		BuildSecrets: e.BuildSecrets,
@@ -454,12 +457,12 @@ func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
 	}
 
 	// clear the evnironment array
-	b.Env = cleanArray(b.Env)
-	b.BuildArgs = cleanArray(b.BuildArgs)
-	b.BuildSecrets = cleanArray(b.BuildSecrets)
+	b.Env = utils.CleanArray(b.Env)
+	b.BuildArgs = utils.CleanArray(b.BuildArgs)
+	b.BuildSecrets = utils.CleanArray(b.BuildSecrets)
 
 	// convert into bytes
-	envBytes, err := MarshalServiceEnv(&ServiceEnvArray{
+	envBytes, err := utils.MarshalServiceEnv(&utils.ServiceEnvArray{
 		Env:          b.Env,
 		BuildArgs:    b.BuildArgs,
 		BuildSecrets: b.BuildSecrets,

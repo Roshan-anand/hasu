@@ -1,20 +1,26 @@
 package main
 
 import (
-	"log"
-	"os/exec"
+	"fmt"
+
+	"github.com/go-playground/validator/v10"
 )
+
+type sample struct {
+	chekc bool `validate:"required"`
+}
 
 func main() {
 
-	cmd := exec.Command("bash", "-c", `echo "one"`)
-
-	cmd.Args = append(cmd.Args, "&&", `echo "two"`)
-
-	res, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatalf("Error running command: %v", err)
+	data := &sample{
+		chekc: false,
 	}
-	log.Printf("Command output: %s", string(res))
 
+	v := validator.New()
+
+	if err := v.Struct(data); err != nil {
+		fmt.Println(err)
+	} else {
+		println("validation passed")
+	}
 }

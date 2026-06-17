@@ -25,14 +25,17 @@ func TestAppService(t *testing.T) {
 	}
 
 	createAppServiceReq := &handlers.CreateAppServiceReq{
-		InstanceID:  user.InstanceID,
-		Name:        "newapp",
-		GitProvider: "github",
-		Public:      true,
-		Port:        80,
-		BuildPath:   "/",
-		WatchPath:   "/",
-		DockerBuild: &handlers.DockerBuildReq{},
+		InstanceID:   user.InstanceID,
+		Name:         "newapp",
+		GitProvider:  "github",
+		Public:       true,
+		Port:         80,
+		BuildPath:    "/",
+		WatchPath:    "/",
+		Env:          []string{},
+		BuildArgs:    []string{},
+		BuildSecrets: []string{},
+		DockerBuild:  &handlers.DockerBuildReq{},
 	}
 
 	var appServiceID uuid.UUID
@@ -126,7 +129,7 @@ func TestAppService(t *testing.T) {
 			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
 		}
 
-		var res types.Res[[]db.GetDeploymentsByServiceIDRow]
+		var res types.Res[[]db.Deployment]
 		if err := readAndUnmarshl(body, &res); err != nil {
 			t.Fatal(err)
 		}

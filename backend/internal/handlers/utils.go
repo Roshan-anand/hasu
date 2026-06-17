@@ -5,12 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"slices"
-	"strings"
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	ghservice "github.com/Roshan-anand/godploy/internal/lib/gh"
-	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/Roshan-anand/godploy/internal/lib/utils"
 	"github.com/go-playground/validator/v10"
@@ -99,94 +96,6 @@ const githubManifestFormTmpl = `<!DOCTYPE html>
   <script>document.getElementById("mf").submit();</script>
 </body>
 </html>`
-
-type ServiceEnvArray struct {
-	Env          []string
-	BuildArgs    []string
-	BuildSecrets []string
-}
-
-type ServiceEnvByte struct {
-	Env          []byte
-	BuildArgs    []byte
-	BuildSecrets []byte
-}
-
-// remove all the empty string from the array and return pointer to new array
-func cleanArray(arr []string) []string {
-	return slices.DeleteFunc(arr, func(s string) bool {
-		return s == ""
-	})
-}
-
-// to unmarshal all the evn into array of string
-func UnmarshalServiceEnv(e *ServiceEnvByte) (*ServiceEnvArray, error) {
-	var env []string
-	var build_args []string
-	var build_secrets []string
-
-	if err := json.Unmarshal(e.Env, &env); err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal env: %v", err)
-	}
-
-	if err := json.Unmarshal(e.BuildArgs, &build_args); err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal build args: %v", err)
-	}
-
-	if err := json.Unmarshal(e.BuildSecrets, &build_secrets); err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal build secrets: %v", err)
-	}
-
-	return &ServiceEnvArray{
-		Env:          cleanArray(env),
-		BuildArgs:    cleanArray(build_args),
-		BuildSecrets: cleanArray(build_secrets),
-	}, nil
-}
-
-// to marshal all the env into byte array
-func MarshalServiceEnv(e *ServiceEnvArray) (*ServiceEnvByte, error) {
-	envByte, err := json.Marshal(e.Env)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal env: %v", err)
-	}
-
-	buildArgsByte, err := json.Marshal(e.BuildArgs)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal build args: %v", err)
-	}
-
-	buildSecretsByte, err := json.Marshal(e.BuildSecrets)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal build secrets: %v", err)
-	}
-
-	return &ServiceEnvByte{
-		Env:          envByte,
-		BuildArgs:    buildArgsByte,
-		BuildSecrets: buildSecretsByte,
-	}, nil
-}
-
-type GenerateNameRes struct {
-	ServiceName string
-	ImgName     string
-}
-
-// used as uniquecontainer name and code storing path
-func generateServiceAndImgName(name string, branch string) *GenerateNameRes {
-	branch = strings.ReplaceAll(branch, "/", "-")
-
-	base := fmt.Sprintf("%s-%s", name, branch)
-	id := security.GenerateRandomID(3, true)
-	serviceName := fmt.Sprintf("%s-%s", base, id)
-	imgName := strings.ToLower(fmt.Sprintf("%s-dyp_%s", base, id))
-
-	return &GenerateNameRes{
-		ServiceName: serviceName,
-		ImgName:     imgName,
-	}
-}
 
 // Bundles GitHub client creation, repo fetch, and latest commit fetch into one call.
 type GitHubDeployData struct {

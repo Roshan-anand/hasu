@@ -464,7 +464,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 		repo := pushEvent.GetRepo()
 		branch := strings.TrimPrefix(pushEvent.GetRef(), "refs/heads/")
 
-		services, err := q.GetAllAppServicesByRepo(h.qCtx, db.GetAllAppServicesByRepoParams{
+		serviceIDs, err := q.GetAllAppServicesByRepo(h.qCtx, db.GetAllAppServicesByRepoParams{
 			GhRepoID: repo.GetID(),
 			Branch:   branch,
 		})
@@ -472,92 +472,14 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 			return nil
 		}
 
-		// TODO : make downgraddeployment, creatdeployment, generting gh token, unmarshiling env actions inside the worker as it is a redundant process
-		for _, s := range services {
-			fmt.Println("starting webhook job for :", s.Name, s.Branch)
+		for _, sID := range serviceIDs {
 			// TODO : check if watch path matches the pushed code commit
 
-			// start a new db transaction
-			tx, err := h.Server.DB.Pool.BeginTx(context.Background(), nil)
-			if err != nil {
-				fmt.Println("Error starting transaction:", err)
-				return nil
-			}
-			tq := q.WithTx(tx)
-
-			var newStatus types.DeploymentStatus
-			if s.DeploymentStatus == types.DeploymentReady {
-				newStatus = types.DeploymentInactive
-			} else {
-				newStatus = types.DeploymentPruned
-			}
-
-			// update the previous deployment is_latest to false
-			if err := tq.DownGradeDeployment(h.qCtx, db.DownGradeDeploymentParams{
-				DeploymentID: s.DeploymentID,
-				Status:       newStatus,
-			}); err != nil {
-				tx.Rollback()
-				fmt.Println("Error downgrading previous deployment:", err)
-				return nil
-			}
-
-			// create a new deployment
-			dID, err := tq.CreateDeployment(h.qCtx, db.CreateDeploymentParams{
-				ID:         security.GeneratePrimaryKey(),
-				ServiceID:  s.ServiceID,
+			// push a new deployment job to the queue
+			h.Server.Services.Deployment.AssignRebuild(context.Background(), &deployjob.RebuildServiceParams{
+				ServiceID:  sID,
 				CommitHash: pushEvent.GetAfter(),
 				CommitMsg:  pushEvent.GetHeadCommit().GetMessage(),
-				IsCurrent:  true,
-			})
-			if err != nil {
-				tx.Rollback()
-				fmt.Println("Error creating deployment:", err)
-				return nil
-			}
-
-			// create new github client
-			gh, err := ghservice.New(q, s.GhAppID)
-			if err != nil {
-				tx.Rollback()
-				fmt.Println("Error creating github client:", err)
-				return nil
-			}
-
-			// used as unique image and service name
-			unique := generateServiceAndImgName(s.Name, s.Branch)
-
-			envStr, err := UnmarshalServiceEnv(&ServiceEnvByte{
-				Env:          s.Env,
-				BuildArgs:    s.BuildArgs,
-				BuildSecrets: s.BuildSecrets,
-			})
-			if err != nil {
-				fmt.Println("Error unmarshaling service env:", err)
-				return nil
-			}
-
-			if err := tx.Commit(); err != nil {
-				fmt.Println("Error committing transaction:", err)
-				return nil
-			}
-
-			// push a new deployment job to the queue
-			h.Server.Services.Deployment.Submit(context.Background(), &deployjob.DeploymentServiceParams{
-				JobType:           deployjob.RebuildJob,
-				DeploymentID:      dID,
-				Token:             gh.Token,
-				Url:               s.GhRepoUrl,
-				Branch:            s.Branch,
-				SwarmService:      s.SwarmService,
-				BuildPath:         s.BuildPath,
-				DockerFilePath:    s.DockerFilepath,
-				DockerContextPath: s.DockerContextpath,
-				DockerBuildStage:  s.DockerBuildstage,
-				ImgName:           unique.ImgName,
-				Env:               envStr.Env,
-				BuildArgs:         envStr.BuildArgs,
-				BuildSecrets:      envStr.BuildSecrets,
 			})
 		}
 	}

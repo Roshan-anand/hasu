@@ -40,7 +40,7 @@ func NewServer(cfg *Config) (*Server, error) {
 		return nil, err
 	}
 
-	services := services.NewServices(db.Queries, docker, badger)
+	services := services.NewServices(db, docker, badger)
 
 	return &Server{
 		DB:       db,

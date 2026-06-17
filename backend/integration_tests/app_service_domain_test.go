@@ -32,6 +32,9 @@ func TestAppServiceDomainUpdate(t *testing.T) {
 		Port:        80,
 		BuildPath:   "/",
 		WatchPath:   "/",
+		Env:          []string{},
+		BuildArgs:    []string{},
+		BuildSecrets: []string{},
 		DockerBuild: &handlers.DockerBuildReq{},
 	}
 

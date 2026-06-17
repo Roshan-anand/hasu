@@ -3,7 +3,18 @@ INSERT INTO deployments (id, service_id, commit_hash, commit_msg, is_current)
 VALUES (?, ?, ?, ?, ?)
 RETURNING id;
 
+-- name: CheckIsCurrentDeployment :one
+SELECT is_current
+FROM deployments
+WHERE id = ?;
+
 -- name: GetDeploymentsByServiceID :many
+SELECT d.*
+FROM deployments d
+WHERE d.service_id = ?
+ORDER BY d.created_at DESC;
+
+-- name: GetDeploymentsWithSwarmByServiceID :many
 SELECT d.*, aps.swarm_service
 FROM deployments d
 JOIN app_service aps ON d.service_id = aps.id
