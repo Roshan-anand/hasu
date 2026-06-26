@@ -125,6 +125,45 @@ func (q *Queries) GetRedisServiceById(ctx context.Context, serviceID uuid.UUID) 
 	return i, err
 }
 
+const getRedisServicesByInstanceID = `-- name: GetRedisServicesByInstanceID :many
+SELECT id, instance_id, status, type, name, swarm_service, password, image, volume, internal_url, created_at FROM redis_service WHERE instance_id = ?
+`
+
+func (q *Queries) GetRedisServicesByInstanceID(ctx context.Context, instanceID uuid.UUID) ([]RedisService, error) {
+	rows, err := q.db.QueryContext(ctx, getRedisServicesByInstanceID, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RedisService
+	for rows.Next() {
+		var i RedisService
+		if err := rows.Scan(
+			&i.ID,
+			&i.InstanceID,
+			&i.Status,
+			&i.Type,
+			&i.Name,
+			&i.SwarmService,
+			&i.Password,
+			&i.Image,
+			&i.Volume,
+			&i.InternalUrl,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateRedisServiceDetails = `-- name: UpdateRedisServiceDetails :exec
 UPDATE redis_service
 SET password = ?,

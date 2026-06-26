@@ -12,6 +12,8 @@ import (
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/sse"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
+	"github.com/Roshan-anand/godploy/internal/lib/utils"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -21,6 +23,18 @@ type DeploymentHandler struct {
 	Server   *config.Server
 	Validate *validator.Validate
 	qCtx     context.Context
+}
+
+type RebuildServiceReq struct {
+	ServiceID uuid.UUID `json:"service_id" validate:"required"`
+}
+
+type RoolbackServiceReq struct {
+	ServiceID uuid.UUID `json:"service_id" validate:"required"`
+}
+
+type RedeployServiceReq struct {
+	ServiceID uuid.UUID `json:"service_id" validate:"required"`
 }
 
 func InitDeploymentHandlers(s *config.Server) *DeploymentHandler {
@@ -245,4 +259,51 @@ func (h *DeploymentHandler) RollbackAppService(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusNotImplemented, types.Res[struct{}]{Message: "old deployment not found to rollback"})
+}
+
+// redeploy app service to use updated envs
+//
+// route: POST /api/service/app/redeploy
+func (h *DeploymentHandler) RedeployAppService(c *echo.Context) error {
+	b := new(RedeployServiceReq)
+	q := h.Server.DB.Queries
+	docker := h.Server.Docker.Client
+
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	s, err := q.GetAppServiceForRedeploy(h.qCtx, b.ServiceID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get service"})
+	}
+
+	// validate if the image and swarm exists
+	if _, err := docker.ImageInspect(context.Background(), s.Image.String); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Image not found in docker"})
+	}
+
+	if _, _, err := docker.ServiceInspectWithRaw(context.Background(), s.SwarmService, swarm.ServiceInspectOptions{}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Swarm service not found"})
+	}
+
+	env, err := utils.UnmarshalServiceEnv(&utils.ServiceEnvByte{
+		Env: s.Env,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Internal server error"})
+	}
+
+	env.Env = deployjob.MergeDependencyEnv(q, b.ServiceID, env.Env)
+
+	if err := h.Server.Services.Deployment.AssignRedeploy(context.Background(), &deployjob.ReDeployData{
+		DeploymentID: s.DeploymentID,
+		SwarmService: s.SwarmService,
+		Env:          env.Env,
+		ImgName:      s.Image.String,
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to redeploy service"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "successfully started redeploy"})
 }

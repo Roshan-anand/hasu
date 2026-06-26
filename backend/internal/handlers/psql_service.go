@@ -9,10 +9,10 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
+	deployjob "github.com/Roshan-anand/godploy/internal/jobs/deployment"
 	"github.com/Roshan-anand/godploy/internal/lib/auth"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/go-playground/validator/v10"
@@ -132,55 +132,26 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 		volumeName = b.Volume
 	}
 
-	// create network if not exist
 	network, err := q.GetInstanceNetwork(h.qCtx, b.InstanceID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to fetch project network"})
 	}
-	if err := h.Server.Docker.CreateNetwork(network); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create network"})
-	}
 
-	// config swarm service spec
-	spec := swarm.ServiceSpec{
-		Annotations: swarm.Annotations{
-			Name: serviceName,
+	err = deployjob.DeployPredefinedService(
+		h.qCtx,
+		h.Server.Docker,
+		network,
+		serviceName,
+		b.Image,
+		[]string{
+			"POSTGRES_PASSWORD=" + b.DbPassword,
+			"POSTGRES_USER=" + b.DbUser,
+			"POSTGRES_DB=" + b.DbName,
+			"sslmode=disable",
 		},
-
-		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
-				Image: b.Image,
-
-				Env: []string{
-					"POSTGRES_PASSWORD=" + b.DbPassword,
-					"POSTGRES_USER=" + b.DbUser,
-					"POSTGRES_DB=" + b.DbName,
-					"sslmode=disable",
-				},
-
-				Mounts: []mount.Mount{
-					{
-						Type:   mount.TypeVolume,
-						Source: volumeName,
-						Target: "/var/lib/postgresql/data",
-					},
-				},
-			},
-
-			Networks: []swarm.NetworkAttachmentConfig{
-				{
-					Target: network,
-				},
-			},
-
-			RestartPolicy: &swarm.RestartPolicy{
-				Condition: swarm.RestartPolicyConditionAny,
-			},
-		},
-	}
-
-	// depoly the service
-	_, err = docker.ServiceCreate(h.qCtx, spec, swarm.ServiceCreateOptions{})
+		volumeName,
+		deployjob.PSQLMountTarget,
+	)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to deploy service"})
 	}

@@ -81,14 +81,19 @@ DELETE FROM project
 WHERE id = ?;
 
 -- name: CreateInstance :exec
-INSERT INTO instance (id, project_id, is_production, name, network)
-VALUES (?, ?, ?, ?, ?);
+INSERT INTO instance (id, project_id, is_production, name, network, status)
+VALUES (?, ?, ?, ?, ?, ?);
 
 -- name: GetAllInstance :many
 SELECT i.id, i.name, i.is_production
 FROM instance i
 JOIN project p ON i.project_id = p.id
 WHERE p.organization_id = ? AND p.name = @project;
+
+-- name: GetInstanceStatus :one
+SELECT status
+FROM instance
+WHERE id = @instance_id;
 
 -- name: CheckInstanceHasServices :one
 SELECT CAST(EXISTS(

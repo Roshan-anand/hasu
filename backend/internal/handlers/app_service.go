@@ -69,14 +69,6 @@ type GetEnvRes struct {
 	BuildSecrets []string `json:"build_secrets" validate:"required"`
 }
 
-type RebuildServiceReq struct {
-	ServiceID uuid.UUID `json:"service_id" validate:"required"`
-}
-
-type RoolbackServiceReq struct {
-	ServiceID uuid.UUID `json:"service_id" validate:"required"`
-}
-
 type GetAppServiceByIdRes struct {
 	ID           uuid.UUID              `json:"id"`
 	Name         string                 `json:"name"`
@@ -285,7 +277,7 @@ func (h *ServiceHandler) GetAppServiceById(c *echo.Context) error {
 			IsPublic:     service.IsPublic,
 			Branch:       service.Branch,
 			SwarmService: service.SwarmService,
-			Domain:       service.Domain,
+			Domain:       service.Domain.String,
 			InternalUrl:  service.InternalUrl,
 			Port:         service.Port,
 			CreatedAt:    service.CreatedAt,
@@ -375,7 +367,8 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 		if !strings.HasPrefix(b.Domain, "https://") {
 			b.Domain = "https://" + b.Domain
 		}
-		if u, err := url.Parse(b.Domain); err != nil || u.Hostname() == "" {
+		u, err := url.Parse(b.Domain)
+		if err != nil || u.Hostname() == "" {
 			fmt.Println("host name:", u.Hostname())
 			fmt.Println("host :", u.Host)
 			fmt.Println("paht :", u.Path)
@@ -383,6 +376,8 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 			return c.JSON(http.StatusBadRequest,
 				types.Res[struct{}]{Message: "invalid domain"})
 		}
+
+		b.Domain = u.Host
 	}
 
 	swarmService, err := q.GetSwarmServiceByServiceId(h.qCtx, b.ServiceID)
@@ -414,7 +409,7 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 
 	// update the app service in database
 	if err := q.UpdateDomianAndPort(h.qCtx, db.UpdateDomianAndPortParams{
-		Domain:    b.Domain,
+		Domain:    sql.NullString{String: b.Domain, Valid: b.Domain != ""},
 		Port:      b.Port,
 		IsPublic:  b.IsPublic,
 		ServiceID: b.ServiceID,
@@ -525,7 +520,7 @@ func (h *ServiceHandler) ScaleAppService(c *echo.Context) error {
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "successfully updated the replicas"})
 }
 
-// GetAppServiceSettings — returns settings data for the app service (domain, port, visibility, replicas)
+// get domain, port, visibility, replica count
 //
 // route: GET /api/service/app/settings?service_id=
 func (h *ServiceHandler) GetAppServiceSettings(c *echo.Context) error {
@@ -557,7 +552,7 @@ func (h *ServiceHandler) GetAppServiceSettings(c *echo.Context) error {
 	return c.JSON(http.StatusOK, types.Res[AppServiceSettingsRes]{
 		Message: "",
 		Data: AppServiceSettingsRes{
-			Domain:   settings.Domain,
+			Domain:   settings.Domain.String,
 			Port:     settings.Port,
 			IsPublic: settings.IsPublic,
 			Replicas: replicas,
@@ -565,7 +560,7 @@ func (h *ServiceHandler) GetAppServiceSettings(c *echo.Context) error {
 	})
 }
 
-// PauseAppService — sets swarm replicas to 0, marks current deployment as paused
+// scale replicas to 0, mark deployment as paused
 //
 // route: POST /api/service/app/pause
 func (h *ServiceHandler) PauseAppService(c *echo.Context) error {
@@ -611,7 +606,7 @@ func (h *ServiceHandler) PauseAppService(c *echo.Context) error {
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "service paused"})
 }
 
-// ResumeAppService — restores replicas to stored count (or 1), marks deployment as ready
+// restore replicas to 1, mark deployment as ready
 //
 // route: POST /api/service/app/resume
 func (h *ServiceHandler) ResumeAppService(c *echo.Context) error {

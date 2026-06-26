@@ -84,7 +84,7 @@ func (h *AuthHandler) AuthUser(c *echo.Context) error {
 	}})
 }
 
-// register a new application
+// register a new admin user and organization
 //
 // route: POST /api/auth/register
 func (h *AuthHandler) AppRegiter(c *echo.Context) error {

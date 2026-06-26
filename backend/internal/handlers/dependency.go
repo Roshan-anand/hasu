@@ -20,21 +20,6 @@ import (
 
 var envKeyRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
-type DependencyHandler struct {
-	Server   *config.Server
-	Validate *validator.Validate
-	qCtx     context.Context
-}
-
-// InitDependencyHandlers creates a new handler instance for dependency management.
-func InitDependencyHandlers(s *config.Server) *DependencyHandler {
-	return &DependencyHandler{
-		Server:   s,
-		Validate: validator.New(),
-		qCtx:     context.Background(),
-	}
-}
-
 // --- Request/Response types ---
 
 type CreateDependencyReq struct {
@@ -75,6 +60,21 @@ type DependencyTargetRes struct {
 
 type ListDependencyTargetsRes struct {
 	Targets []DependencyTargetRes `json:"targets"`
+}
+
+type DependencyHandler struct {
+	Server   *config.Server
+	Validate *validator.Validate
+	qCtx     context.Context
+}
+
+// InitDependencyHandlers creates a new handler instance for dependency management.
+func InitDependencyHandlers(s *config.Server) *DependencyHandler {
+	return &DependencyHandler{
+		Server:   s,
+		Validate: validator.New(),
+		qCtx:     context.Background(),
+	}
 }
 
 // allowed target columns per service type
@@ -127,7 +127,9 @@ func (h *DependencyHandler) validateSameInstance(sourceServiceID, targetServiceI
 	return fmt.Errorf("target service not found in same instance")
 }
 
-// GET /api/service/app/dependencies?service_id=<source_service_id>
+// list all dependencies for a source service
+//
+// route: GET /api/service/app/dependencies?service_id=
 func (h *DependencyHandler) GetServiceDependencies(c *echo.Context) error {
 	q := h.Server.DB.Queries
 
@@ -162,7 +164,9 @@ func (h *DependencyHandler) GetServiceDependencies(c *echo.Context) error {
 	})
 }
 
-// POST /api/service/app/dependencies
+// link source service to target with env key mapping
+//
+// route: POST /api/service/app/dependencies
 func (h *DependencyHandler) CreateServiceDependency(c *echo.Context) error {
 	req := new(CreateDependencyReq)
 	if Res := BindAndValidate(req, c, h.Validate); Res != nil {
@@ -219,7 +223,7 @@ func (h *DependencyHandler) CreateServiceDependency(c *echo.Context) error {
 	// domain-specific validation
 	if req.TargetCol == "domain" {
 		app, err := q.GetAppServiceOnly(h.qCtx, req.TargetServiceID)
-		if err != nil || !app.IsPublic || app.Domain == "" {
+		if err != nil || !app.IsPublic || !app.Domain.Valid {
 			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "domain not available for target service"})
 		}
 	}
@@ -261,7 +265,9 @@ func (h *DependencyHandler) CreateServiceDependency(c *echo.Context) error {
 	})
 }
 
-// GET /api/service/app/dependency-targets?service_id=<source_service_id>
+// list eligible target services in same instance
+//
+// route: GET /api/service/app/dependency-targets?service_id=
 func (h *DependencyHandler) GetDependencyTargets(c *echo.Context) error {
 	q := h.Server.DB.Queries
 
@@ -294,7 +300,7 @@ func (h *DependencyHandler) GetDependencyTargets(c *echo.Context) error {
 		// domain-specific filtering: only include domain if app is public and has a domain
 		if t.ServiceType == "app" {
 			app, err := q.GetAppServiceOnly(h.qCtx, t.ID)
-			if err == nil && (!app.IsPublic || app.Domain == "") {
+			if err == nil && (!app.IsPublic || !app.Domain.Valid) {
 				filtered := make([]string, 0, len(cols))
 				for _, c := range cols {
 					if c != "domain" {
@@ -317,7 +323,9 @@ func (h *DependencyHandler) GetDependencyTargets(c *echo.Context) error {
 	})
 }
 
-// PUT /api/service/app/dependencies/:id
+// modify target, column, or env key of a dependency
+//
+// route: PUT /api/service/app/dependencies/:id
 func (h *DependencyHandler) UpdateServiceDependency(c *echo.Context) error {
 	req := new(UpdateDependencyReq)
 	if Res := BindAndValidate(req, c, h.Validate); Res != nil {
@@ -389,7 +397,7 @@ func (h *DependencyHandler) UpdateServiceDependency(c *echo.Context) error {
 	// domain-specific validation
 	if req.TargetCol == "domain" {
 		app, err := q.GetAppServiceOnly(h.qCtx, req.TargetServiceID)
-		if err != nil || !app.IsPublic || app.Domain == "" {
+		if err != nil || !app.IsPublic || !app.Domain.Valid {
 			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "domain not available for target service"})
 		}
 	}
@@ -430,7 +438,9 @@ func (h *DependencyHandler) UpdateServiceDependency(c *echo.Context) error {
 	})
 }
 
-// DELETE /api/service/app/dependencies/:id
+// remove a dependency link
+//
+// route: DELETE /api/service/app/dependencies/:id
 func (h *DependencyHandler) DeleteServiceDependency(c *echo.Context) error {
 	depID, err := uuid.Parse(c.Param("id"))
 	if err != nil {

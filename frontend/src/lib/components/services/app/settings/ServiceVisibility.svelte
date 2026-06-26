@@ -120,7 +120,7 @@
 						placeholder="example.com"
 						bind:value={domainInput}
 						required={isPublic}
-						type="url"
+						type="text"
 						class={cn(domainError && 'border-destructive focus-visible:ring-destructive')}
 						oninput={() => {
 							if (domainError) domainError = '';

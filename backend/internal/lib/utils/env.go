@@ -31,16 +31,22 @@ func UnmarshalServiceEnv(e *ServiceEnvByte) (*ServiceEnvArray, error) {
 	var build_args []string
 	var build_secrets []string
 
-	if err := json.Unmarshal(e.Env, &env); err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal env: %v", err)
+	if e.Env != nil {
+		if err := json.Unmarshal(e.Env, &env); err != nil {
+			return nil, fmt.Errorf("Failed to unmarshal env: %v", err)
+		}
 	}
 
-	if err := json.Unmarshal(e.BuildArgs, &build_args); err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal build args: %v", err)
+	if e.BuildArgs != nil {
+		if err := json.Unmarshal(e.BuildArgs, &build_args); err != nil {
+			return nil, fmt.Errorf("Failed to unmarshal build args: %v", err)
+		}
 	}
 
-	if err := json.Unmarshal(e.BuildSecrets, &build_secrets); err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal build secrets: %v", err)
+	if e.BuildSecrets != nil {
+		if err := json.Unmarshal(e.BuildSecrets, &build_secrets); err != nil {
+			return nil, fmt.Errorf("Failed to unmarshal build secrets: %v", err)
+		}
 	}
 
 	return &ServiceEnvArray{

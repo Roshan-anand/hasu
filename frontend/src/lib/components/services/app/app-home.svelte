@@ -5,7 +5,11 @@
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import { ChevronRight, ChevronDown } from '@lucide/svelte';
 	import { Button } from '@/components/ui/button';
-	import { useRebuildServiceMutation, useRollbackServiceMutation } from '@/features/deployments';
+	import {
+		useRebuildServiceMutation,
+		useRedeploServiceMutation,
+		useRollbackServiceMutation
+	} from '@/features/deployments';
 	import {
 		useGetAppServiceDetailsQuery,
 		usePauseAppServiceMutation,
@@ -33,8 +37,9 @@
 	const serviceQuery = useGetAppServiceDetailsQuery(() => serviceID);
 	const rebuildService = useRebuildServiceMutation();
 	const rollBackService = useRollbackServiceMutation();
-	const pauseService = usePauseAppServiceMutation(() => serviceID);
-	const resumeService = useResumeAppServiceMutation(() => serviceID);
+	const redeployService = useRedeploServiceMutation();
+	const pauseService = usePauseAppServiceMutation();
+	const resumeService = useResumeAppServiceMutation();
 
 	let open = $state(false);
 	let selectedPR = $state<PRInfo | null>(null);
@@ -91,14 +96,17 @@
 					<div class="flex items-center gap-2">
 						<AppServicePRPreviewButton serviceId={serviceID} onSelect={(pr) => (selectedPR = pr)} />
 						{#if status === 'paused'}
-							<Button disabled={resumeService.isPending} onclick={() => resumeService.mutate()}>
+							<Button
+								disabled={resumeService.isPending}
+								onclick={() => resumeService.mutate({ service_id: serviceID })}
+							>
 								Resume
 							</Button>
 						{:else}
 							<Button
 								variant="secondary"
 								disabled={pauseService.isPending || status !== 'ready'}
-								onclick={() => pauseService.mutate()}
+								onclick={() => pauseService.mutate({ service_id: serviceID })}
 							>
 								Pause
 							</Button>
@@ -120,7 +128,7 @@
 											);
 										}
 									}
-								)}>Redeploy</Button
+								)}>Rebuild</Button
 						>
 						<Button
 							onclick={() =>
@@ -128,6 +136,13 @@
 									service_id: serviceID
 								})}
 							disabled={rollBackService.isPending}>Rollback</Button
+						>
+						<Button
+							onclick={() =>
+								redeployService.mutate({
+									service_id: serviceID
+								})}
+							disabled={rollBackService.isPending}>Redeploy</Button
 						>
 					</div>
 				</h3>
@@ -141,7 +156,7 @@
 						{:else}
 							<!--  eslint-disable svelte/no-navigation-without-resolve  -->
 							<a
-								href={domain.includes('https://') ? domain : `https://${domain}`}
+								href={domain.startsWith('https://') ? domain : `https://${domain}`}
 								target="_blank"
 								class="flex items-center gap-1 underline underline-offset-2 hover:text-primary"
 							>

@@ -26,6 +26,16 @@ type UrlReq struct {
 	Url string `json:"url" validate:"required"`
 }
 
+// TODO : remove this router for production
+type GhAppReq struct {
+	Name           string    `json:"name" validate:"required"`
+	OrgID          uuid.UUID `json:"organization_id" validate:"required"`
+	AppID          string    `json:"app_id" validate:"required"`
+	InstallationID string    `json:"installation_id" validate:"required"`
+	PemKey         string    `json:"pem_key" validate:"required"`
+	WebhookSecret  string    `json:"webhook_secret" validate:"required"`
+}
+
 func InitHealthHandlers(s *config.Server) *HealthHandler {
 	return &HealthHandler{
 		Server:   s,
@@ -50,16 +60,9 @@ func (h *HealthHandler) HealthCheck(c *echo.Context) error {
 	return c.JSON(200, types.Res[struct{}]{Message: "ok"})
 }
 
-// TODO : remove this router for production
-type GhAppReq struct {
-	Name           string    `json:"name" validate:"required"`
-	OrgID          uuid.UUID `json:"organization_id" validate:"required"`
-	AppID          string    `json:"app_id" validate:"required"`
-	InstallationID string    `json:"installation_id" validate:"required"`
-	PemKey         string    `json:"pem_key" validate:"required"`
-	WebhookSecret  string    `json:"webhook_secret" validate:"required"`
-}
-
+// manually create GitHub app credentials in DB (dev only)
+//
+// route: POST /api/health/github
 func (h *HealthHandler) SetGhApp(c *echo.Context) error {
 	b := new(GhAppReq)
 	q := h.Server.DB.Queries

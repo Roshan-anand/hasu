@@ -75,8 +75,8 @@ SELECT CAST(
 AS BOOLEAN);
 
 -- name: CreateAppService :one
-INSERT INTO app_service (id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage, is_public, branch, swarm_service, port, internal_url)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO app_service (id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage, is_public, branch, swarm_service, domain, port, internal_url)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, name, type;
 
 -- name: CheckServiceIsProduction :one
@@ -129,6 +129,13 @@ FROM app_service a
 JOIN deployments d ON d.service_id = a.id AND d.is_current
 WHERE a.id = ?;
 
+-- name: GetAppServiceForRedeploy :one
+SELECT
+    a.swarm_service, a.env, d.id AS deployment_id, d.image
+FROM app_service a
+JOIN deployments d ON d.service_id = a.id AND d.is_current
+WHERE a.id = ?;    
+
 -- name: GetAppServiceRepoInfo :one
 SELECT
     a.id, a.name, a.gh_app_id, a.gh_repo_id, a.branch
@@ -175,6 +182,9 @@ WHERE id = @service_id;
 
 -- name: GetAppServiceOnly :one
 SELECT * FROM app_service WHERE id = ?;
+
+-- name: GetFullAppServicesByInstanceId :many
+SELECT * FROM app_service WHERE instance_id = ?;
 
 -- name: GetAppServicesByInstanceId :many
 SELECT id, name, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, branch FROM app_service WHERE instance_id = ?;

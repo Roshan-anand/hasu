@@ -39,6 +39,8 @@ func TestDependency(t *testing.T) {
 
 	var sourceServiceID uuid.UUID
 	var targetServiceID uuid.UUID
+	var psqlServiceID uuid.UUID
+	var redisServiceID uuid.UUID
 
 	t.Run("setup github app for service creation", func(t *testing.T) {
 		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Git.GetAllGithubApps, IsAuth: true})
@@ -540,7 +542,7 @@ func TestDependency(t *testing.T) {
 		if err := readAndUnmarshl(body, &res); err != nil {
 			t.Fatal(err)
 		}
-		psqlServiceID := res.Data.ID
+		psqlServiceID = res.Data.ID
 
 		rec, err = TestEchoHandler(&TestEchoBody{
 			T: t,
@@ -597,7 +599,7 @@ func TestDependency(t *testing.T) {
 		if err := readAndUnmarshl(body, &res); err != nil {
 			t.Fatal(err)
 		}
-		redisServiceID := res.Data.ID
+		redisServiceID = res.Data.ID
 
 		rec, err = TestEchoHandler(&TestEchoBody{
 			T: t,
@@ -749,6 +751,44 @@ func TestDependency(t *testing.T) {
 		}
 		if len(listRes.Data.Dependencies) != depCountBefore-1 {
 			t.Fatalf("expected %d dependencies after delete, got %d", depCountBefore-1, len(listRes.Data.Dependencies))
+		}
+	})
+
+	t.Run("cleanup psql service", func(t *testing.T) {
+		deleteReq := &handlers.DeletePsqlServiceReq{ServiceId: psqlServiceID, KeepData: false}
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.DeletePsqlService, IsAuth: true, Body: deleteReq})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			msg, err := readOnly(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Log(msg)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
+		}
+	})
+
+	t.Run("cleanup redis service", func(t *testing.T) {
+		deleteReq := &handlers.DeleteRedisServiceReq{ServiceId: redisServiceID, KeepData: false}
+		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.DeleteRedisService, IsAuth: true, Body: deleteReq})
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := rec.Result().Body
+		defer body.Close()
+
+		if rec.Code != http.StatusOK {
+			msg, err := readOnly(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Log(msg)
+			t.Fatalf("expected status code %d, got %d", http.StatusOK, rec.Code)
 		}
 	})
 

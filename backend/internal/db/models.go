@@ -33,7 +33,7 @@ type AppService struct {
 	IsPublic          bool              `json:"is_public"`
 	Branch            string            `json:"branch"`
 	SwarmService      string            `json:"swarm_service"`
-	Domain            string            `json:"domain"`
+	Domain            sql.NullString    `json:"domain"`
 	InternalUrl       string            `json:"internal_url"`
 	Port              int32             `json:"port"`
 	CreatedAt         time.Time         `json:"created_at"`
@@ -62,13 +62,30 @@ type GithubApp struct {
 	UpdatedAt      time.Time     `json:"updated_at"`
 }
 
+type GithubPullRequest struct {
+	ID         uuid.UUID    `json:"id"`
+	RepoID     int64        `json:"repo_id"`
+	PrNumber   int64        `json:"pr_number"`
+	Title      string       `json:"title"`
+	HeadBranch string       `json:"head_branch"`
+	BaseBranch string       `json:"base_branch"`
+	State      string       `json:"state"`
+	HtmlUrl    string       `json:"html_url"`
+	CreatedAt  sql.NullTime `json:"created_at"`
+	UpdatedAt  sql.NullTime `json:"updated_at"`
+}
+
 type Instance struct {
-	ID           uuid.UUID `json:"id"`
-	ProjectID    uuid.UUID `json:"project_id"`
-	IsProduction bool      `json:"is_production"`
-	Name         string    `json:"name"`
-	Network      string    `json:"network"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID             uuid.UUID            `json:"id"`
+	ProjectID      uuid.UUID            `json:"project_id"`
+	IsProduction   bool                 `json:"is_production"`
+	Name           string               `json:"name"`
+	Network        string               `json:"network"`
+	CreatedAt      time.Time            `json:"created_at"`
+	GitSourceType  types.GitSourceType  `json:"git_source_type"`
+	GitSourceValue sql.NullString       `json:"git_source_value"`
+	Status         types.InstanceStatus `json:"status"`
+	CreatedBy      types.CreatedBy      `json:"created_by"`
 }
 
 type Organization struct {

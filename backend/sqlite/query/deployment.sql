@@ -54,6 +54,9 @@ WHERE id = ?;
 -- name: GetCurrentDeploymentByServiceId :one
 SELECT id, status FROM deployments WHERE service_id = ? AND is_current = TRUE;
 
+-- name: GetCurrentDeploymentWithImageByServiceId :one
+SELECT id, status, image FROM deployments WHERE service_id = ? AND is_current = TRUE;
+
 -- name: DeleteDeploymentByID :exec
 DELETE FROM deployments
 WHERE id = ?;

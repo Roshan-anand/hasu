@@ -58,7 +58,7 @@
 			</div>
 			<!-- eslint-disable svelte/no-navigation-without-resolve -->
 			<a
-				href={service.gh_repo_url}
+				href={'https://' + service.gh_repo_url}
 				target="_blank"
 				rel="noopener noreferrer"
 				onclick={(e) => e.stopPropagation()}

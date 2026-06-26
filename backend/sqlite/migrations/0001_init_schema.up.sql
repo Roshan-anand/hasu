@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS instance(
     name TEXT NOT NULL,
     network TEXT NOT NULL UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    git_source_type TEXT CHECK(git_source_type IN ('pr','branch')),
+    git_source_value TEXT,
+    status TEXT NOT NULL CHECK(status IN ('creating','ready','deleting')),
+    created_by TEXT DEFAULT 'manual' CHECK(created_by IN ('manual','webhook')),
     UNIQUE (project_id, name)
 );
 
@@ -72,7 +76,7 @@ CREATE TABLE IF NOT EXISTS app_service (
     is_public BOOLEAN NOT NULL,
     branch TEXT NOT NULL,
     swarm_service TEXT NOT NULL,
-    domain TEXT NOT NULL DEFAULT '',
+    domain TEXT,
     internal_url TEXT NOT NULL,
     port INTEGER NOT NULL DEFAULT 80,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -82,7 +86,7 @@ CREATE TABLE IF NOT EXISTS deployments (
     id uuid PRIMARY KEY,
     is_current BOOLEAN NOT NULL,
     service_id uuid NOT NULL REFERENCES app_service(id) ON DELETE CASCADE,
-    status TEXT NOT NULL DEFAULT 'queued',
+    status TEXT NOT NULL DEFAULT 'queued' CHECK(status IN ('building','ready','error','queued','inactive','pruned','paused')),
     commit_hash TEXT NOT NULL,
     commit_msg TEXT NOT NULL,
     image TEXT,

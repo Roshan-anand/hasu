@@ -27,7 +27,7 @@ export function useGetAllServicesQuery() {
 					.get<ApiRes<ServiceListResponse[]>>('/service/all', {
 						params: { instance_id: instance.current.id }
 					})
-					.then((res) => res.data.data),
+					.then((res) => res.data),
 			enabled: !!instance.current.id
 		};
 	});

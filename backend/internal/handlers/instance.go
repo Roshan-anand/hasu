@@ -18,17 +18,42 @@ type InstanceHandler struct {
 	qCtx     context.Context
 }
 
+type GetAllInstanceRes struct {
+	Instances []db.GetAllInstanceRow `json:"instances"`
+	ProjectID uuid.UUID              `json:"project_id"`
+}
+
+type RenameInstanceReq struct {
+	InstanceID uuid.UUID `json:"instance_id" validate:"required"`
+	ProjectID  uuid.UUID `json:"project_id" validate:"required"`
+	Name       string    `json:"name" validate:"required,min=3"`
+}
+
+type GraphNode struct {
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	Type        string    `json:"type"`
+	ServiceType string    `json:"service_type,omitempty"`
+}
+
+type GraphEdge struct {
+	Source    uuid.UUID `json:"source"`
+	Target    uuid.UUID `json:"target"`
+	TargetCol string    `json:"target_col"`
+	EnvKey    string    `json:"env_key"`
+}
+
+type DependencyGraphRes struct {
+	Nodes []GraphNode `json:"nodes"`
+	Edges []GraphEdge `json:"edges"`
+}
+
 func InitInstanceHandlers(s *config.Server) *InstanceHandler {
 	return &InstanceHandler{
 		Server:   s,
 		Validate: validator.New(),
 		qCtx:     context.Background(),
 	}
-}
-
-type GetAllInstanceRes struct {
-	Instances []db.GetAllInstanceRow `json:"instances"`
-	ProjectID uuid.UUID              `json:"project_id"`
 }
 
 // get all organizations accessible to the authenticated user
@@ -81,12 +106,6 @@ func (h *InstanceHandler) GetAllInstance(c *echo.Context) error {
 	})
 }
 
-type RenameInstanceReq struct {
-	InstanceID uuid.UUID `json:"instance_id" validate:"required"`
-	ProjectID  uuid.UUID `json:"project_id" validate:"required"`
-	Name       string    `json:"name" validate:"required,min=3"`
-}
-
 // rename a project instance
 //
 // route: PUT /api/instance/rename
@@ -111,25 +130,6 @@ func (h *InstanceHandler) RenameInstance(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, types.Res[db.RenameInstanceRow]{Message: "", Data: instance})
-}
-
-type GraphNode struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	Type        string    `json:"type"`
-	ServiceType string    `json:"service_type,omitempty"`
-}
-
-type GraphEdge struct {
-	Source    uuid.UUID `json:"source"`
-	Target    uuid.UUID `json:"target"`
-	TargetCol string    `json:"target_col"`
-	EnvKey    string    `json:"env_key"`
-}
-
-type DependencyGraphRes struct {
-	Nodes []GraphNode `json:"nodes"`
-	Edges []GraphEdge `json:"edges"`
 }
 
 // get all services in an instance and their dependency edges

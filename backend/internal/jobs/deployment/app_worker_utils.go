@@ -76,15 +76,31 @@ func runWorkerCmd(l *logbroker.LogBrokerService, dID uuid.UUID, cmd *exec.Cmd, w
 	return nil
 }
 
+// generates a unique output path for the given swarm service.
+func getOutputPath(baseDir, swarmService string) string {
+	outputPath := path.Join(baseDir, swarmService)
+	for i := 1; ; i++ {
+		if _, err := os.Stat(outputPath); os.IsNotExist(err) {
+			break
+		}
+		outputPath = outputPath + strconv.Itoa(i)
+	}
+	return outputPath
+}
+
 // returns a base service spec for the given parameters
 func (d *deployData) getBaseSpec() *swarm.ServiceSpec {
+	lbPort := d.port
+	if lbPort == 0 {
+		lbPort = 80
+	}
 
 	spec := &swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name: d.swarmService,
 			Labels: map[string]string{
 				fmt.Sprintf("traefik.http.routers.%s.entrypoints", d.swarmService):               "websecure",
-				fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", d.swarmService): "80",
+				fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", d.swarmService): fmt.Sprintf("%d", lbPort),
 				fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", d.swarmService):          "le",
 				"traefik.constraint-label": "head-proxy",
 			},
@@ -123,6 +139,11 @@ func (d *deployData) getBaseSpec() *swarm.ServiceSpec {
 		spec.TaskTemplate.ContainerSpec.Env = d.env
 	}
 
+	// if a preview domain is set, add explicit Host rule
+	if d.domain != "" {
+		spec.Annotations.Labels[fmt.Sprintf("traefik.http.routers.%s.rule", d.swarmService)] = fmt.Sprintf("Host(`%s`)", d.domain)
+	}
+
 	return spec
 }
 
@@ -156,7 +177,7 @@ func (d *DeploymentServiceUtils) getDockerBuildCmd(outputPath string) *exec.Cmd 
 		cmd.Args = append(cmd.Args, "--target", d.DockerBuildStage)
 	}
 
-	dockerCtxPath := path.Join(outputPath + d.DockerContextPath)
+	dockerCtxPath := path.Join(outputPath, d.DockerContextPath)
 	cmd.Args = append(cmd.Args, dockerCtxPath)
 
 	return cmd
@@ -190,6 +211,7 @@ func (d *DeploymentServiceParams) getDeployData(network string) *deployData {
 		isPublic:     d.IsPublic,
 		env:          d.Env,
 		imgName:      d.ImgName,
+		port:         80,
 	}
 }
 
@@ -339,12 +361,10 @@ func (d *DeploymentServiceUtils) buildImg(data *DeploymentService) error {
 	})
 
 	// remove the code folder
-	go func() {
-		if err := os.RemoveAll(d.OutputPath); err != nil {
-			fmt.Printf("BuildWorker: error removing code folder: %v\n", err)
-		}
-		fmt.Println("succesfully removed :", d.OutputPath)
-	}()
+	if err := os.RemoveAll(d.OutputPath); err != nil {
+		fmt.Printf("BuildWorker: error removing code folder: %v\n", err)
+	}
+	fmt.Println("succesfully removed :", d.OutputPath)
 
 	return nil
 }

@@ -74,6 +74,21 @@ func (q *Queries) DeleteGithubApp(ctx context.Context, appID int64) error {
 	return err
 }
 
+const deletePullRequest = `-- name: DeletePullRequest :exec
+DELETE FROM github_pull_requests
+WHERE repo_id = ? AND pr_number = ?
+`
+
+type DeletePullRequestParams struct {
+	RepoID   int64 `json:"repo_id"`
+	PrNumber int64 `json:"pr_number"`
+}
+
+func (q *Queries) DeletePullRequest(ctx context.Context, arg DeletePullRequestParams) error {
+	_, err := q.db.ExecContext(ctx, deletePullRequest, arg.RepoID, arg.PrNumber)
+	return err
+}
+
 const deleteRedirectSession = `-- name: DeleteRedirectSession :exec
 DELETE FROM redirect_session
 WHERE state = ?
@@ -142,6 +157,77 @@ func (q *Queries) GetGhAppByAppId(ctx context.Context, appID int64) (GithubApp, 
 	return i, err
 }
 
+const getPullRequestByRepoAndNumber = `-- name: GetPullRequestByRepoAndNumber :one
+SELECT id, repo_id, pr_number, title, head_branch, base_branch, state, html_url, created_at, updated_at
+FROM github_pull_requests
+WHERE repo_id = ? AND pr_number = ?
+`
+
+type GetPullRequestByRepoAndNumberParams struct {
+	RepoID   int64 `json:"repo_id"`
+	PrNumber int64 `json:"pr_number"`
+}
+
+func (q *Queries) GetPullRequestByRepoAndNumber(ctx context.Context, arg GetPullRequestByRepoAndNumberParams) (GithubPullRequest, error) {
+	row := q.db.QueryRowContext(ctx, getPullRequestByRepoAndNumber, arg.RepoID, arg.PrNumber)
+	var i GithubPullRequest
+	err := row.Scan(
+		&i.ID,
+		&i.RepoID,
+		&i.PrNumber,
+		&i.Title,
+		&i.HeadBranch,
+		&i.BaseBranch,
+		&i.State,
+		&i.HtmlUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPullRequestsByInstance = `-- name: GetPullRequestsByInstance :many
+SELECT DISTINCT pr.id, pr.repo_id, pr.pr_number, pr.title, pr.head_branch, pr.base_branch, pr.state, pr.html_url, pr.created_at, pr.updated_at
+FROM github_pull_requests pr
+JOIN app_service a ON a.gh_repo_id = pr.repo_id
+WHERE a.instance_id = ? AND pr.state = 'open'
+ORDER BY pr.updated_at DESC
+`
+
+func (q *Queries) GetPullRequestsByInstance(ctx context.Context, instanceID uuid.UUID) ([]GithubPullRequest, error) {
+	rows, err := q.db.QueryContext(ctx, getPullRequestsByInstance, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GithubPullRequest
+	for rows.Next() {
+		var i GithubPullRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.RepoID,
+			&i.PrNumber,
+			&i.Title,
+			&i.HeadBranch,
+			&i.BaseBranch,
+			&i.State,
+			&i.HtmlUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getRedirectSession = `-- name: GetRedirectSession :one
 SELECT state, user_id, org_id, gh_app_id, expires_at, created_at
 FROM redirect_session
@@ -204,5 +290,42 @@ type UpdateRedirectSessionParams struct {
 
 func (q *Queries) UpdateRedirectSession(ctx context.Context, arg UpdateRedirectSessionParams) error {
 	_, err := q.db.ExecContext(ctx, updateRedirectSession, arg.GhAppID, arg.State)
+	return err
+}
+
+const upsertPullRequest = `-- name: UpsertPullRequest :exec
+INSERT INTO github_pull_requests (id, repo_id, pr_number, title, head_branch, base_branch, state, html_url)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(repo_id, pr_number) DO UPDATE SET
+    title = excluded.title,
+    head_branch = excluded.head_branch,
+    base_branch = excluded.base_branch,
+    state = excluded.state,
+    html_url = excluded.html_url,
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type UpsertPullRequestParams struct {
+	ID         uuid.UUID `json:"id"`
+	RepoID     int64     `json:"repo_id"`
+	PrNumber   int64     `json:"pr_number"`
+	Title      string    `json:"title"`
+	HeadBranch string    `json:"head_branch"`
+	BaseBranch string    `json:"base_branch"`
+	State      string    `json:"state"`
+	HtmlUrl    string    `json:"html_url"`
+}
+
+func (q *Queries) UpsertPullRequest(ctx context.Context, arg UpsertPullRequestParams) error {
+	_, err := q.db.ExecContext(ctx, upsertPullRequest,
+		arg.ID,
+		arg.RepoID,
+		arg.PrNumber,
+		arg.Title,
+		arg.HeadBranch,
+		arg.BaseBranch,
+		arg.State,
+		arg.HtmlUrl,
+	)
 	return err
 }

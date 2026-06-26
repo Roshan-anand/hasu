@@ -26,6 +26,31 @@ import (
 	"github.com/labstack/echo/v5/echotest"
 )
 
+type TestEchoBody struct {
+	T      *testing.T
+	H      echo.HandlerFunc
+	Body   any
+	Query  url.Values
+	Params echo.PathValues
+	IsAuth bool
+}
+
+type MockUser struct {
+	Name       string
+	Email      string
+	OrgId      uuid.UUID
+	OrgName    string
+	ProjectID  uuid.UUID
+	InstanceID uuid.UUID
+}
+
+var registerBody = &handlers.RegisterReq{
+	Email:    "test@email.com",
+	Name:     "sample",
+	Password: "testtest",
+	OrgName:  "red",
+}
+
 // initialize a mock server for testing with config values suitable for testing
 func mockServer() (*echo.Echo, *config.Server, error) {
 
@@ -184,15 +209,6 @@ func GetDummyServerHandler() (*config.Server, *handlers.Handler, error) {
 	return server, h, nil
 }
 
-type TestEchoBody struct {
-	T      *testing.T
-	H      echo.HandlerFunc
-	Body   any
-	Query  url.Values
-	Params echo.PathValues
-	IsAuth bool
-}
-
 func TestEchoHandler(te *TestEchoBody) (*httptest.ResponseRecorder, error) {
 
 	config := echotest.ContextConfig{
@@ -235,22 +251,6 @@ func TestEchoHandler(te *TestEchoBody) (*httptest.ResponseRecorder, error) {
 	}
 
 	return rec, nil
-}
-
-var registerBody = &handlers.RegisterReq{
-	Email:    "test@email.com",
-	Name:     "sample",
-	Password: "testtest",
-	OrgName:  "red",
-}
-
-type MockUser struct {
-	Name       string
-	Email      string
-	OrgId      uuid.UUID
-	OrgName    string
-	ProjectID  uuid.UUID
-	InstanceID uuid.UUID
 }
 
 // mock a new logined user

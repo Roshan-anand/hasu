@@ -96,6 +96,23 @@ func (q *Queries) GetCurrentDeploymentByServiceId(ctx context.Context, serviceID
 	return i, err
 }
 
+const getCurrentDeploymentWithImageByServiceId = `-- name: GetCurrentDeploymentWithImageByServiceId :one
+SELECT id, status, image FROM deployments WHERE service_id = ? AND is_current = TRUE
+`
+
+type GetCurrentDeploymentWithImageByServiceIdRow struct {
+	ID     uuid.UUID              `json:"id"`
+	Status types.DeploymentStatus `json:"status"`
+	Image  sql.NullString         `json:"image"`
+}
+
+func (q *Queries) GetCurrentDeploymentWithImageByServiceId(ctx context.Context, serviceID uuid.UUID) (GetCurrentDeploymentWithImageByServiceIdRow, error) {
+	row := q.db.QueryRowContext(ctx, getCurrentDeploymentWithImageByServiceId, serviceID)
+	var i GetCurrentDeploymentWithImageByServiceIdRow
+	err := row.Scan(&i.ID, &i.Status, &i.Image)
+	return i, err
+}
+
 const getDeploymentImgByID = `-- name: GetDeploymentImgByID :one
 SELECT d.id, d.image
 FROM deployments d

@@ -1,11 +1,5 @@
 <script lang="ts">
-	import {
-		AppDeployments,
-		AppHome,
-		AppSettings,
-		AppEnv,
-		AppDependency
-	} from '@/components/services/app';
+	import { AppDeployments, AppHome, AppSettings, AppEnv } from '@/components/services/app';
 	import * as NavigationMenu from '@/components/ui/navigation-menu';
 	import { NavItems } from '@/features/services';
 	import { useGetServiceIDQuery } from '@/features/services';
@@ -58,10 +52,8 @@
 		{:else if tab === 'env'}
 			<p class="text-muted-foreground">Environment variables tab content goes here</p>
 			<AppEnv {serviceID} />
-		{:else if tab === 'dependencies'}
-			<AppDependency {serviceID} />
 		{:else if tab === 'settings'}
-			<AppSettings {serviceID} />
+			<AppSettings {serviceID} {serviceName} />
 		{:else}
 			<AppHome {serviceID} project={projectName} />
 		{/if}

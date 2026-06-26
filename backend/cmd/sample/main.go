@@ -1,27 +1,28 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+	"net/url"
+)
 
 func main() {
-	envs := []string{"PROT=8080", "HOST=localhost", "DEBUG=true"}
 
-	resolver := []struct {
-		Key   string
-		Value interface{}
-	}{
-		{"PROT", 8080},
-		{"HOST", "localhost"},
-		{"DEBUG", true},
+	urls := []string{
+		"example.com",
+		"example.com/path/to/resource",
+		"https://example.com/",
 	}
 
-	for _, env := range resolver {
-		val, ok := env.Value.(string)
-		if ok {
-			envs = append(envs, env.Key+"="+val)
-		} else {
-			envs = append(envs, env.Key+"="+fmt.Sprintf("%v", env.Value))
+	for _, u := range urls {
+		pUrl, err := url.Parse(u)
+		if err != nil {
+			log.Fatal(err)
 		}
-	}
 
-	fmt.Println(envs)
+		fmt.Printf("%q\n", u)
+		fmt.Printf("Scheme: %q\n", pUrl.Scheme)
+		fmt.Printf("Host:   %q\n", pUrl.Host)
+		fmt.Printf("Path:   %q\n\n", pUrl.Path)
+	}
 }

@@ -16,6 +16,7 @@ type Handler struct {
 	Volume       *VolumeHandler
 	Instance     *InstanceHandler
 	Dependency   *DependencyHandler
+	Preview      *PreviewHandler
 }
 
 func NewHandeler(srv *config.Server) *Handler {
@@ -33,5 +34,6 @@ func NewHandeler(srv *config.Server) *Handler {
 		Volume:       InitVolumeHandlers(srv),
 		Instance:     InitInstanceHandlers(srv),
 		Dependency:   InitDependencyHandlers(srv),
+		Preview:      InitPreviewHandlers(srv),
 	}
 }

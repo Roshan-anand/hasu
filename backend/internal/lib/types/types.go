@@ -31,6 +31,21 @@ const (
 	MongoPredefServiceType PredefServiceType = "mongodb"
 )
 
+type InstanceStatus string
+
+const (
+	InstanceCreating InstanceStatus = "creating"
+	InstanceReady    InstanceStatus = "ready"
+	InstanceDeleting InstanceStatus = "deleting"
+)
+
+type GitSourceType string
+
+const (
+	GitSourcePR     GitSourceType = "pr"
+	GitSourceBranch GitSourceType = "branch"
+)
+
 type DeploymentStatus string
 
 const (
@@ -50,7 +65,26 @@ const (
 	PredefServicePaused  PredefinedServiceStatus = "paused"
 )
 
+type CreatedBy string
+
+const (
+	CreatedByManual  CreatedBy = "manual"
+	CreatedByWebhook CreatedBy = "webhook"
+)
+
+type PRState string
+
+const (
+	PROpen   PRState = "open"
+	PRClosed PRState = "closed"
+)
+
+// Ptr returns a pointer to v. Useful for constructing nullable sqlc overrides.
+func Ptr[T ~string](v T) *T { return &v }
+
 type Res[T any] struct {
 	Message string `json:"message" validate:"required"`
 	Data    T      `json:"data"`
 }
+
+const ()

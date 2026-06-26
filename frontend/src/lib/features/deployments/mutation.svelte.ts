@@ -46,3 +46,12 @@ export function useRollbackServiceMutation() {
 		onError: (error) => axiosErr(error as Error, 'Failed to start rollback')
 	}));
 }
+
+export function useRedeploServiceMutation() {
+	return createMutation(() => ({
+		mutationFn: async (payload: { service_id: string }) =>
+			api.post<ApiRes<null>>('/service/app/redeploy', payload).then((res) => res.data),
+		onSuccess: ({ message }) => toast.success(message || 'successfully redeployed '),
+		onError: (error) => axiosErr(error as Error, 'Failed to redeploy')
+	}));
+}

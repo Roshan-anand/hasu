@@ -377,6 +377,47 @@ func (q *Queries) GetPsqlServiceById(ctx context.Context, serviceID uuid.UUID) (
 	return i, err
 }
 
+const getPsqlServicesByInstanceID = `-- name: GetPsqlServicesByInstanceID :many
+SELECT id, instance_id, status, type, name, swarm_service, db_name, db_user, db_password, image, volume, internal_url, created_at FROM psql_service WHERE instance_id = ?
+`
+
+func (q *Queries) GetPsqlServicesByInstanceID(ctx context.Context, instanceID uuid.UUID) ([]PsqlService, error) {
+	rows, err := q.db.QueryContext(ctx, getPsqlServicesByInstanceID, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PsqlService
+	for rows.Next() {
+		var i PsqlService
+		if err := rows.Scan(
+			&i.ID,
+			&i.InstanceID,
+			&i.Status,
+			&i.Type,
+			&i.Name,
+			&i.SwarmService,
+			&i.DbName,
+			&i.DbUser,
+			&i.DbPassword,
+			&i.Image,
+			&i.Volume,
+			&i.InternalUrl,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const transferOrphanVolume = `-- name: TransferOrphanVolume :exec
 UPDATE orphan_volume
 SET organization_id = ?

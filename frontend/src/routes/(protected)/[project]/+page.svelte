@@ -30,13 +30,22 @@
 
 	const getProjectName = () => data.projectName;
 
+	// instance status derived from API message — cooking / deleting / ready
+	const instanceStatus = $derived.by(() => {
+		if (servicesQuery.isPending) return 'loading';
+		if (!servicesQuery.data) return 'loading';
+		return servicesQuery.data.message || 'ready';
+	});
+
+	const services = $derived(servicesQuery.data?.data ?? []);
+
 	const filteredServices = $derived.by(() => {
-		if (!servicesQuery.data) return [];
+		if (services.length === 0) return [];
 
 		const keyword = searchQuery.trim().toLowerCase();
-		if (keyword === '') return servicesQuery.data;
+		if (keyword === '') return services;
 
-		return servicesQuery.data.filter((service) => service.name.toLowerCase().includes(keyword));
+		return services.filter((service) => service.name.toLowerCase().includes(keyword));
 	});
 
 	const createOptions = [
@@ -132,12 +141,22 @@
 </nav>
 
 <section class="relative flex-1 overflow-hidden p-4">
-	{#if servicesQuery.isPending}
+	{#if instanceStatus === 'loading'}
 		<div class="size-full flex items-center justify-center">
 			<DotmSquare size={65} dotSize={8} />
 		</div>
 	{:else if servicesQuery.isError}
 		<p class="text-destructive">Failed to load services</p>
+	{:else if instanceStatus === 'cooking'}
+		<div class="size-full flex flex-col items-center justify-center gap-2">
+			<DotmSquare size={65} dotSize={8} />
+			<p class="text-muted-foreground text-sm">cooking the instance</p>
+		</div>
+	{:else if instanceStatus === 'deleting'}
+		<div class="size-full flex flex-col items-center justify-center gap-2">
+			<DotmSquare size={65} dotSize={8} />
+			<p class="text-muted-foreground text-sm">deleting the instance</p>
+		</div>
 	{:else if filteredServices.length > 0}
 		{#if viewMode === 'graph'}
 			<GraphView

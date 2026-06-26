@@ -8,8 +8,6 @@
 	import { ProjectDeletion } from '@/components/conformation';
 	import { Pencil, Trash2, Settings2 } from '@lucide/svelte';
 	import InstancePRPreviewDropdown from '../InstancePRPreviewDropdown.svelte';
-	import type { PRInfo } from '@/features/services';
-	import { X } from '@lucide/svelte';
 
 	type Props = {
 		projectId: string;
@@ -48,27 +46,7 @@
 	function openDeleteDialog() {
 		deleteDialogOpen = true;
 	}
-
-	let selectedPR = $state<{ serviceName: string; pr: PRInfo } | null>(null);
 </script>
-
-{#if selectedPR}
-	<div
-		class="mb-3 p-2 bg-accent text-accent-foreground rounded-lg flex items-center justify-between border"
-	>
-		<div class="flex items-center gap-2">
-			<span class="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-semibold"
-				>PR Preview</span
-			>
-			<span class="font-medium text-sm"
-				>{selectedPR.serviceName} - #{selectedPR.pr.number}: {selectedPR.pr.title}</span
-			>
-		</div>
-		<Button variant="ghost" size="icon" class="h-6 w-6" onclick={() => (selectedPR = null)}>
-			<X class="h-4 w-4" />
-		</Button>
-	</div>
-{/if}
 
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger>
@@ -88,7 +66,7 @@
 			Delete
 		</DropdownMenu.Item>
 
-		<InstancePRPreviewDropdown onSelect={(serviceName, pr) => (selectedPR = { serviceName, pr })} />
+		<InstancePRPreviewDropdown />
 	</DropdownMenu.Content>
 </DropdownMenu.Root>
 

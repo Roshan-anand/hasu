@@ -173,8 +173,8 @@ func TestAppServiceDomainUpdate(t *testing.T) {
 		if !service.IsPublic {
 			t.Fatal("expected is_public to be true")
 		}
-		if service.Domain != "my-app.godploy.localhost" {
-			t.Fatalf("expected domain 'my-app.godploy.localhost', got '%s'", service.Domain)
+		if service.Domain.String != "my-app.godploy.localhost" {
+			t.Fatalf("expected domain 'my-app.godploy.localhost', got '%s'", service.Domain.String)
 		}
 	})
 

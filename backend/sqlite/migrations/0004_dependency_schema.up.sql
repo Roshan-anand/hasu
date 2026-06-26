@@ -1,6 +1,3 @@
-DROP TABLE IF EXISTS domain_dependencies;
-DROP TABLE IF EXISTS internal_dependencies;
-
 CREATE TABLE IF NOT EXISTS service_dependencies (
     id uuid PRIMARY KEY,
     source_service_id uuid NOT NULL REFERENCES app_service(id) ON DELETE CASCADE,

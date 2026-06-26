@@ -28,17 +28,21 @@ type DeploymentReq struct {
 	DeploymentID uuid.UUID `json:"deployment_id" validate:"required"`
 }
 
+type GetAllServicesRes struct {
+	db.GetAllServiceRow
+	Replicas int32 `json:"replicas"`
+}
+
+type PredefServiceReq struct {
+	ServiceID uuid.UUID `json:"service_id" validate:"required"`
+}
+
 func InitServiceHandlers(s *config.Server) *ServiceHandler {
 	return &ServiceHandler{
 		Server:   s,
 		Validate: validator.New(),
 		qCtx:     context.Background(),
 	}
-}
-
-type GetAllServicesRes struct {
-	db.GetAllServiceRow
-	Replicas int32 `json:"replicas"`
 }
 
 // get all services of a project
@@ -50,6 +54,27 @@ func (h *ServiceHandler) GetAllServices(c *echo.Context) error {
 	instanceID, err := uuid.Parse(c.QueryParam("instance_id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid instance_id"})
+	}
+
+	// check the status of the instance — only fetch services when ready
+	status, err := q.GetInstanceStatus(h.qCtx, instanceID)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "invalid instance_id"})
+	}
+
+	if status != types.InstanceReady {
+		var msg string
+		switch status {
+		case types.InstanceCreating:
+			msg = "cooking"
+		case types.InstanceDeleting:
+			msg = "deleting"
+		default:
+			msg = "instance not ready"
+		}
+		return c.JSON(http.StatusOK, types.Res[[]GetAllServicesRes]{
+			Message: msg,
+		})
 	}
 
 	// get all services of the project
@@ -185,10 +210,6 @@ func (h *ServiceHandler) GetServiceLogs(c *echo.Context) error {
 			return nil
 		}
 	}
-}
-
-type PredefServiceReq struct {
-	ServiceID uuid.UUID `json:"service_id" validate:"required"`
 }
 
 // StopPredefService — stops a predefined (PSQL/Redis) service

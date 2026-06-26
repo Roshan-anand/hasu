@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/google/uuid"
 )
 
@@ -81,16 +82,17 @@ func (q *Queries) CountUserOrgs(ctx context.Context) (int64, error) {
 }
 
 const createInstance = `-- name: CreateInstance :exec
-INSERT INTO instance (id, project_id, is_production, name, network)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO instance (id, project_id, is_production, name, network, status)
+VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type CreateInstanceParams struct {
-	ID           uuid.UUID `json:"id"`
-	ProjectID    uuid.UUID `json:"project_id"`
-	IsProduction bool      `json:"is_production"`
-	Name         string    `json:"name"`
-	Network      string    `json:"network"`
+	ID           uuid.UUID            `json:"id"`
+	ProjectID    uuid.UUID            `json:"project_id"`
+	IsProduction bool                 `json:"is_production"`
+	Name         string               `json:"name"`
+	Network      string               `json:"network"`
+	Status       types.InstanceStatus `json:"status"`
 }
 
 func (q *Queries) CreateInstance(ctx context.Context, arg CreateInstanceParams) error {
@@ -100,6 +102,7 @@ func (q *Queries) CreateInstance(ctx context.Context, arg CreateInstanceParams) 
 		arg.IsProduction,
 		arg.Name,
 		arg.Network,
+		arg.Status,
 	)
 	return err
 }
@@ -408,6 +411,19 @@ func (q *Queries) GetInstanceNetwork(ctx context.Context, instanceID uuid.UUID) 
 	var network string
 	err := row.Scan(&network)
 	return network, err
+}
+
+const getInstanceStatus = `-- name: GetInstanceStatus :one
+SELECT status
+FROM instance
+WHERE id = ?1
+`
+
+func (q *Queries) GetInstanceStatus(ctx context.Context, instanceID uuid.UUID) (types.InstanceStatus, error) {
+	row := q.db.QueryRowContext(ctx, getInstanceStatus, instanceID)
+	var status types.InstanceStatus
+	err := row.Scan(&status)
+	return status, err
 }
 
 const getOrgById = `-- name: GetOrgById :one

@@ -26,6 +26,5 @@ export const NavItems: NavItem[] = [
 	{ label: 'General', tab: '' },
 	{ label: 'Deployment', tab: 'deployment' },
 	{ label: 'Environment', tab: 'env' },
-	{ label: 'Dependencies', tab: 'dependencies' },
 	{ label: 'Settings', tab: 'settings' }
 ];

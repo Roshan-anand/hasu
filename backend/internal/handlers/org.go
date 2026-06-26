@@ -41,6 +41,12 @@ type SwitchOrgRes struct {
 	Name  string    `json:"name"`
 }
 
+type TransferVolumeReq struct {
+	VolumeID    uuid.UUID `json:"volume_id" validate:"required"`
+	TargetOrgID uuid.UUID `json:"target_org_id" validate:"required"`
+	SourceOrgID uuid.UUID `json:"source_org_id" validate:"required"`
+}
+
 func InitOrgHandlers(s *config.Server) *OrgHandler {
 	return &OrgHandler{
 		Server:   s,
@@ -272,12 +278,6 @@ func (h *OrgHandler) GetOrgVolumes(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, types.Res[[]db.OrphanVolume]{Message: "", Data: volumes})
-}
-
-type TransferVolumeReq struct {
-	VolumeID    uuid.UUID `json:"volume_id" validate:"required"`
-	TargetOrgID uuid.UUID `json:"target_org_id" validate:"required"`
-	SourceOrgID uuid.UUID `json:"source_org_id" validate:"required"`
 }
 
 // transfer an orphan volume to another organization

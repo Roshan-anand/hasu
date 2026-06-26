@@ -231,6 +231,8 @@ export type PRInfo = {
 	title: string;
 	state: string;
 	html_url: string;
+	head_branch: string;
+	repo_id: number;
 };
 
 // dependency graph types

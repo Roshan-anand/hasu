@@ -3,17 +3,18 @@
 	import * as Dialog from '@/components/ui/dialog';
 	import { Input } from '@/components/ui/input';
 	import { X, Search, GitPullRequest } from '@lucide/svelte';
-	import { useGetGithubPRListByInstanceQuery } from '@/features/services';
+	import { useGetGithubPRListByInstanceQuery, useCreatePreviewMutation } from '@/features/services';
 	import type { PRInfo } from '@/features/services';
 	import { DotmSquare } from '@/components/loader';
-
-	let { onSelect }: { onSelect: (serviceName: string, pr: PRInfo) => void } = $props();
+	import { getInstanceState } from '@/features/instance';
 
 	let dialogOpen = $state(false);
 	let searchQuery = $state('');
 	let selectedPRState = $state<{ serviceName: string; pr: PRInfo } | null>(null);
 
 	const prQuery = useGetGithubPRListByInstanceQuery();
+	const createPreviewMutation = useCreatePreviewMutation();
+	const instance = getInstanceState();
 
 	const handleOpenPreviewDialog = () => {
 		dialogOpen = true;
@@ -27,10 +28,26 @@
 	};
 
 	const handleConfirm = () => {
-		if (selectedPRState) {
-			onSelect(selectedPRState.serviceName, selectedPRState.pr);
-		}
-		dialogOpen = false;
+		if (!selectedPRState) return;
+		if (createPreviewMutation.isPending) return;
+
+		const { serviceName, pr } = selectedPRState;
+		createPreviewMutation.mutate(
+			{
+				project_id: instance.projectID,
+				name: `${serviceName}-pr-${pr.number}`,
+				pr_number: pr.number,
+				repo_id: pr.repo_id,
+				head_branch: pr.head_branch,
+				git_source_type: 'pr',
+				git_source_value: pr.html_url
+			},
+			{
+				onSuccess: () => {
+					dialogOpen = false;
+				}
+			}
+		);
 	};
 
 	const filteredGroupedPRs = $derived.by(() => {
@@ -146,7 +163,13 @@
 
 			<div class="flex justify-end gap-2 pt-4 border-t mt-4">
 				<Button variant="outline" type="button" onclick={() => (dialogOpen = false)}>Cancel</Button>
-				<Button type="button" disabled={!selectedPRState} onclick={handleConfirm}>Create</Button>
+				<Button
+					type="button"
+					disabled={!selectedPRState || createPreviewMutation.isPending}
+					onclick={handleConfirm}
+				>
+					{createPreviewMutation.isPending ? 'Creating...' : 'Create'}
+				</Button>
 			</div>
 		</Dialog.Content>
 	</Dialog.Portal>

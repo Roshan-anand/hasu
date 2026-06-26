@@ -1,3 +1,6 @@
+-- name: GetPsqlServicesByInstanceID :many
+SELECT * FROM psql_service WHERE instance_id = ?;
+
 -- name: CreatePsqlService :one
 INSERT INTO psql_service (id, instance_id, type, status, swarm_service, name, db_name, db_user, db_password, internal_url, image, volume)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

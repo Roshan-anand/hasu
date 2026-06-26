@@ -1,3 +1,6 @@
+-- name: GetRedisServicesByInstanceID :many
+SELECT * FROM redis_service WHERE instance_id = ?;
+
 -- name: CreateRedisService :one
 INSERT INTO redis_service (id, instance_id, type, status, swarm_service, name, password, internal_url, image, volume)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

@@ -31,6 +31,8 @@
 - [x] update the project tests to include orphan volume cases
 - [x] API & tests for orphan volume operations
 - [x] switching org dosent refetch other query like get project, gh_app etc.
+- [ ] add watch_path docker file,context and build path settigns in app settings.
+
 
 ## enhancements
 
@@ -57,6 +59,8 @@
 - [ ] when sidebar collapse the organization button avatar is oddly placed, fix by keeping it in center. [easy, ui]
 - [x] if app service is internal then ask for port so in backend it automanically create internal url for internal communication between services.
 - [ ] enhance log broker worker cunncurrency as per users
+- [ ] enhance app service settings by controling few setting to check if service-exists in order to perform edits. 
+- [ ] gracefully handle redeploy when previous deployment is still in progress (also applies for new commit when prev dyp is still in progress)
 
 ## Potential bugs
 
@@ -69,3 +73,11 @@
 - [x] in create_service_form, if the name input have '/' in the string then this cause bug while creating a file for that code in the name of the service_name. so need to prevent user from entering '/' in the name input field. [easy, ui]
 - [x] when view deployment logs after it is ended, or late subscribed then logs are not fully shown or have random logs.
 - [ ] when deleting github app the every delete btn shows deleting if any one is clicked. [easy, ui]
+
+## TODOs
+
+- [ ] Manual deletion of depdendency if service_id == target_id
+- [ ] for every get<any>service API add a layer of verifying swarm_service exists. also for predef check vol also.
+- [ ] varify  github webhook issue_comment
+- [ ] validate if users given domain is correctly storeed in DB, later for preview service to create subdomains.
+- [ ] remoeve `build_path` entirely

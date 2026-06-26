@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"path"
 
 	"github.com/Roshan-anand/godploy/internal/jobs/logbroker"
 	"github.com/Roshan-anand/godploy/internal/lib/docker"
@@ -22,6 +21,8 @@ type deployData struct {
 	isPublic     bool      `validate:"required"`
 	env          []string  `validate:"required"`
 	imgName      string    `validate:"required"`
+	domain       string
+	port         int32
 }
 
 type ReDeployData struct {
@@ -29,6 +30,18 @@ type ReDeployData struct {
 	SwarmService string    `validate:"required"`
 	Env          []string  `validate:"required"`
 	ImgName      string    `validate:"required"`
+}
+
+type CloneDeployData struct {
+	InstanceID   uuid.UUID `validate:"required"`
+	ServiceID    uuid.UUID `validate:"required"`
+	SwarmService string    `validate:"required"`
+	NetworkName  string    `validate:"required"`
+	ImgName      string    `validate:"required"`
+	Env          []string  `validate:"required"`
+	Domain       string    `validate:"required"`
+	IsPublic     bool
+	Port         int32
 }
 
 type DeploymentServiceParams struct {
@@ -66,8 +79,10 @@ func (d *DeploymentService) runDeploymentPipeline(ctx context.Context, data *Dep
 	// resolve and merge dependency env values
 	data.Env = MergeDependencyEnv(d.db.Queries, data.ServiceID, data.Env)
 
+	// create a unique output path for the code
+	outputPath := getOutputPath(d.codeStoreDir, data.SwarmService)
+
 	// create the deployment utils
-	outputPath := path.Join(d.codeStoreDir, data.SwarmService)
 	utils, err := d.newDeploymentServiceUtils(&DeploymentServiceUtils{
 		DeploymentID:      data.DeploymentID,
 		Token:             data.Token,
@@ -162,8 +177,10 @@ func (d *DeploymentService) runRebuildPipeline(ctx context.Context, data *Rebuil
 		return // TODO : trigger retry logic
 	}
 
+	// create a unique output path for the code
+	outputPath := getOutputPath(d.codeStoreDir, s.SwarmService)
+
 	// create the deployment utils
-	outputPath := path.Join(d.codeStoreDir, s.SwarmService)
 	utils, err := d.newDeploymentServiceUtils(&DeploymentServiceUtils{
 		DeploymentID:      dID,
 		Token:             gh.Token,
@@ -292,5 +309,57 @@ func (d *DeploymentService) redeploy(data *ReDeployData) {
 		DeploymentID: data.DeploymentID,
 		Status:       types.DeploymentReady,
 		Message:      successMsg("successfully redeployed"),
+	})
+}
+
+// runCloneDeployPipeline creates a new swarm service for a preview instance
+// using an existing production image and merged environment variables.
+// It skips the build step entirely and applies a preview-specific Traefik Host rule.
+func (d *DeploymentService) runCloneDeployPipeline(ctx context.Context, data *CloneDeployData) {
+	if err := d.v.Struct(data); err != nil {
+		log.Printf("CloneDeploy: validation error: %v\n", err)
+		return
+	}
+
+	d.log.PublishLog(&logbroker.PubData{
+		Msg: infoMsg("Clone deploying preview service " + data.SwarmService),
+	})
+
+	// resolve and merge dependency env values
+	env := MergeDependencyEnv(d.db.Queries, data.ServiceID, data.Env)
+
+	// create the network if it doesn't exist
+	if err := d.docker.CreateNetwork(data.NetworkName); err != nil {
+		fmt.Printf("CloneDeploy: error creating network: %v\n", err)
+		d.log.EndLogs(&logbroker.EndLogData{
+			Status:  types.DeploymentError,
+			Message: errorMsg(err.Error()),
+		})
+		return
+	}
+
+	spec := (&deployData{
+		swarmService: data.SwarmService,
+		networkName:  data.NetworkName,
+		isPublic:     data.IsPublic,
+		env:          env,
+		imgName:      data.ImgName,
+		domain:       data.Domain,
+		port:         data.Port,
+	}).getBaseSpec()
+
+	_, err := d.docker.Client.ServiceCreate(ctx, *spec, swarm.ServiceCreateOptions{})
+	if err != nil {
+		fmt.Printf("CloneDeploy: error creating service: %v\n", err)
+		d.log.EndLogs(&logbroker.EndLogData{
+			Status:  types.DeploymentError,
+			Message: errorMsg(err.Error()),
+		})
+		return
+	}
+
+	fmt.Println("finished clone deploying:", data.SwarmService)
+	d.log.PublishLog(&logbroker.PubData{
+		Msg: successMsg("successfully clone deployed : " + data.SwarmService),
 	})
 }

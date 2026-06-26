@@ -10,6 +10,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// removeStaleLock cleans up the Badger LOCK file left behind by an unclean
+// shutdown (Air hot-reload, docker stop, crash). Badger itself recovers from
+// the WAL on next open — the LOCK file is only a mutual-exclusion guard.
+func removeStaleLock(dir string) {
+	lockPath := filepath.Join(dir, "LOCK")
+	if _, err := os.Stat(lockPath); err == nil {
+		os.Remove(lockPath)
+	}
+}
+
 type BadgerDB struct {
 	Pool *badger.DB
 }
@@ -21,6 +31,8 @@ func InitBadgerDB(dir string) (*BadgerDB, error) {
 	}
 
 	p := filepath.Join(dir, "logs")
+
+	removeStaleLock(p)
 
 	pool, err := badger.Open(badger.DefaultOptions(p))
 	if err != nil {

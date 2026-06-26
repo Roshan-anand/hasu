@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"net/http"
+
 	"github.com/Roshan-anand/godploy/frontend"
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/handlers"
@@ -34,6 +36,10 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	// public routes
 	public.GET("/health", h.Health.HealthCheck)
 	public.POST("/sample", h.Health.SetGhApp)
+	// TODO : remove in production
+	public.GET("/debug/routes", func(c *echo.Context) error {
+		return c.JSON(http.StatusOK, e.Router().Routes())
+	})
 
 	// initialize auth api routes
 	auth := public.Group("/auth")
@@ -70,6 +76,9 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	instance.GET("", h.Instance.GetAllInstance)
 	instance.PUT("/rename", h.Instance.RenameInstance)
 	instance.GET("/:id/dependency-graph", h.Instance.GetDependencyGraph)
+	instance.GET("/preview/list", h.Preview.ListPreviews)
+	instance.POST("/preview", h.Preview.CreatePreview)
+	instance.DELETE("/preview", h.Preview.DeletePreview)
 
 	volume := protected.Group("/volume")
 	volume.GET("", h.Service.GetAllVolume)
@@ -116,6 +125,7 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	app.POST("/resume", h.Service.ResumeAppService)
 	app.POST("/rebuild", h.Deployment.RebuildAppService)
 	app.POST("/rollback", h.Deployment.RollbackAppService)
+	app.POST("/redeploy", h.Deployment.RedeployAppService)
 	app.GET("/dependencies", h.Dependency.GetServiceDependencies)
 	app.POST("/dependencies", h.Dependency.CreateServiceDependency)
 	app.PUT("/dependencies/:id", h.Dependency.UpdateServiceDependency)

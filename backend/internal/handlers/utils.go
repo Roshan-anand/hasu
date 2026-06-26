@@ -14,6 +14,29 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
+// auto-submitting form template — POST to GitHub with manifest in body (required by GitHub manifest flow)
+const githubManifestFormTmpl = `<!DOCTYPE html>
+<html>
+<body>
+  <form id="mf" action="https://github.com/settings/apps/new?state={{.State}}" method="POST">
+    <input type="hidden" name="manifest" value="{{.Manifest}}">
+  </form>
+  <script>document.getElementById("mf").submit();</script>
+</body>
+</html>`
+
+// Bundles GitHub client creation, repo fetch, and latest commit fetch into one call.
+type GitHubDeployData struct {
+	Token        string
+	Owner        string
+	RepoName     string
+	RepoFullName string
+	RepoURL      string
+	RepoURLPath  string
+	CommitHash   string
+	CommitMsg    string
+}
+
 // Generates a unique GitHub App name per manifest to avoid collisions across setup attempts.
 func generateGitHubManifestAppName() (string, error) {
 	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -73,9 +96,10 @@ func getManifestData(url string, state string) (string, error) {
 		"default_permissions": map[string]string{
 			"contents":      "read",
 			"metadata":      "read",
-			"pull_requests": "read",
+			"pull_requests": "write",
+			"issues":        "write",
 		},
-		"default_events": []string{"push"},
+		"default_events": []string{"push", "pull_request", "issues"},
 	}
 
 	manifestDataB, err := json.Marshal(manifest)
@@ -84,29 +108,6 @@ func getManifestData(url string, state string) (string, error) {
 	}
 
 	return string(manifestDataB), nil
-}
-
-// auto-submitting form template — POST to GitHub with manifest in body (required by GitHub manifest flow)
-const githubManifestFormTmpl = `<!DOCTYPE html>
-<html>
-<body>
-  <form id="mf" action="https://github.com/settings/apps/new?state={{.State}}" method="POST">
-    <input type="hidden" name="manifest" value="{{.Manifest}}">
-  </form>
-  <script>document.getElementById("mf").submit();</script>
-</body>
-</html>`
-
-// Bundles GitHub client creation, repo fetch, and latest commit fetch into one call.
-type GitHubDeployData struct {
-	Token        string
-	Owner        string
-	RepoName     string
-	RepoFullName string
-	RepoURL      string
-	RepoURLPath  string
-	CommitHash   string
-	CommitMsg    string
 }
 
 func GetGitHubDeployData(q *db.Queries, ghAppID int64, ghRepoID int64, branch string) (*GitHubDeployData, error) {

@@ -9,10 +9,10 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
+	deployjob "github.com/Roshan-anand/godploy/internal/jobs/deployment"
 	"github.com/Roshan-anand/godploy/internal/lib/auth"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/go-playground/validator/v10"
@@ -126,56 +126,26 @@ func (h *ServiceHandler) CreateRedisService(c *echo.Context) error {
 		volumeName = b.Volume
 	}
 
-	// create network if not exist
 	network, err := q.GetInstanceNetwork(h.qCtx, b.InstanceID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to fetch project network"})
 	}
-	if err := h.Server.Docker.CreateNetwork(network); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create network"})
-	}
 
-	// build environment variables
 	env := []string{}
 	if b.Password != "" {
 		env = append(env, "REDIS_PASSWORD="+b.Password)
 	}
 
-	// config swarm service spec
-	spec := swarm.ServiceSpec{
-		Annotations: swarm.Annotations{
-			Name: serviceName,
-		},
-
-		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
-				Image: b.Image,
-
-				Env: env,
-
-				Mounts: []mount.Mount{
-					{
-						Type:   mount.TypeVolume,
-						Source: volumeName,
-						Target: "/data",
-					},
-				},
-			},
-
-			Networks: []swarm.NetworkAttachmentConfig{
-				{
-					Target: network,
-				},
-			},
-
-			RestartPolicy: &swarm.RestartPolicy{
-				Condition: swarm.RestartPolicyConditionAny,
-			},
-		},
-	}
-
-	// depoly the service
-	_, err = docker.ServiceCreate(h.qCtx, spec, swarm.ServiceCreateOptions{})
+	err = deployjob.DeployPredefinedService(
+		h.qCtx,
+		h.Server.Docker,
+		network,
+		serviceName,
+		b.Image,
+		env,
+		volumeName,
+		deployjob.RedisMountTarget,
+	)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to deploy service"})
 	}

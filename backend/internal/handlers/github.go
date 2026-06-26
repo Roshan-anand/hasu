@@ -68,6 +68,16 @@ type GetGithubRepoListRes struct {
 	RepoURL       string   `json:"repo_url"`
 }
 
+type PRInfo struct {
+	ID         int64  `json:"id"`
+	Number     int    `json:"number"`
+	Title      string `json:"title"`
+	State      string `json:"state"`
+	HtmlURL    string `json:"html_url"`
+	HeadBranch string `json:"head_branch"`
+	RepoID     int64  `json:"repo_id"`
+}
+
 func InitGitHandlers(s *config.Server) *GitHandler {
 	return &GitHandler{
 		Server:   s,
@@ -484,18 +494,115 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 		}
 	}
 
+	// pull_request: cache PR, create preview on open, rebuild on sync, cleanup on close
+	// usecase : too keep a cached layer of PR info in DB
+	if eventType == "pull_request" {
+		prEvent, ok := event.(*github.PullRequestEvent)
+		if !ok {
+			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid PR event payload"})
+		}
+
+		action := prEvent.GetAction()
+		pr := prEvent.GetPullRequest()
+		repo := prEvent.GetRepo()
+
+		// always refresh PR cache first
+		_ = q.UpsertPullRequest(h.qCtx, db.UpsertPullRequestParams{
+			ID:         uuid.New(),
+			RepoID:     repo.GetID(),
+			PrNumber:   int64(pr.GetNumber()),
+			Title:      pr.GetTitle(),
+			HeadBranch: prEvent.GetPullRequest().GetHead().GetRef(),
+			BaseBranch: prEvent.GetPullRequest().GetBase().GetRef(),
+			State:      pr.GetState(),
+			HtmlUrl:    pr.GetHTMLURL(),
+		})
+
+		switch action {
+		case "opened", "reopened":
+			// queue preview creation for this PR
+			_ = h.Server.Services.Deployment.AssignCreatePreview(h.qCtx, &deployjob.CreatePreviewJobParams{
+				ProjectID:      uuid.Nil, // resolved inside orchestration via repo matching
+				Name:           fmt.Sprintf("pr-%d", pr.GetNumber()),
+				PRNumber:       pr.GetNumber(),
+				RepoID:         int(repo.GetID()),
+				HeadBranch:     prEvent.GetPullRequest().GetHead().GetRef(),
+				GitSourceType:  "pr",
+				GitSourceValue: fmt.Sprintf("%d", pr.GetNumber()),
+			})
+		case "synchronize":
+			// check if there is already a preview for this repo + PR
+			preview, err := h.Server.Services.Deployment.GetActivePreviewByPR(h.qCtx, int(repo.GetID()), pr.GetNumber())
+			if err == nil && preview.ID != uuid.Nil {
+				_ = h.Server.Services.Deployment.RebuildPreviewOnPush(h.qCtx, preview.ID, int(repo.GetID()), prEvent.GetPullRequest().GetHead().GetRef())
+			}
+		case "closed":
+			// trigger async cleanup for any existing preview
+			preview, err := h.Server.Services.Deployment.GetActivePreviewByPR(h.qCtx, int(repo.GetID()), pr.GetNumber())
+			if err == nil && preview.ID != uuid.Nil {
+				_ = h.Server.Services.Deployment.DeletePreview(h.qCtx, preview.ID)
+			}
+		}
+	}
+
+	// issue_comment: handle /godploy deploy command
+	if eventType == "issue_comment" {
+		icEvent, ok := event.(*github.IssueCommentEvent)
+		if !ok {
+			return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Invalid issue_comment event payload"})
+		}
+
+		if icEvent.GetAction() != "created" {
+			return nil
+		}
+
+		body := strings.TrimSpace(icEvent.GetComment().GetBody())
+		if !strings.Contains(body, "/godploy deploy") {
+			return nil
+		}
+
+		// only process PR comments (issue comments on PRs have PullRequestLinks)
+		issue := icEvent.GetIssue()
+		if issue == nil || issue.GetPullRequestLinks() == nil {
+			return nil
+		}
+
+		repo := icEvent.GetRepo()
+		prNumber := issue.GetNumber()
+
+		// upsert PR cache (comment may arrive before pull_request webhook)
+		_ = q.UpsertPullRequest(h.qCtx, db.UpsertPullRequestParams{
+			ID:         uuid.New(),
+			RepoID:     repo.GetID(),
+			PrNumber:   int64(prNumber),
+			Title:      issue.GetTitle(),
+			HeadBranch: "", // unknown from comment event; resolved later
+			BaseBranch: "",
+			State:      "open",
+			HtmlUrl:    issue.GetHTMLURL(),
+		})
+
+		// attempt to create or rebuild a preview for this PR
+		preview, err := h.Server.Services.Deployment.GetActivePreviewByPR(h.qCtx, int(repo.GetID()), prNumber)
+		if err == nil && preview.ID != uuid.Nil {
+			_ = h.Server.Services.Deployment.RebuildPreviewOnPush(h.qCtx, preview.ID, int(repo.GetID()), "")
+		} else {
+			_ = h.Server.Services.Deployment.AssignCreatePreview(h.qCtx, &deployjob.CreatePreviewJobParams{
+				ProjectID:      uuid.Nil,
+				Name:           fmt.Sprintf("pr-%d", prNumber),
+				PRNumber:       prNumber,
+				RepoID:         int(repo.GetID()),
+				HeadBranch:     "", // resolved inside orchestration
+				GitSourceType:  "pr",
+				GitSourceValue: fmt.Sprintf("%d", prNumber),
+			})
+		}
+	}
+
 	return nil
 }
 
-type PRInfo struct {
-	ID      int64  `json:"id"`
-	Number  int    `json:"number"`
-	Title   string `json:"title"`
-	State   string `json:"state"`
-	HtmlURL string `json:"html_url"`
-}
-
-func fetchRepoPRs(ctx context.Context, gh *ghservice.GithubService, ghRepoName string) ([]PRInfo, error) {
+func fetchRepoPRs(ctx context.Context, gh *ghservice.GithubService, ghRepoName string, repoID int64) ([]PRInfo, error) {
 	parts := strings.Split(ghRepoName, "/")
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid repository name format: %s", ghRepoName)
@@ -519,12 +626,18 @@ func fetchRepoPRs(ctx context.Context, gh *ghservice.GithubService, ghRepoName s
 		}
 
 		for _, pr := range prs {
+			headBranch := ""
+			if pr.Head != nil && pr.Head.Ref != nil {
+				headBranch = *pr.Head.Ref
+			}
 			prInfos = append(prInfos, PRInfo{
-				ID:      pr.GetID(),
-				Number:  pr.GetNumber(),
-				Title:   pr.GetTitle(),
-				State:   pr.GetState(),
-				HtmlURL: pr.GetHTMLURL(),
+				ID:         pr.GetID(),
+				Number:     pr.GetNumber(),
+				Title:      pr.GetTitle(),
+				State:      pr.GetState(),
+				HtmlURL:    pr.GetHTMLURL(),
+				HeadBranch: headBranch,
+				RepoID:     repoID,
 			})
 		}
 
@@ -560,7 +673,7 @@ func (h *GitHandler) GetGithubPRList(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create github client"})
 	}
 
-	prInfos, err := fetchRepoPRs(h.ghCtx, gh, service.GhRepoName)
+	prInfos, err := fetchRepoPRs(h.ghCtx, gh, service.GhRepoName, service.GhRepoID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to fetch pull requests"})
 	}
@@ -601,7 +714,7 @@ func (h *GitHandler) GetGithubPRListByInstance(c *echo.Context) error {
 			clients[s.GhAppID] = gh
 		}
 
-		prInfos, err := fetchRepoPRs(h.ghCtx, gh, s.GhRepoName)
+		prInfos, err := fetchRepoPRs(h.ghCtx, gh, s.GhRepoName, s.GhRepoID)
 		if err != nil {
 			fmt.Printf("Error fetching PRs for repo %s: %v\n", s.GhRepoName, err)
 			res[s.Name] = []PRInfo{}

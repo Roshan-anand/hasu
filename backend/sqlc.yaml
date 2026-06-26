@@ -59,6 +59,22 @@ sql:
             go_type:
               type: "int32"
 
+          - column: instance.git_source_type
+            go_type:
+              import: "github.com/Roshan-anand/godploy/internal/lib/types"
+              type: "GitSourceType"
+            nullable: true
+
+          - column: instance.status
+            go_type:
+              import: "github.com/Roshan-anand/godploy/internal/lib/types"
+              type: "InstanceStatus"
+
+          - column: instance.created_by
+            go_type:
+              import: "github.com/Roshan-anand/godploy/internal/lib/types"
+              type: "CreatedBy"
+
           - column: orphan_volume.type
             go_type:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"
