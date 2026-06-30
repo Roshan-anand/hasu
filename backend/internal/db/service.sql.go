@@ -460,21 +460,35 @@ func (q *Queries) GetAppServiceRepoInfo(ctx context.Context, id uuid.UUID) (GetA
 }
 
 const getAppServiceSettings = `-- name: GetAppServiceSettings :one
-SELECT domain, port, is_public
+SELECT domain, port, is_public, build_path, watch_path, docker_filepath, docker_contextpath, docker_buildstage
 FROM app_service
 WHERE id = ?
 `
 
 type GetAppServiceSettingsRow struct {
-	Domain   string `json:"domain"`
-	Port     int32  `json:"port"`
-	IsPublic bool   `json:"is_public"`
+	Domain            string `json:"domain"`
+	Port              int32  `json:"port"`
+	IsPublic          bool   `json:"is_public"`
+	BuildPath         string `json:"build_path"`
+	WatchPath         string `json:"watch_path"`
+	DockerFilepath    string `json:"docker_filepath"`
+	DockerContextpath string `json:"docker_contextpath"`
+	DockerBuildstage  string `json:"docker_buildstage"`
 }
 
 func (q *Queries) GetAppServiceSettings(ctx context.Context, id uuid.UUID) (GetAppServiceSettingsRow, error) {
 	row := q.db.QueryRowContext(ctx, getAppServiceSettings, id)
 	var i GetAppServiceSettingsRow
-	err := row.Scan(&i.Domain, &i.Port, &i.IsPublic)
+	err := row.Scan(
+		&i.Domain,
+		&i.Port,
+		&i.IsPublic,
+		&i.BuildPath,
+		&i.WatchPath,
+		&i.DockerFilepath,
+		&i.DockerContextpath,
+		&i.DockerBuildstage,
+	)
 	return i, err
 }
 
@@ -657,6 +671,33 @@ func (q *Queries) ServiceNameExists(ctx context.Context, arg ServiceNameExistsPa
 	var column_1 bool
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const updateAppServiceBuildSettings = `-- name: UpdateAppServiceBuildSettings :exec
+UPDATE app_service
+SET build_path = ?, watch_path = ?, docker_filepath = ?, docker_contextpath = ?, docker_buildstage = ?
+WHERE id = ?
+`
+
+type UpdateAppServiceBuildSettingsParams struct {
+	BuildPath         string    `json:"build_path"`
+	WatchPath         string    `json:"watch_path"`
+	DockerFilepath    string    `json:"docker_filepath"`
+	DockerContextpath string    `json:"docker_contextpath"`
+	DockerBuildstage  string    `json:"docker_buildstage"`
+	ID                uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateAppServiceBuildSettings(ctx context.Context, arg UpdateAppServiceBuildSettingsParams) error {
+	_, err := q.db.ExecContext(ctx, updateAppServiceBuildSettings,
+		arg.BuildPath,
+		arg.WatchPath,
+		arg.DockerFilepath,
+		arg.DockerContextpath,
+		arg.DockerBuildstage,
+		arg.ID,
+	)
+	return err
 }
 
 const updateAppServiceEnv = `-- name: UpdateAppServiceEnv :exec

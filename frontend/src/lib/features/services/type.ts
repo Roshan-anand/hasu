@@ -186,11 +186,25 @@ export type AppServiceSettings = {
 	port: number;
 	is_public: boolean;
 	replicas: number;
+	build_path: string;
+	watch_path: string;
+	docker_filepath: string;
+	docker_contextpath: string;
+	docker_buildstage: string;
 };
 
 export type ScaleAppServicePayload = {
 	service_id: string;
 	replicas: number;
+};
+
+export type UpdateBuildSettingsPayload = {
+	service_id: string;
+	build_path: string;
+	watch_path: string;
+	docker_filepath: string;
+	docker_contextpath: string;
+	docker_buildstage: string;
 };
 
 export type DependencyTarget = {

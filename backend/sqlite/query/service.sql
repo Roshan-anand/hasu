@@ -180,8 +180,13 @@ SELECT * FROM app_service WHERE id = ?;
 SELECT id, name, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, branch FROM app_service WHERE instance_id = ?;
 
 -- name: GetAppServiceSettings :one
-SELECT domain, port, is_public
+SELECT domain, port, is_public, build_path, watch_path, docker_filepath, docker_contextpath, docker_buildstage
 FROM app_service
+WHERE id = ?;
+
+-- name: UpdateAppServiceBuildSettings :exec
+UPDATE app_service
+SET build_path = ?, watch_path = ?, docker_filepath = ?, docker_contextpath = ?, docker_buildstage = ?
 WHERE id = ?;
 
 -- name: GetPredefSwarmServiceById :one

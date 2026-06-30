@@ -111,6 +111,7 @@ func SetupRoutes(srv *config.Server) (*echo.Echo, error) {
 	app.GET("/env", h.Service.GetServiceEnv)
 	app.PUT("/env", h.Service.UpdateAppServiceEnv)
 	app.GET("/settings", h.Service.GetAppServiceSettings)
+	app.PUT("/settings", h.Service.UpdateAppServiceBuildSettings)
 	app.POST("/scale", h.Service.ScaleAppService)
 	app.POST("/pause", h.Service.PauseAppService)
 	app.POST("/resume", h.Service.ResumeAppService)

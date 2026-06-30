@@ -18,6 +18,7 @@ import type {
 	CreateAppServiceForm,
 	CreatePsqlServiceBody,
 	ScaleAppServicePayload,
+	UpdateBuildSettingsPayload,
 	CreateDependencyPayload,
 	UpdateDependencyPayload,
 	ServiceDependency
@@ -248,6 +249,18 @@ export function useScaleAppServiceMutation(getServiceId: () => string) {
 			toast.success(message || 'Replicas updated');
 		},
 		onError: (error) => axiosErr(error as Error, 'Failed to scale service')
+	}));
+}
+
+export function useUpdateBuildSettingsMutation(getServiceId: () => string) {
+	return createMutation(() => ({
+		mutationFn: async (payload: UpdateBuildSettingsPayload) =>
+			api.put<ApiRes<null>>('/service/app/settings', payload).then((res) => res.data),
+		onSuccess: ({ message }) => {
+			queryClient.invalidateQueries({ queryKey: ['service-settings', getServiceId()] });
+			toast.success(message || 'Build settings updated');
+		},
+		onError: (error) => axiosErr(error as Error, 'Failed to update build settings')
 	}));
 }
 

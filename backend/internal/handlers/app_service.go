@@ -95,10 +95,24 @@ type GetAppServiceByIdRes struct {
 }
 
 type AppServiceSettingsRes struct {
-	Domain   string `json:"domain"`
-	Port     int32  `json:"port"`
-	IsPublic bool   `json:"is_public"`
-	Replicas int32  `json:"replicas"`
+	Domain            string `json:"domain"`
+	Port              int32  `json:"port"`
+	IsPublic          bool   `json:"is_public"`
+	Replicas          int32  `json:"replicas"`
+	BuildPath         string `json:"build_path"`
+	WatchPath         string `json:"watch_path"`
+	DockerFilepath    string `json:"docker_filepath"`
+	DockerContextpath string `json:"docker_contextpath"`
+	DockerBuildstage  string `json:"docker_buildstage"`
+}
+
+type UpdateAppServiceBuildSettingsReq struct {
+	ServiceID         uuid.UUID `json:"service_id" validate:"required"`
+	BuildPath         string    `json:"build_path"`
+	WatchPath         string    `json:"watch_path"`
+	DockerFilepath    string    `json:"docker_filepath"`
+	DockerContextpath string    `json:"docker_contextpath"`
+	DockerBuildstage  string    `json:"docker_buildstage"`
 }
 
 type ScaleAppServiceReq struct {
@@ -557,12 +571,44 @@ func (h *ServiceHandler) GetAppServiceSettings(c *echo.Context) error {
 	return c.JSON(http.StatusOK, types.Res[AppServiceSettingsRes]{
 		Message: "",
 		Data: AppServiceSettingsRes{
-			Domain:   settings.Domain,
-			Port:     settings.Port,
-			IsPublic: settings.IsPublic,
-			Replicas: replicas,
+			Domain:            settings.Domain,
+			Port:              settings.Port,
+			IsPublic:          settings.IsPublic,
+			Replicas:          replicas,
+			BuildPath:         settings.BuildPath,
+			WatchPath:         settings.WatchPath,
+			DockerFilepath:    settings.DockerFilepath,
+			DockerContextpath: settings.DockerContextpath,
+			DockerBuildstage:  settings.DockerBuildstage,
 		},
 	})
+}
+
+// UpdateAppServiceBuildSettings — updates build-related settings (build_path, watch_path, docker filepath/contextpath/buildstage)
+//
+// route: PUT /api/service/app/settings
+func (h *ServiceHandler) UpdateAppServiceBuildSettings(c *echo.Context) error {
+	b := new(UpdateAppServiceBuildSettingsReq)
+
+	if Res := BindAndValidate(b, c, h.Validate); Res != nil {
+		return c.JSON(http.StatusBadRequest, Res)
+	}
+
+	if err := h.Server.DB.Queries.UpdateAppServiceBuildSettings(h.qCtx, db.UpdateAppServiceBuildSettingsParams{
+		BuildPath:         b.BuildPath,
+		WatchPath:         b.WatchPath,
+		DockerFilepath:    b.DockerFilepath,
+		DockerContextpath: b.DockerContextpath,
+		DockerBuildstage:  b.DockerBuildstage,
+		ID:                b.ServiceID,
+	}); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
+		}
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to update build settings"})
+	}
+
+	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "build settings updated"})
 }
 
 // PauseAppService — sets swarm replicas to 0, marks current deployment as paused

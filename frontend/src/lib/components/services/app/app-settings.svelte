@@ -3,7 +3,7 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 	import { DotmSquare } from '@/components/loader';
 	import InstancePRPreviewDropdown from '@/components/InstancePRPreviewDropdown.svelte';
-	import { ServiceVisibility, ReplicaSelector } from './settings';
+	import { ServiceVisibility, ReplicaSelector, BuildSettings } from './settings';
 	import type { PRInfo } from '@/features/services';
 
 	let { serviceID }: { serviceID: string } = $props();
@@ -26,7 +26,17 @@
 		</CardContent>
 	</Card>
 {:else if settingsQuery.data}
-	{@const { domain, port, is_public, replicas } = settingsQuery.data}
+	{@const {
+		domain,
+		port,
+		is_public,
+		replicas,
+		build_path,
+		watch_path,
+		docker_filepath,
+		docker_contextpath,
+		docker_buildstage
+	} = settingsQuery.data}
 
 	<ServiceVisibility
 		{serviceID}
@@ -36,6 +46,15 @@
 	/>
 
 	<ReplicaSelector {serviceID} {replicas} />
+
+	<BuildSettings
+		{serviceID}
+		initialBuildPath={build_path}
+		initialWatchPath={watch_path}
+		initialDockerFilepath={docker_filepath}
+		initialDockerContextpath={docker_contextpath}
+		initialDockerBuildstage={docker_buildstage}
+	/>
 
 	<Card>
 		<CardHeader>
