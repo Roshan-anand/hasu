@@ -21,7 +21,8 @@ import type {
 	UpdateBuildSettingsPayload,
 	CreateDependencyPayload,
 	UpdateDependencyPayload,
-	ServiceDependency
+	ServiceDependency,
+	CreateRedisServiceBody
 } from './type';
 import type { ApiRes } from '@/types';
 import { queryClient } from '@/query';
@@ -122,6 +123,36 @@ export function useCreatePsqlServiceMutation(getProjectName: () => string) {
 				queryClient.invalidateQueries({ queryKey: ['orphan-volumes'] });
 			}
 			toast.success(message || 'PSQL Service created successfully');
+			goto(resolve('/(protected)/[project]', { project: getProjectName() }));
+		},
+		onError: (error) => axiosErr(error as Error, 'Failed to create service')
+	}));
+}
+
+export function useCreateRedisServiceMutation(getProjectName: () => string) {
+	const instance = getInstanceState();
+
+	return createMutation(() => ({
+		mutationFn: async (formValue: CreateRedisServiceBody) => {
+			if (!instance.current.id) throw new Error('No instance selected');
+
+			const payload = {
+				instance_id: instance.current.id,
+				name: formValue.name.trim(),
+				password: formValue.password,
+				image: formValue.image.trim(),
+				volume: formValue.volume
+			};
+
+			return api
+				.post<ApiRes<CreateServiceResponse>>('/service/redis', payload)
+				.then((res) => res.data);
+		},
+		onSuccess: ({ message }, { volume }) => {
+			if (volume) {
+				queryClient.invalidateQueries({ queryKey: ['orphan-volumes'] });
+			}
+			toast.success(message || 'Redis Service created successfully');
 			goto(resolve('/(protected)/[project]', { project: getProjectName() }));
 		},
 		onError: (error) => axiosErr(error as Error, 'Failed to create service')

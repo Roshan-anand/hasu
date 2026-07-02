@@ -1,6 +1,7 @@
 export type PsqlServiceName = 'psql';
+export type RedisServiceName = 'redis';
 export type AppServiceName = 'app';
-export type ServiceType = PsqlServiceName | AppServiceName;
+export type ServiceType = PsqlServiceName | RedisServiceName | AppServiceName;
 
 export type ServiceBase = {
 	id: string;

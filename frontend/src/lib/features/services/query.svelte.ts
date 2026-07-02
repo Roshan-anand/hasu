@@ -5,6 +5,7 @@ import type {
 	AppServiceSettings,
 	GetEnvRes,
 	PsqlServiceDetails,
+	RedisServiceDetails,
 	ServiceListResponse,
 	PRInfo,
 	ServiceDependency,
@@ -120,6 +121,20 @@ export function useGetPsqlServiceDetailsQuery(getID: () => string) {
 			queryFn: async () =>
 				api
 					.get<ApiRes<PsqlServiceDetails>>(`/service/psql/${serviceId}`)
+					.then((res) => res.data.data),
+			enabled: serviceId !== ''
+		};
+	});
+}
+
+export function useGetRedisServiceDetailsQuery(getID: () => string) {
+	return createQuery(() => {
+		const serviceId = getID();
+		return {
+			queryKey: ['redis-service-details', serviceId],
+			queryFn: async () =>
+				api
+					.get<ApiRes<RedisServiceDetails>>(`/service/redis/${serviceId}`)
 					.then((res) => res.data.data),
 			enabled: serviceId !== ''
 		};
