@@ -26,8 +26,12 @@ var (
 )
 
 // job is a generic wrapper used by the submit[T] dispatcher.
+// done is only used in integration tests to synchronously receive the pipeline result.
+// Production callers (handlers, utils etc.) must pass nil — the worker discards
+// the result when done is nil.
 type job[T any] struct {
 	ctx  context.Context
+	done chan error
 	Body *T
 }
 
@@ -184,7 +188,9 @@ func (d *DeploymentService) worker(ctx context.Context) error {
 				return nil
 			}
 			fmt.Println("Processing deploy job for deployment ID:", j.Body.DeploymentID)
-			d.runDeploymentPipeline(j.ctx, j.Body)
+			if err := d.runDeploymentPipeline(j.ctx, j.Body); j.done != nil {
+				j.done <- err
+			}
 
 		case j, ok := <-d.rebuildJobs:
 			if !ok {
@@ -192,7 +198,9 @@ func (d *DeploymentService) worker(ctx context.Context) error {
 				return nil
 			}
 			fmt.Println("Processing rebuild job for service ID:", j.Body.ServiceID)
-			d.RunRebuildPipeline(j.ctx, j.Body)
+			if err := d.RunRebuildPipeline(j.ctx, j.Body); j.done != nil {
+				j.done <- err
+			}
 			// Remove this rebuild from the registry only if it is still the
 			// active entry for the Service. This prevents a stale worker from
 			// wiping out a newer active rebuild when it finishes.
@@ -204,7 +212,9 @@ func (d *DeploymentService) worker(ctx context.Context) error {
 				return nil
 			}
 			fmt.Println("Processing redeploy job for deployment ID:", j.Body.DeploymentID)
-			d.Redeploy(j.Body)
+			if err := d.Redeploy(j.Body); j.done != nil {
+				j.done <- err
+			}
 
 		case j, ok := <-d.cloneDeployJobs:
 			if !ok {
@@ -212,7 +222,9 @@ func (d *DeploymentService) worker(ctx context.Context) error {
 				return nil
 			}
 			fmt.Println("Processing clone deploy job for service ID:", j.Body.ServiceID)
-			d.runCloneDeployPipeline(j.ctx, j.Body)
+			if err := d.runCloneDeployPipeline(j.ctx, j.Body); j.done != nil {
+				j.done <- err
+			}
 
 		case j, ok := <-d.previewJobs:
 			if !ok {
@@ -220,14 +232,17 @@ func (d *DeploymentService) worker(ctx context.Context) error {
 				return nil
 			}
 			fmt.Println("Processing create preview job for project ID:", j.Body.ProjectID)
-			d.CreatePreviewFromPR(j.ctx, *j.Body)
+			if err := d.CreatePreviewFromPR(j.ctx, *j.Body); j.done != nil {
+				j.done <- err
+			}
 		}
 	}
 }
 
 // trySend races the send on ch against all cancellation signals
 // so a blocked send never hangs the caller.
-func trySend[T any](d *DeploymentService, ctx context.Context, ch chan<- job[T], body *T) error {
+// done is forwarded to the job struct; pass nil for production use.
+func trySend[T any](d *DeploymentService, ctx context.Context, ch chan<- job[T], body *T, done chan error) error {
 	select {
 	case <-d.egCtx.Done():
 		return d.egCtx.Err()
@@ -235,7 +250,7 @@ func trySend[T any](d *DeploymentService, ctx context.Context, ch chan<- job[T],
 		return fmt.Errorf("deployment service is shutting down, cannot accept new jobs")
 	case <-ctx.Done():
 		return ctx.Err()
-	case ch <- job[T]{ctx: ctx, Body: body}:
+	case ch <- job[T]{ctx: ctx, done: done, Body: body}:
 		return nil
 	}
 }
@@ -243,22 +258,23 @@ func trySend[T any](d *DeploymentService, ctx context.Context, ch chan<- job[T],
 // submit is a generic dispatcher that validates the body and dispatches it to
 // the correct job channel via trySend. It is a standalone function (not a
 // method) because Go does not allow type parameters on methods.
-func submit[T any](d *DeploymentService, ctx context.Context, body *T) error {
+// done is forwarded to trySend; pass nil for production use.
+func submit[T any](d *DeploymentService, ctx context.Context, body *T, done chan error) error {
 	if err := d.v.Struct(body); err != nil {
 		return fmt.Errorf("validation error: %w", err)
 	}
 
 	switch v := any(body).(type) {
 	case *DeploymentServiceParams:
-		return trySend(d, ctx, d.deployJobs, v)
+		return trySend(d, ctx, d.deployJobs, v, done)
 	case *RebuildServiceParams:
-		return trySend(d, ctx, d.rebuildJobs, v)
+		return trySend(d, ctx, d.rebuildJobs, v, done)
 	case *ReDeployData:
-		return trySend(d, ctx, d.redeployJobs, v)
+		return trySend(d, ctx, d.redeployJobs, v, done)
 	case *CloneDeployData:
-		return trySend(d, ctx, d.cloneDeployJobs, v)
+		return trySend(d, ctx, d.cloneDeployJobs, v, done)
 	case *CreatePreviewJobParams:
-		return trySend(d, ctx, d.previewJobs, v)
+		return trySend(d, ctx, d.previewJobs, v, done)
 	default:
 		return fmt.Errorf("unsupported job type: %T", body)
 	}
@@ -268,8 +284,11 @@ func submit[T any](d *DeploymentService, ctx context.Context, body *T) error {
 //
 // deploy : uses the fresh app_service details to perform pull, build and deploy for a new deployment.
 // It uses the latest commit hash and message from the repo.
-func (d *DeploymentService) AssignDeploy(ctx context.Context, body *DeploymentServiceParams) error {
-	return submit(d, ctx, body)
+//
+// done is only needed in integration tests to synchronously receive the
+// pipeline result. Production callers (handlers, utils) must pass nil.
+func (d *DeploymentService) AssignDeploy(ctx context.Context, body *DeploymentServiceParams, done chan error) error {
+	return submit(d, ctx, body, done)
 }
 
 // AssignRebuild submits a new rebuild job.
@@ -278,7 +297,10 @@ func (d *DeploymentService) AssignDeploy(ctx context.Context, body *DeploymentSe
 // pull, build and deploy for a new deployment. It uses the latest commit hash and message from the repo.
 // It returns the registry job ID, the context the worker will run under, a
 // cancel function for that context, and any error encountered while queuing.
-func (d *DeploymentService) AssignRebuild(ctx context.Context, body *RebuildServiceParams) (jobID int64, rebuildCtx context.Context, cancel context.CancelFunc, err error) {
+//
+// done is only needed in integration tests to synchronously receive the
+// pipeline result. Production callers (handlers, utils) must pass nil.
+func (d *DeploymentService) AssignRebuild(ctx context.Context, body *RebuildServiceParams, done chan error) (jobID int64, rebuildCtx context.Context, cancel context.CancelFunc, err error) {
 	// Register this rebuild in the newest-wins registry keyed by Service ID.
 	// If an active rebuild already exists for the same Service, RegisterRebuild
 	// cancels it and returns true; cross-Service rebuilds remain isolated.
@@ -287,7 +309,7 @@ func (d *DeploymentService) AssignRebuild(ctx context.Context, body *RebuildServ
 	jobID, rebuildCtx, cancel, _ = d.RegisterRebuild(d.egCtx, body.ServiceID, nil)
 	body.JobID = jobID
 
-	if err = submit(d, rebuildCtx, body); err != nil {
+	if err = submit(d, rebuildCtx, body, done); err != nil {
 		cancel()
 		d.CleanupRebuild(body.ServiceID, jobID)
 		return
@@ -298,13 +320,19 @@ func (d *DeploymentService) AssignRebuild(ctx context.Context, body *RebuildServ
 // AssignRedeploy submits a new redeploy job.
 //
 // redeploy : uses the existing swarm service and updates with give envs and image
-func (d *DeploymentService) AssignRedeploy(ctx context.Context, body *ReDeployData) error {
-	return submit(d, ctx, body)
+//
+// done is only needed in integration tests to synchronously receive the
+// pipeline result. Production callers (handlers, utils) must pass nil.
+func (d *DeploymentService) AssignRedeploy(ctx context.Context, body *ReDeployData, done chan error) error {
+	return submit(d, ctx, body, done)
 }
 
 // AssignCloneDeploy submits a clone deploy job for preview instances.
-func (d *DeploymentService) AssignCloneDeploy(ctx context.Context, body *CloneDeployData) error {
-	return submit(d, ctx, body)
+//
+// done is only needed in integration tests to synchronously receive the
+// pipeline result. Production callers (handlers, utils) must pass nil.
+func (d *DeploymentService) AssignCloneDeploy(ctx context.Context, body *CloneDeployData, done chan error) error {
+	return submit(d, ctx, body, done)
 }
 
 // AssignCreatePreview submits a preview creation job.
@@ -314,8 +342,11 @@ func (d *DeploymentService) AssignCloneDeploy(ctx context.Context, body *CloneDe
 // newdeploy for service realated to PR
 //
 // redeploy for service not related to PR
-func (d *DeploymentService) AssignCreatePreview(ctx context.Context, body *CreatePreviewJobParams) error {
-	return submit(d, ctx, body)
+//
+// done is only needed in integration tests to synchronously receive the
+// pipeline result. Production callers (handlers, utils) must pass nil.
+func (d *DeploymentService) AssignCreatePreview(ctx context.Context, body *CreatePreviewJobParams, done chan error) error {
+	return submit(d, ctx, body, done)
 }
 
 // Incriment adds a new worker to the pool.

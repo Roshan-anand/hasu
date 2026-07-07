@@ -81,7 +81,7 @@ type RebuildServiceParams struct {
 }
 
 // starts the deployment work pipeline
-func (d *DeploymentService) runDeploymentPipeline(ctx context.Context, data *DeploymentServiceParams) {
+func (d *DeploymentService) runDeploymentPipeline(ctx context.Context, data *DeploymentServiceParams) error {
 	errLog := &logbroker.EndLogData{
 		DeploymentID: data.DeploymentID,
 		Status:       types.DeploymentError,
@@ -111,7 +111,7 @@ func (d *DeploymentService) runDeploymentPipeline(ctx context.Context, data *Dep
 	})
 	if err != nil {
 		fmt.Println("PullWorker: error creating deployment utils:", err)
-		return
+		return fmt.Errorf("deploy:create_utils: %w", err)
 	}
 
 	// trigger pull code
@@ -119,24 +119,28 @@ func (d *DeploymentService) runDeploymentPipeline(ctx context.Context, data *Dep
 		fmt.Println("PullWorker: error pulling code:", err)
 		errLog.Message = errorMsg(err.Error())
 		d.log.EndLogs(errLog)
-		return // TODO : trigger retry logic
+		return fmt.Errorf("deploy:pull_code: %w", err) // TODO : trigger retry logic
 	}
 
 	// trigger build image
 	if err := utils.buildImg(ctx, d); err != nil {
 		errLog.Message = errorMsg(err.Error())
 		d.log.EndLogs(errLog)
-		return // TODO : trigger retry logic
+		return fmt.Errorf("deploy:build_img: %w", err) // TODO : trigger retry logic
 	}
 
 	network, err := d.getServiceNetwork(data.InstanceID)
 	if err != nil {
 		errLog.Message = errorMsg(err.Error())
 		d.log.EndLogs(errLog)
-		return // TODO : trigger retry logic
+		return fmt.Errorf("deploy:get_network: %w", err) // TODO : trigger retry logic
 	}
 
-	d.deploy(data.getDeployData(network))
+	if err := d.deploy(data.getDeployData(network)); err != nil {
+		return fmt.Errorf("deploy:deploy_service: %w", err)
+	}
+
+	return nil
 }
 
 // MarkDeploymentCanceled finalizes the log stream for a canceled rebuild and
@@ -155,12 +159,12 @@ func (d *DeploymentService) MarkDeploymentCanceled(deploymentID uuid.UUID, reaso
 // RunRebuildPipeline starts the rebuild pipeline for the given data.
 // It is exported so integration tests can exercise cancellation behavior
 // directly without invoking the full async queue.
-func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *RebuildServiceParams) {
+func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *RebuildServiceParams) error {
 	// If this rebuild was canceled while queued, exit without creating a
 	// Deployment row and without touching the previous Current Deployment.
 	if err := ctx.Err(); err != nil {
 		fmt.Println("RebuildWorker: rebuild canceled before starting work:", err)
-		return
+		return fmt.Errorf("rebuild:ctx_canceled: %w", err)
 	}
 
 	errLog := &logbroker.EndLogData{
@@ -172,7 +176,7 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 	s, err := q.GetAppServiceForRebuild(d.qCtx, data.ServiceID)
 	if err != nil {
 		fmt.Println("RebuildWorker: error getting app service for rebuild:", err)
-		return // TODO : trigger retry logic
+		return fmt.Errorf("rebuild:get_service: %w", err) // TODO : trigger retry logic
 	}
 
 	// create a new Deployment row for the rebuild candidate.
@@ -181,7 +185,7 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 	if err != nil {
 		fmt.Println("RebuildWorker: error creating new deployment data for rebuild:", err)
 		d.log.EndLogs(errLog)
-		return // TODO : trigger retry logic
+		return fmt.Errorf("rebuild:create_deployment_data: %w", err) // TODO : trigger retry logic
 	}
 
 	// Record the candidate Deployment ID in the registry so explicit cancel by
@@ -192,7 +196,7 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 	// it canceled and stop before doing any pull/build work.
 	if err := ctx.Err(); err != nil {
 		d.MarkDeploymentCanceled(dID, "replaced by newer rebuild")
-		return
+		return fmt.Errorf("rebuild:ctx_canceled_after_candidate: %w", err)
 	}
 
 	// used as unique image
@@ -207,7 +211,7 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 	if err != nil {
 		fmt.Println("RebuildWorker: Error unmarshaling service env:", err)
 		d.log.EndLogs(errLog)
-		return // TODO : trigger retry logic
+		return fmt.Errorf("rebuild:unmarshal_env: %w", err) // TODO : trigger retry logic
 	}
 
 	// resolve and merge dependency env values
@@ -216,7 +220,7 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 	// If cancellation arrived before we talk to GitHub, mark canceled and stop.
 	if err := ctx.Err(); err != nil {
 		d.MarkDeploymentCanceled(dID, "replaced by newer rebuild")
-		return
+		return fmt.Errorf("rebuild:ctx_canceled_before_gh: %w", err)
 	}
 
 	// create new github client
@@ -224,7 +228,7 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 	if err != nil {
 		fmt.Println("Error creating github client:", err)
 		d.log.EndLogs(errLog)
-		return // TODO : trigger retry logic
+		return fmt.Errorf("rebuild:create_gh: %w", err) // TODO : trigger retry logic
 	}
 
 	// create a unique output path for the code
@@ -248,35 +252,35 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 	})
 	if err != nil {
 		fmt.Println("PullWorker: error creating deployment utils:", err)
-		return
+		return fmt.Errorf("rebuild:create_utils: %w", err)
 	}
 
 	// trigger pull code
 	if err := utils.pullCode(ctx, d); err != nil {
 		if ctx.Err() != nil {
 			d.MarkDeploymentCanceled(dID, "replaced by newer rebuild")
-			return
+			return fmt.Errorf("rebuild:pull_code_canceled: %w", err)
 		}
 		errLog.Message = errorMsg(err.Error())
 		d.log.EndLogs(errLog)
-		return // TODO : trigger retry logic
+		return fmt.Errorf("rebuild:pull_code: %w", err) // TODO : trigger retry logic
 	}
 
 	// If cancellation arrived after a successful pull, mark canceled and stop.
 	if err := ctx.Err(); err != nil {
 		d.MarkDeploymentCanceled(dID, "replaced by newer rebuild")
-		return
+		return fmt.Errorf("rebuild:ctx_canceled_after_pull: %w", err)
 	}
 
 	// trigger build image
 	if err := utils.buildImg(ctx, d); err != nil {
 		if ctx.Err() != nil {
 			d.MarkDeploymentCanceled(dID, "replaced by newer rebuild")
-			return
+			return fmt.Errorf("rebuild:build_img_canceled: %w", err)
 		}
 		errLog.Message = errorMsg(err.Error())
 		d.log.EndLogs(errLog)
-		return // TODO : trigger retry logic
+		return fmt.Errorf("rebuild:build_img: %w", err) // TODO : trigger retry logic
 	}
 
 	fmt.Println("finished building :", unique.ImgName)
@@ -285,14 +289,14 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 	// before touching the Docker swarm service.
 	if err := ctx.Err(); err != nil {
 		d.MarkDeploymentCanceled(dID, "replaced by newer rebuild")
-		return
+		return fmt.Errorf("rebuild:ctx_canceled_after_build: %w", err)
 	}
 
 	network, err := d.getServiceNetwork(s.InstanceID)
 	if err != nil {
 		fmt.Printf("RebuildWorker: error getting service network: %v\n", err)
 		d.log.EndLogs(errLog)
-		return // TODO : trigger retry logic
+		return fmt.Errorf("rebuild:get_network: %w", err) // TODO : trigger retry logic
 	}
 
 	domain := ""
@@ -300,7 +304,7 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 		domain = s.Domain.String
 	}
 
-	d.applyRebuildDeployment(ctx, s.ID, &deployData{
+	if err := d.applyRebuildDeployment(ctx, s.ID, &deployData{
 		deploymentID: dID,
 		swarmService: s.SwarmService,
 		networkName:  network,
@@ -309,14 +313,18 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 		imgName:      unique.ImgName,
 		domain:       domain,
 		port:         s.Port,
-	})
+	}); err != nil {
+		return fmt.Errorf("rebuild:apply_deployment: %w", err)
+	}
+
+	return nil
 }
 
 // starts the deploy pipeline for the given data
-func (d *DeploymentService) deploy(data *deployData) {
+func (d *DeploymentService) deploy(data *deployData) error {
 	if err := d.v.Struct(data); err != nil {
 		log.Printf("PullWorker: error validating data: %v\n", err)
-		return
+		return fmt.Errorf("deploy:validate: %w", err)
 	}
 
 	d.log.PublishLog(&logbroker.PubData{
@@ -336,7 +344,7 @@ func (d *DeploymentService) deploy(data *deployData) {
 			Message:      errorMsg(err.Error()),
 		})
 
-		return // TODO : trigger retry logic
+		return fmt.Errorf("deploy:create_service: %w", err) // TODO : trigger retry logic
 	}
 
 	fmt.Println("finished deploying :", data.swarmService)
@@ -345,14 +353,16 @@ func (d *DeploymentService) deploy(data *deployData) {
 		Status:       types.DeploymentReady,
 		Message:      successMsg("successfully deployed : " + data.swarmService),
 	})
+
+	return nil
 }
 
 // Redeploy starts the redeploy pipeline for the given data.
 // It is exported so integration tests can exercise Docker-apply failures directly.
-func (d *DeploymentService) Redeploy(data *ReDeployData) {
+func (d *DeploymentService) Redeploy(data *ReDeployData) error {
 	if err := d.v.Struct(data); err != nil {
 		log.Printf("PullWorker: error validating data: %v\n", err)
-		return
+		return fmt.Errorf("redeploy:validate: %w", err)
 	}
 
 	d.log.PublishLog(&logbroker.PubData{
@@ -370,7 +380,7 @@ func (d *DeploymentService) Redeploy(data *ReDeployData) {
 			Message:      errorMsg(err.Error()),
 		})
 
-		return // TODO : trigger retry logic
+		return fmt.Errorf("redeploy:inspect_service: %w", err) // TODO : trigger retry logic
 	}
 	version := res.Version
 	spec := res.Spec
@@ -390,7 +400,7 @@ func (d *DeploymentService) Redeploy(data *ReDeployData) {
 			Message:      errorMsg(err.Error()),
 		})
 
-		return // TODO : trigger retry logic
+		return fmt.Errorf("redeploy:update_service: %w", err) // TODO : trigger retry logic
 	}
 
 	// For rebuilds, promote the candidate to Current and downgrade the previous
@@ -404,7 +414,7 @@ func (d *DeploymentService) Redeploy(data *ReDeployData) {
 				Status:       types.DeploymentError,
 				Message:      errorMsg(err.Error()),
 			})
-			return // TODO : trigger retry logic
+			return fmt.Errorf("redeploy:promote: %w", err) // TODO : trigger retry logic
 		}
 	}
 
@@ -414,6 +424,8 @@ func (d *DeploymentService) Redeploy(data *ReDeployData) {
 		Status:       types.DeploymentReady,
 		Message:      successMsg("successfully redeployed"),
 	})
+
+	return nil
 }
 
 // applyRebuildDeployment applies the rebuilt image to the swarm service. It
@@ -422,7 +434,7 @@ func (d *DeploymentService) Redeploy(data *ReDeployData) {
 // built from the saved Service configuration and the candidate image and a new
 // service is created. The candidate is promoted to Current only after Docker
 // accepts the create/update.
-func (d *DeploymentService) applyRebuildDeployment(ctx context.Context, serviceID uuid.UUID, data *deployData) {
+func (d *DeploymentService) applyRebuildDeployment(ctx context.Context, serviceID uuid.UUID, data *deployData) error {
 	if err := d.v.Struct(data); err != nil {
 		log.Printf("RebuildWorker: error validating deploy data: %v\n", err)
 		d.log.EndLogs(&logbroker.EndLogData{
@@ -430,7 +442,7 @@ func (d *DeploymentService) applyRebuildDeployment(ctx context.Context, serviceI
 			Status:       types.DeploymentError,
 			Message:      errorMsg(err.Error()),
 		})
-		return
+		return fmt.Errorf("apply:validate: %w", err)
 	}
 
 	d.log.PublishLog(&logbroker.PubData{
@@ -448,7 +460,7 @@ func (d *DeploymentService) applyRebuildDeployment(ctx context.Context, serviceI
 	if err != nil {
 		if ctx.Err() != nil {
 			d.MarkDeploymentCanceled(data.deploymentID, "replaced by newer rebuild")
-			return
+			return fmt.Errorf("apply:ctx_canceled_inspect: %w", err)
 		}
 		if errdefs.IsNotFound(err) {
 			create = true
@@ -460,7 +472,7 @@ func (d *DeploymentService) applyRebuildDeployment(ctx context.Context, serviceI
 				Status:       types.DeploymentError,
 				Message:      errorMsg(err.Error()),
 			})
-			return // TODO : trigger retry logic
+			return fmt.Errorf("apply:inspect_service: %w", err) // TODO : trigger retry logic
 		}
 	} else {
 		version = res.Version
@@ -473,7 +485,7 @@ func (d *DeploymentService) applyRebuildDeployment(ctx context.Context, serviceI
 
 	if err := ctx.Err(); err != nil {
 		d.MarkDeploymentCanceled(data.deploymentID, "replaced by newer rebuild")
-		return
+		return fmt.Errorf("apply:ctx_canceled_before_apply: %w", err)
 	}
 
 	if create {
@@ -484,7 +496,7 @@ func (d *DeploymentService) applyRebuildDeployment(ctx context.Context, serviceI
 	if err != nil {
 		if ctx.Err() != nil {
 			d.MarkDeploymentCanceled(data.deploymentID, "replaced by newer rebuild")
-			return
+			return fmt.Errorf("apply:ctx_canceled_apply: %w", err)
 		}
 		fmt.Printf("RebuildWorker: error applying service: %v\n", err)
 		d.log.EndLogs(&logbroker.EndLogData{
@@ -492,7 +504,7 @@ func (d *DeploymentService) applyRebuildDeployment(ctx context.Context, serviceI
 			Status:       types.DeploymentError,
 			Message:      errorMsg(err.Error()),
 		})
-		return // TODO : trigger retry logic
+		return fmt.Errorf("apply:apply_service: %w", err) // TODO : trigger retry logic
 	}
 
 	if err := d.PromoteDeploymentToCurrent(serviceID, data.deploymentID); err != nil {
@@ -502,7 +514,7 @@ func (d *DeploymentService) applyRebuildDeployment(ctx context.Context, serviceI
 			Status:       types.DeploymentError,
 			Message:      errorMsg(err.Error()),
 		})
-		return // TODO : trigger retry logic
+		return fmt.Errorf("apply:promote: %w", err) // TODO : trigger retry logic
 	}
 
 	d.log.EndLogs(&logbroker.EndLogData{
@@ -510,6 +522,8 @@ func (d *DeploymentService) applyRebuildDeployment(ctx context.Context, serviceI
 		Status:       types.DeploymentReady,
 		Message:      successMsg("successfully rebuilt and applied : " + data.swarmService),
 	})
+
+	return nil
 }
 
 // PromoteDeploymentToCurrent promotes the candidate deployment to Current and
@@ -557,10 +571,10 @@ func (d *DeploymentService) PromoteDeploymentToCurrent(serviceID, candidateID uu
 // runCloneDeployPipeline creates a new swarm service for a preview instance
 // using an existing production image and merged environment variables.
 // It skips the build step entirely and applies a preview-specific Traefik Host rule.
-func (d *DeploymentService) runCloneDeployPipeline(ctx context.Context, data *CloneDeployData) {
+func (d *DeploymentService) runCloneDeployPipeline(ctx context.Context, data *CloneDeployData) error {
 	if err := d.v.Struct(data); err != nil {
 		log.Printf("CloneDeploy: validation error: %v\n", err)
-		return
+		return fmt.Errorf("clone_deploy:validate: %w", err)
 	}
 
 	d.log.PublishLog(&logbroker.PubData{
@@ -577,7 +591,7 @@ func (d *DeploymentService) runCloneDeployPipeline(ctx context.Context, data *Cl
 			Status:  types.DeploymentError,
 			Message: errorMsg(err.Error()),
 		})
-		return
+		return fmt.Errorf("clone_deploy:create_network: %w", err)
 	}
 
 	spec := (&deployData{
@@ -597,11 +611,13 @@ func (d *DeploymentService) runCloneDeployPipeline(ctx context.Context, data *Cl
 			Status:  types.DeploymentError,
 			Message: errorMsg(err.Error()),
 		})
-		return
+		return fmt.Errorf("clone_deploy:create_service: %w", err)
 	}
 
 	fmt.Println("finished clone deploying:", data.SwarmService)
 	d.log.PublishLog(&logbroker.PubData{
 		Msg: successMsg("successfully clone deployed : " + data.SwarmService),
 	})
+
+	return nil
 }

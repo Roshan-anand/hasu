@@ -62,7 +62,7 @@ func (h *PreviewHandler) CreatePreview(c *echo.Context) error {
 		GitSourceType:  b.GitSourceType,
 		GitSourceValue: b.GitSourceValue,
 		EnvCopy:        b.EnvCopy,
-	}); err != nil {
+	}, nil); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{
 			Message: err.Error(),
 		})

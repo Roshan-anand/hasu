@@ -244,7 +244,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		BuildArgs:         b.BuildArgs,
 		BuildSecrets:      b.BuildSecrets,
 		IsPublic:          b.Public,
-	}); err != nil {
+	}, nil); err != nil {
 		fmt.Println("error assigning deploy job:", err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
 	}

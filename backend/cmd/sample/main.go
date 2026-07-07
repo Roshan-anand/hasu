@@ -1,28 +1,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"log"
-	"net/url"
+	"time"
 )
 
+// this /sample/main.go is only for experimentation purpose.
+// any code written here is not associated with the main project and will be deleted after the experimentation is done.
 func main() {
+	ctx, cancle := context.WithCancel(context.Background())
 
-	urls := []string{
-		"example.com",
-		"example.com/path/to/resource",
-		"https://example.com/",
-	}
+	go func() {
+		time.Sleep(1 * time.Second)
+		cancle()
+	}()
 
-	for _, u := range urls {
-		pUrl, err := url.Parse(u)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		fmt.Printf("%q\n", u)
-		fmt.Printf("Scheme: %q\n", pUrl.Scheme)
-		fmt.Printf("Host:   %q\n", pUrl.Host)
-		fmt.Printf("Path:   %q\n\n", pUrl.Path)
-	}
+	<-ctx.Done()
+	fmt.Println("Context done ", ctx.Err())
 }

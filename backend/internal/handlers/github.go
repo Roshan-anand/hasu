@@ -491,7 +491,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 				CommitHash: pushEvent.GetAfter(),
 				CommitMsg:  pushEvent.GetHeadCommit().GetMessage(),
 				Source:     "webhook",
-			}); err != nil {
+			}, nil); err != nil {
 				// Failure for one service should not block others; the error is already
 				// logged by the deployment service.
 				continue
@@ -534,7 +534,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 				HeadBranch:     prEvent.GetPullRequest().GetHead().GetRef(),
 				GitSourceType:  "pr",
 				GitSourceValue: fmt.Sprintf("%d", pr.GetNumber()),
-			})
+			}, nil)
 		case "synchronize":
 			// check if there is already a preview for this repo + PR
 			preview, err := h.Server.Services.Deployment.GetActivePreviewByPR(h.qCtx, int(repo.GetID()), pr.GetNumber())
@@ -600,7 +600,7 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 				HeadBranch:     "", // resolved inside orchestration
 				GitSourceType:  "pr",
 				GitSourceValue: fmt.Sprintf("%d", prNumber),
-			})
+			}, nil)
 		}
 	}
 

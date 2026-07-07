@@ -175,9 +175,8 @@ func (h *DeploymentHandler) RebuildAppService(c *echo.Context) error {
 	if _, _, _, err := h.Server.Services.Deployment.AssignRebuild(context.Background(), &deployjob.RebuildServiceParams{
 		ServiceID:  s.ID,
 		CommitHash: ghData.CommitHash,
-		CommitMsg:  ghData.CommitMsg,
-		Source:     "manual",
-	}); err != nil {
+		CommitMsg:  ghData.CommitMsg, Source: "manual",
+	}, nil); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "failed to assign rebuild"})
 	}
 
@@ -250,7 +249,7 @@ func (h *DeploymentHandler) RollbackAppService(c *echo.Context) error {
 					ImgName:      newDyp.Image.String,
 					Env:          []string{},
 					SwarmService: newDyp.SwarmService,
-				})
+				}, nil)
 
 			} else {
 				// TODO : pull build deploy
@@ -343,7 +342,7 @@ func (h *DeploymentHandler) RedeployAppService(c *echo.Context) error {
 		SwarmService: s.SwarmService,
 		Env:          env.Env,
 		ImgName:      s.Image.String,
-	}); err != nil {
+	}, nil); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to redeploy service"})
 	}
 

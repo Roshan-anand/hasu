@@ -31,10 +31,10 @@ type appDeployItem struct {
 
 // CreatePreviewFromPR snapshots the production instance, clones all services,
 // rewrites dependency IDs, generates preview domains, and queues deploys.
-func (d *DeploymentService) CreatePreviewFromPR(ctx context.Context, input CreatePreviewJobParams) {
+func (d *DeploymentService) CreatePreviewFromPR(ctx context.Context, input CreatePreviewJobParams) error {
 	if err := d.v.Struct(input); err != nil {
 		fmt.Println("PreviewWorker : validation error:", err)
-		return
+		return fmt.Errorf("preview:validate: %w", err)
 	}
 
 	q := d.db.Queries
@@ -43,7 +43,7 @@ func (d *DeploymentService) CreatePreviewFromPR(ctx context.Context, input Creat
 	prod, err := q.GetProductionInstanceByProject(ctx, input.ProjectID)
 	if err != nil {
 		fmt.Println("PreviewWorker : no production instance found:", err)
-		return
+		return fmt.Errorf("preview:get_prod_instance: %w", err)
 	}
 
 	fmt.Println("fetched prod instance data")
@@ -55,7 +55,7 @@ func (d *DeploymentService) CreatePreviewFromPR(ctx context.Context, input Creat
 
 	if err := d.docker.CreateNetwork(previewNetwork); err != nil {
 		fmt.Println("PreviewWorker : failed to create preview network:", err)
-		return
+		return fmt.Errorf("preview:create_network: %w", err)
 	}
 
 	if err := q.CreatePreviewInstance(ctx, db.CreatePreviewInstanceParams{
@@ -70,7 +70,7 @@ func (d *DeploymentService) CreatePreviewFromPR(ctx context.Context, input Creat
 		CreatedBy:      types.CreatedByWebhook,
 	}); err != nil {
 		fmt.Println("PreviewWorker : failed to create preview instance:", err)
-		return
+		return fmt.Errorf("preview:create_instance: %w", err)
 	}
 
 	fmt.Println("created preview instance record")
@@ -82,37 +82,39 @@ func (d *DeploymentService) CreatePreviewFromPR(ctx context.Context, input Creat
 	// Clone all services from production
 	if err := d.clonePsqlServices(ctx, q, prod.ID, previewID, previewSlug, previewNetwork, idMap); err != nil {
 		fmt.Println("PreviewWorker : clone psql services:", err)
-		return
+		return fmt.Errorf("preview:clone_psql: %w", err)
 	}
 
 	if err := d.cloneRedisServices(ctx, q, prod.ID, previewID, previewSlug, previewNetwork, idMap); err != nil {
 		fmt.Println("PreviewWorker : clone redis services:", err)
-		return
+		return fmt.Errorf("preview:clone_redis: %w", err)
 	}
 
 	deployPlan, err := d.cloneAppServices(ctx, q, prod.ID, previewID, previewSlug, input.RepoID, input.HeadBranch, idMap)
 	if err != nil {
 		fmt.Println("PreviewWorker : clone app services:", err)
-		return
+		return fmt.Errorf("preview:clone_apps: %w", err)
 	}
 
 	// Copy dependencies with remapped IDs
 	if err := d.cloneDependencies(ctx, q, prod.ID, idMap); err != nil {
 		fmt.Println("PreviewWorker : clone dependencies:", err)
-		return
+		return fmt.Errorf("preview:clone_deps: %w", err)
 	}
 
 	// Trigger deploy jobs after dependencies exist so MergeDependencyEnv resolves correctly
 	if err := d.triggerAppServiceDeploys(ctx, q, previewID, previewNetwork, deployPlan); err != nil {
 		fmt.Println("PreviewWorker : trigger app deploys:", err)
-		return
+		return fmt.Errorf("preview:trigger_deploys: %w", err)
 	}
 
 	// Mark instance ready
 	if err := q.UpdateInstanceStatus(ctx, db.UpdateInstanceStatusParams{ID: previewID, Status: types.InstanceReady}); err != nil {
 		fmt.Println("PreviewWorker : failed to set preview ready:", err)
-		return
+		return fmt.Errorf("preview:set_ready: %w", err)
 	}
+
+	return nil
 }
 
 // clonePsqlServices fetches all PSQL services from the production instance and clones them to the preview.
@@ -396,7 +398,7 @@ func (d *DeploymentService) triggerAppServiceDeploys(ctx context.Context, q *db.
 				Domain:       item.previewDomain,
 				IsPublic:     item.svc.IsPublic,
 				Port:         item.svc.Port,
-			}); err != nil {
+			}, nil); err != nil {
 				return fmt.Errorf("failed to assign clone deploy for %s: %w", item.svc.Name, err)
 			}
 			continue
@@ -430,7 +432,7 @@ func (d *DeploymentService) triggerAppServiceDeploys(ctx context.Context, q *db.
 			BuildArgs:         envData.BuildArgs,
 			BuildSecrets:      envData.BuildSecrets,
 			IsPublic:          item.svc.IsPublic,
-		}); err != nil {
+		}, nil); err != nil {
 			return fmt.Errorf("failed to assign deploy for %s: %w", item.svc.Name, err)
 		}
 	}
