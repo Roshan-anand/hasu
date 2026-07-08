@@ -58,7 +58,7 @@ restart: reset start
 
 test:
 	cd backend && \
-	go test -v ./...
+	go test -race -v ./...
 
 setup: install build-web
 	@cd backend && \

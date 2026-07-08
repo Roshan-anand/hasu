@@ -28,20 +28,20 @@ type DockerBuildReq struct {
 }
 
 type CreateAppServiceReq struct {
-	InstanceID    uuid.UUID       `json:"instance_id" validate:"required"`
-	Name          string          `json:"name" validate:"required,min=3,max=50"`
-	GitProvider   string          `json:"git_provider" validate:"required"`
-	GhAppID       int64           `json:"gh_app_id" validate:"required"`
-	GhRepoID      int64           `json:"gh_repo_id" validate:"required"`
-	DefaultBranch string          `json:"default_branch" validate:"required"`
-	BuildPath     string          `json:"build_path" validate:"required"`
-	WatchPath     string          `json:"watch_path" validate:"required"`
-	Env           []string        `json:"env"`
-	BuildArgs     []string        `json:"build_args"`
-	BuildSecrets  []string        `json:"build_secrets"`
-	DockerBuild   *DockerBuildReq `json:"docker_build"`
-	Public        bool            `json:"public"`
-	Port          int32           `json:"port"`
+	InstanceID    uuid.UUID         `json:"instance_id" validate:"required"`
+	Name          string            `json:"name" validate:"required,min=3,max=50"`
+	GitProvider   types.GitProvider `json:"git_provider" validate:"required"`
+	GhAppID       int64             `json:"gh_app_id" validate:"required"`
+	GhRepoID      int64             `json:"gh_repo_id" validate:"required"`
+	DefaultBranch string            `json:"default_branch" validate:"required"`
+	BuildPath     string            `json:"build_path" validate:"required"`
+	WatchPath     string            `json:"watch_path" validate:"required"`
+	Env           []string          `json:"env"`
+	BuildArgs     []string          `json:"build_args"`
+	BuildSecrets  []string          `json:"build_secrets"`
+	DockerBuild   *DockerBuildReq   `json:"docker_build"`
+	Public        bool              `json:"public"`
+	Port          int32             `json:"port"`
 }
 
 type CreatePreviewAppServiceReq struct {
@@ -244,6 +244,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		BuildArgs:         b.BuildArgs,
 		BuildSecrets:      b.BuildSecrets,
 		IsPublic:          b.Public,
+		GitProvider:       b.GitProvider,
 	}, nil); err != nil {
 		fmt.Println("error assigning deploy job:", err)
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create deployment"})
@@ -566,7 +567,7 @@ func (h *ServiceHandler) GetAppServiceSettings(c *echo.Context) error {
 	return c.JSON(http.StatusOK, types.Res[AppServiceSettingsRes]{
 		Message: "",
 		Data: AppServiceSettingsRes{
-			Domain:            settings.Domain,
+			Domain:            settings.Domain.String,
 			Port:              settings.Port,
 			IsPublic:          settings.IsPublic,
 			Replicas:          replicas,

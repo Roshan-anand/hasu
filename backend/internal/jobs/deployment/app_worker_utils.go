@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -36,6 +35,7 @@ type DeploymentServiceUtils struct {
 	Env               []string `validate:"required"`
 	BuildArgs         []string `validate:"required"`
 	BuildSecrets      []string `validate:"required"`
+	GitProvider       types.GitProvider
 }
 
 // scans the reader line by line and publish the logs
@@ -52,9 +52,7 @@ func scanAndPublish(l *logbroker.LogBrokerService, dID uuid.UUID, r io.Reader) {
 		}
 
 		if err != nil {
-			if !errors.Is(err, io.EOF) {
-				fmt.Println("stdout read error:", err)
-			}
+			fmt.Println("scan error :", err)
 			break
 		}
 	}
@@ -68,11 +66,11 @@ func runWorkerCmd(l *logbroker.LogBrokerService, dID uuid.UUID, cmd *exec.Cmd, w
 	}
 	defer ptmx.Close()
 
-	go scanAndPublish(l, dID, ptmx)
-
+	scanAndPublish(l, dID, ptmx)
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("%s:err:cmd:wait: %v\n", worker, err)
+		return fmt.Errorf("%s:err:cmd: %v", worker, err)
 	}
+
 	return nil
 }
 
@@ -185,7 +183,13 @@ func (d *DeploymentServiceUtils) getDockerBuildCmd(ctx context.Context, outputPa
 
 // helper function to get the git clone command based on the repo type
 func (d *DeploymentServiceUtils) getCloneRepoCmd(ctx context.Context) *exec.Cmd {
-	repoURL := fmt.Sprintf("https://oauth2:%s@%s", d.Token, d.Url)
+	var repoURL string
+	switch d.GitProvider {
+	case types.GitLocalProvider:
+		repoURL = fmt.Sprintf("file://%s", d.Url)
+	default:
+		repoURL = fmt.Sprintf("https://oauth2:%s@%s", d.Token, d.Url)
+	}
 
 	cmdStr := fmt.Sprintf(`
 		git clone --depth 1 %s %s &&
@@ -283,6 +287,7 @@ func (d *DeploymentServiceUtils) pullCode(ctx context.Context, data *DeploymentS
 	// clone the repo and get the code path
 	cmd := d.getCloneRepoCmd(ctx)
 	if err := runWorkerCmd(log, d.DeploymentID, cmd, "pull"); err != nil {
+		fmt.Printf("PullWorker: error running command: %v\n", err)
 		return err
 	}
 

@@ -66,6 +66,7 @@ type DeploymentServiceParams struct {
 	BuildArgs         []string `validate:"required"`
 	BuildSecrets      []string `validate:"required"`
 	IsPublic          bool
+	GitProvider       types.GitProvider
 }
 
 type RebuildServiceParams struct {
@@ -108,6 +109,7 @@ func (d *DeploymentService) runDeploymentPipeline(ctx context.Context, data *Dep
 		Env:               data.Env,
 		BuildArgs:         data.BuildArgs,
 		BuildSecrets:      data.BuildSecrets,
+		GitProvider:       data.GitProvider,
 	})
 	if err != nil {
 		fmt.Println("PullWorker: error creating deployment utils:", err)

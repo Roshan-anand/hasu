@@ -31,6 +31,14 @@ const (
 	MongoPredefServiceType PredefServiceType = "mongodb"
 )
 
+type GitProvider string
+
+const (
+	GitHubProvider   GitProvider = "github"
+	GitLabProvider   GitProvider = "gitlab"
+	GitLocalProvider GitProvider = "local" // ! used only for local testing, not for production
+)
+
 type InstanceStatus string
 
 const (

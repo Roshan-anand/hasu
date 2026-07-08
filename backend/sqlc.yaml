@@ -43,6 +43,10 @@ sql:
             go_type:
               import: "github.com/Roshan-anand/godploy/internal/lib/types"
               type: "ServiceType"
+          - column: "app_service.git_provider"
+            go_type:
+              import: "github.com/Roshan-anand/godploy/internal/lib/types"
+              type: "GitProvider"
 
           - db_type: "uuid"
             nullable: false

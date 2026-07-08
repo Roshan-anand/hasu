@@ -63,12 +63,13 @@ func mockServer() (*echo.Echo, *config.Server, error) {
 	cfg.JwtSecret = "test_secret"
 	cfg.AppEnv = types.TestMode
 
-	sqliteTempPath, badgerTempPath, err := getTempDir()
+	tmpDir, err := getTempDir()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get temp dir: %w", err)
 	}
-	cfg.SqliteDir = sqliteTempPath
-	cfg.BadgerDir = badgerTempPath
+	cfg.SqliteDir = tmpDir.sqliteDir
+	cfg.BadgerDir = tmpDir.badgerDir
+	cfg.CodeStoreDir = tmpDir.codeStoreDir
 
 	// create server instance
 	server, err := config.NewServer(cfg)
@@ -154,24 +155,39 @@ func getFreePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
+type TestDir struct {
+	sqliteDir    string
+	badgerDir    string
+	codeStoreDir string
+}
+
 // get temp dir for testing
-func getTempDir() (string, string, error) {
+func getTempDir() (*TestDir, error) {
 	p, err := os.MkdirTemp("", "godploy_test_*")
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	sqliteDir := fmt.Sprintf("%s/sqlite", p)
 	if err := os.Mkdir(sqliteDir, os.FileMode(0755)); err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	badgerDir := fmt.Sprintf("%s/badger", p)
 	if err := os.Mkdir(badgerDir, os.FileMode(0755)); err != nil {
-		return "", "", err
+		return nil, err
 	}
 
-	return sqliteDir, badgerDir, nil
+	codeStoreDir := fmt.Sprintf("%s/code", p)
+	if err := os.Mkdir(codeStoreDir, os.FileMode(0755)); err != nil {
+		return nil, err
+	}
+
+	return &TestDir{
+		sqliteDir:    sqliteDir,
+		badgerDir:    badgerDir,
+		codeStoreDir: codeStoreDir,
+	}, nil
 }
 
 func reqBody(data any) io.Reader {
@@ -188,12 +204,13 @@ func GetDummyServerHandler() (*config.Server, *handlers.Handler, error) {
 	// update config to include testing data
 	cfg.JwtSecret = "test_secret"
 
-	sqliteTempPath, badgerTempPath, err := getTempDir()
+	tmpDir, err := getTempDir()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get temp dir: %w", err)
 	}
-	cfg.SqliteDir = sqliteTempPath
-	cfg.BadgerDir = badgerTempPath
+	cfg.SqliteDir = tmpDir.sqliteDir
+	cfg.BadgerDir = tmpDir.badgerDir
+	cfg.CodeStoreDir = tmpDir.codeStoreDir
 
 	// create server instance
 	server, err := config.NewServer(cfg)

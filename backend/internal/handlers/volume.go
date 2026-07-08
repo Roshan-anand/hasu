@@ -77,8 +77,6 @@ func (h *ServiceHandler) GetAllVolume(c *echo.Context) error {
 		enriched = append(enriched, info)
 	}
 
-	fmt.Printf("enriched volumes: %+v\n", enriched) // Debug log to check enriched data
-
 	return c.JSON(http.StatusOK, typesLib.Res[[]OrphanVolumeWithUsage]{Message: "successfully get volumes", Data: enriched})
 }
 
