@@ -75,8 +75,8 @@ SELECT CAST(
 AS BOOLEAN);
 
 -- name: CreateAppService :one
-INSERT INTO app_service (id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage, is_public, branch, swarm_service, domain, port, internal_url)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO app_service (id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_secrets, docker_filepath, docker_contextpath, docker_buildstage, is_public, branch, swarm_service, domain, port, internal_url)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, name, type;
 
 -- name: CheckServiceIsProduction :one
@@ -104,13 +104,13 @@ SELECT CAST(EXISTS(
 ) AS BOOLEAN);
 
 -- name: GetServiceEnv :one
-SELECT env, build_args, build_secrets
+SELECT env, build_secrets
 FROM app_service
 WHERE id = ?;
 
 -- name: UpdateAppServiceEnv :exec
 UPDATE app_service
-SET env = ?, build_args = ?, build_secrets = ?
+SET env = ?, build_secrets = ?
 WHERE id = ?;
 
 -- name: GetAppServiceById :one
@@ -123,7 +123,7 @@ WHERE a.id = ?;
 
 -- name: GetAppServiceForRebuild :one
 SELECT
-    a.id, a.instance_id, a.name, a.gh_repo_url, a.gh_app_id, a.gh_repo_id, a.branch, a.build_path, a.docker_filepath, a.docker_contextpath, a.docker_buildstage, a.env, a.build_args, a.build_secrets, a.swarm_service, a.is_public, a.domain, a.port,
+    a.id, a.instance_id, a.name, a.gh_repo_url, a.gh_app_id, a.gh_repo_id, a.branch, a.build_path, a.docker_filepath, a.docker_contextpath, a.docker_buildstage, a.env, a.build_secrets, a.swarm_service, a.is_public, a.domain, a.port,
     d.id AS deployment_id, d.status AS deployment_status
 FROM app_service a
 JOIN deployments d ON d.service_id = a.id AND d.is_current

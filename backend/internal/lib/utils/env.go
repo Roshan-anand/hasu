@@ -8,13 +8,11 @@ import (
 
 type ServiceEnvArray struct {
 	Env          []string
-	BuildArgs    []string
 	BuildSecrets []string
 }
 
 type ServiceEnvByte struct {
 	Env          []byte
-	BuildArgs    []byte
 	BuildSecrets []byte
 }
 
@@ -28,8 +26,7 @@ func CleanArray(arr []string) []string {
 // to unmarshal all the evn into array of string
 func UnmarshalServiceEnv(e *ServiceEnvByte) (*ServiceEnvArray, error) {
 	var env []string
-	var build_args []string
-	var build_secrets []string
+	var buildSecrets []string
 
 	if e.Env != nil {
 		if err := json.Unmarshal(e.Env, &env); err != nil {
@@ -37,22 +34,15 @@ func UnmarshalServiceEnv(e *ServiceEnvByte) (*ServiceEnvArray, error) {
 		}
 	}
 
-	if e.BuildArgs != nil {
-		if err := json.Unmarshal(e.BuildArgs, &build_args); err != nil {
-			return nil, fmt.Errorf("Failed to unmarshal build args: %v", err)
-		}
-	}
-
 	if e.BuildSecrets != nil {
-		if err := json.Unmarshal(e.BuildSecrets, &build_secrets); err != nil {
+		if err := json.Unmarshal(e.BuildSecrets, &buildSecrets); err != nil {
 			return nil, fmt.Errorf("Failed to unmarshal build secrets: %v", err)
 		}
 	}
 
 	return &ServiceEnvArray{
 		Env:          CleanArray(env),
-		BuildArgs:    CleanArray(build_args),
-		BuildSecrets: CleanArray(build_secrets),
+		BuildSecrets: CleanArray(buildSecrets),
 	}, nil
 }
 
@@ -63,11 +53,6 @@ func MarshalServiceEnv(e *ServiceEnvArray) (*ServiceEnvByte, error) {
 		return nil, fmt.Errorf("Failed to marshal env: %v", err)
 	}
 
-	buildArgsByte, err := json.Marshal(e.BuildArgs)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal build args: %v", err)
-	}
-
 	buildSecretsByte, err := json.Marshal(e.BuildSecrets)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to marshal build secrets: %v", err)
@@ -75,7 +60,6 @@ func MarshalServiceEnv(e *ServiceEnvArray) (*ServiceEnvByte, error) {
 
 	return &ServiceEnvByte{
 		Env:          envByte,
-		BuildArgs:    buildArgsByte,
 		BuildSecrets: buildSecretsByte,
 	}, nil
 }

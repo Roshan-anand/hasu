@@ -37,7 +37,6 @@ type CreateAppServiceReq struct {
 	BuildPath     string            `json:"build_path" validate:"required"`
 	WatchPath     string            `json:"watch_path" validate:"required"`
 	Env           []string          `json:"env"`
-	BuildArgs     []string          `json:"build_args"`
 	BuildSecrets  []string          `json:"build_secrets"`
 	DockerBuild   *DockerBuildReq   `json:"docker_build"`
 	Public        bool              `json:"public"`
@@ -59,13 +58,11 @@ type UpdateDomainReq struct {
 type UpdateEnvReq struct {
 	ServiceID    uuid.UUID `json:"service_id" validate:"required"`
 	Env          []string  `json:"env" validate:"required"`
-	BuildArgs    []string  `json:"build_args" validate:"required"`
 	BuildSecrets []string  `json:"build_secrets" validate:"required"`
 }
 
 type GetEnvRes struct {
 	Env          []string `json:"env" validate:"required"`
-	BuildArgs    []string `json:"build_args" validate:"required"`
 	BuildSecrets []string `json:"build_secrets" validate:"required"`
 }
 
@@ -156,13 +153,11 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 
 	// clear the evnironment array
 	b.Env = utils.CleanArray(b.Env)
-	b.BuildArgs = utils.CleanArray(b.BuildArgs)
 	b.BuildSecrets = utils.CleanArray(b.BuildSecrets)
 
 	// convert into bytes
 	envByte, err := utils.MarshalServiceEnv(&utils.ServiceEnvArray{
 		Env:          b.Env,
-		BuildArgs:    b.BuildArgs,
 		BuildSecrets: b.BuildSecrets,
 	})
 	if err != nil {
@@ -193,7 +188,6 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		BuildPath:         b.BuildPath,
 		WatchPath:         b.WatchPath,
 		Env:               envByte.Env,
-		BuildArgs:         envByte.BuildArgs,
 		BuildSecrets:      envByte.BuildSecrets,
 		DockerFilepath:    b.DockerBuild.FilePath,
 		DockerContextpath: b.DockerBuild.ContextPath,
@@ -241,7 +235,6 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		DockerBuildStage:  b.DockerBuild.BuildStage,
 		ImgName:           unique.ServiceName,
 		Env:               b.Env,
-		BuildArgs:         b.BuildArgs,
 		BuildSecrets:      b.BuildSecrets,
 		IsPublic:          b.Public,
 		GitProvider:       b.GitProvider,
@@ -343,7 +336,6 @@ func (h *ServiceHandler) GetServiceEnv(c *echo.Context) error {
 
 	envString, err := utils.UnmarshalServiceEnv(&utils.ServiceEnvByte{
 		Env:          e.Env,
-		BuildArgs:    e.BuildArgs,
 		BuildSecrets: e.BuildSecrets,
 	})
 	if err != nil {
@@ -354,7 +346,6 @@ func (h *ServiceHandler) GetServiceEnv(c *echo.Context) error {
 		Message: "",
 		Data: GetEnvRes{
 			Env:          envString.Env,
-			BuildArgs:    envString.BuildArgs,
 			BuildSecrets: envString.BuildSecrets,
 		},
 	})
@@ -460,22 +451,14 @@ func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
 	}
 	serviceV := inspectRes.Version
 	spec := inspectRes.Spec
-	spec.TaskTemplate.ContainerSpec.Env = b.Env
-
-	// update the swarm service
-	if _, err := docker.ServiceUpdate(context.Background(), swarmService, serviceV, spec, swarm.ServiceUpdateOptions{}); err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update swarm service"})
-	}
 
 	// clear the evnironment array
 	b.Env = utils.CleanArray(b.Env)
-	b.BuildArgs = utils.CleanArray(b.BuildArgs)
 	b.BuildSecrets = utils.CleanArray(b.BuildSecrets)
 
 	// convert into bytes
 	envBytes, err := utils.MarshalServiceEnv(&utils.ServiceEnvArray{
 		Env:          b.Env,
-		BuildArgs:    b.BuildArgs,
 		BuildSecrets: b.BuildSecrets,
 	})
 	if err != nil {
@@ -486,10 +469,18 @@ func (h *ServiceHandler) UpdateAppServiceEnv(c *echo.Context) error {
 	if err := q.UpdateAppServiceEnv(h.qCtx, db.UpdateAppServiceEnvParams{
 		ID:           b.ServiceID,
 		Env:          envBytes.Env,
-		BuildArgs:    envBytes.BuildArgs,
 		BuildSecrets: envBytes.BuildSecrets,
 	}); err != nil {
-		return c.JSON(http.StatusBadRequest, types.Res[struct{}]{Message: "Failed to update env"})
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update env"})
+	}
+
+	// Resolve dependency values.
+	resolvedEnv := deployjob.MergeDependencyEnv(q, b.ServiceID, b.Env)
+	spec.TaskTemplate.ContainerSpec.Env = resolvedEnv
+
+	// update the swarm service
+	if _, err := docker.ServiceUpdate(context.Background(), swarmService, serviceV, spec, swarm.ServiceUpdateOptions{}); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update swarm service"})
 	}
 
 	return c.JSON(http.StatusOK, types.Res[struct{}]{Message: "Successfully updated env"})

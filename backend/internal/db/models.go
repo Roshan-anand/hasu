@@ -28,7 +28,6 @@ type AppService struct {
 	DockerContextpath string            `json:"docker_contextpath"`
 	DockerBuildstage  string            `json:"docker_buildstage"`
 	Env               []byte            `json:"env"`
-	BuildArgs         []byte            `json:"build_args"`
 	BuildSecrets      []byte            `json:"build_secrets"`
 	IsPublic          bool              `json:"is_public"`
 	Branch            string            `json:"branch"`

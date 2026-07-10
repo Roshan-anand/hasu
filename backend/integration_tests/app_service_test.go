@@ -33,7 +33,6 @@ func TestAppService(t *testing.T) {
 		BuildPath:    "/",
 		WatchPath:    "/",
 		Env:          []string{},
-		BuildArgs:    []string{},
 		BuildSecrets: []string{},
 		DockerBuild:  &handlers.DockerBuildReq{},
 	}

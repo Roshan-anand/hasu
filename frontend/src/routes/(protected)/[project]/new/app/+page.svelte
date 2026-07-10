@@ -41,7 +41,6 @@
 			public: true,
 			port: 80,
 			env: '',
-			build_args: '',
 			build_secrets: '',
 			docker_build: {
 				file_path: '',
@@ -418,27 +417,19 @@
 			<Collapsible.Content class="space-y-4 p-2">
 				<form.Field name="env">
 					{#snippet children(field)}
-						<SecretTextarea
-							title="Environment Variables"
-							name={field.name}
-							value={field.state.value}
-							onblur={field.handleBlur}
-							oninput={(e) => field.handleChange(e.currentTarget.value)}
-							submitPending={createServiceMutation.isPending}
-						/>
-					{/snippet}
-				</form.Field>
-
-				<form.Field name="build_args">
-					{#snippet children(field)}
-						<SecretTextarea
-							title="Build Args"
-							name={field.name}
-							value={field.state.value}
-							onblur={field.handleBlur}
-							oninput={(e) => field.handleChange(e.currentTarget.value)}
-							submitPending={createServiceMutation.isPending}
-						/>
+						<div class="space-y-1.5">
+							<SecretTextarea
+								title="Environment Variables (Build & Runtime)"
+								name={field.name}
+								value={field.state.value}
+								onblur={field.handleBlur}
+								oninput={(e) => field.handleChange(e.currentTarget.value)}
+								submitPending={createServiceMutation.isPending}
+							/>
+							<p class="text-xs text-muted-foreground">
+								Available during build and when container runs.
+							</p>
+						</div>
 					{/snippet}
 				</form.Field>
 

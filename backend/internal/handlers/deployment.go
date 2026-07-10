@@ -201,6 +201,15 @@ func (h *DeploymentHandler) RollbackAppService(c *echo.Context) error {
 		return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "rebuild in progress, cannot rollback now"})
 	}
 
+	service, err := q.GetAppServiceForRedeploy(h.qCtx, b.ServiceID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to get service"})
+	}
+	env, err := utils.UnmarshalServiceEnv(&utils.ServiceEnvByte{Env: service.Env})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Internal server error"})
+	}
+
 	// get all deployments
 	deployments, err := q.GetDeploymentsWithSwarmByServiceID(h.qCtx, b.ServiceID)
 	if err != nil {
@@ -246,8 +255,9 @@ func (h *DeploymentHandler) RollbackAppService(c *echo.Context) error {
 
 				h.Server.Services.Deployment.AssignRedeploy(context.Background(), &deployjob.ReDeployData{
 					DeploymentID: newDyp.ID,
+					ServiceID:    b.ServiceID,
 					ImgName:      newDyp.Image.String,
-					Env:          []string{},
+					Env:          env.Env,
 					SwarmService: newDyp.SwarmService,
 				}, nil)
 
@@ -335,10 +345,9 @@ func (h *DeploymentHandler) RedeployAppService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Internal server error"})
 	}
 
-	env.Env = deployjob.MergeDependencyEnv(q, b.ServiceID, env.Env)
-
 	if err := h.Server.Services.Deployment.AssignRedeploy(context.Background(), &deployjob.ReDeployData{
 		DeploymentID: s.DeploymentID,
+		ServiceID:    b.ServiceID,
 		SwarmService: s.SwarmService,
 		Env:          env.Env,
 		ImgName:      s.Image.String,

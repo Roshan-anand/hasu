@@ -88,13 +88,11 @@ export type CreateAppServiceBody = {
 
 export type CreateAppServiceForm = CreateAppServiceBody & {
 	env: string;
-	build_args: string;
 	build_secrets: string;
 };
 
 export type CreateServicePayload = CreateAppServiceBody & {
 	env: string[];
-	build_args: string[];
 	build_secrets: string[];
 	instance_id: string;
 };
@@ -204,7 +202,6 @@ export type UpdateServiceDomainPayload = {
 export type UpdateEnvPayload = {
 	service_id: string;
 	env: string[];
-	build_args: string[];
 	build_secrets: string[];
 };
 

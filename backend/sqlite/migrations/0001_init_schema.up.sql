@@ -70,7 +70,6 @@ CREATE TABLE IF NOT EXISTS app_service (
     docker_buildstage TEXT NOT NULL DEFAULT '',
     -- environment related column
     env BLOB,
-    build_args BLOB,
     build_secrets BLOB,
     -- swarm related column
     is_public BOOLEAN NOT NULL,

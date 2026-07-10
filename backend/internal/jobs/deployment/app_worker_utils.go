@@ -33,7 +33,6 @@ type DeploymentServiceUtils struct {
 	DockerBuildStage  string
 	ImgName           string   `validate:"required"`
 	Env               []string `validate:"required"`
-	BuildArgs         []string `validate:"required"`
 	BuildSecrets      []string `validate:"required"`
 	GitProvider       types.GitProvider
 }
@@ -156,10 +155,10 @@ func (d *DeploymentServiceUtils) getDockerBuildCmd(ctx context.Context, outputPa
 		cmd.Args = append(cmd.Args, "--file", d.DockerFilePath)
 	}
 
-	// Guard against empty build args that break docker buildx parsing.
-	for _, arg := range d.BuildArgs {
+	// Canonical merged environment is passed to Docker at build time and runtime.
+	for _, arg := range d.Env {
 		trimmed := strings.TrimSpace(arg)
-		if trimmed == "" || strings.HasPrefix(trimmed, "=") {
+		if trimmed == "" {
 			continue
 		}
 		cmd.Args = append(cmd.Args, "--build-arg", trimmed)
@@ -343,8 +342,7 @@ func (d *DeploymentServiceUtils) buildImg(ctx context.Context, data *DeploymentS
 	return nil
 }
 
-// MergeDependencyEnv resolves dependency env values for a source service and appends them to
-// the manual env slice. Manual env values take precedence on key conflict.
+// MergeDependencyEnv appends resolved dependency values after user env so dependencies take precedence on key conflicts.
 func MergeDependencyEnv(q *db.Queries, sourceServiceID uuid.UUID, manualEnv []string) []string {
 	rows, err := q.ResolveDependencyEnv(context.Background(), sourceServiceID)
 	if err != nil {

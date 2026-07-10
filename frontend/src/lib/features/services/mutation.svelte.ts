@@ -49,7 +49,6 @@ export function useCreateServiceMutation(getProjectName: () => string) {
 			if (!instance.current.id) throw new Error('No instance selected');
 
 			const env = formValue.env.split('\n').filter((line) => line.trim() !== '');
-			const build_args = formValue.build_args.split('\n').filter((line) => line.trim() !== '');
 			const build_secrets = formValue.build_secrets
 				.split('\n')
 				.filter((line) => line.trim() !== '');
@@ -66,7 +65,6 @@ export function useCreateServiceMutation(getProjectName: () => string) {
 				public: formValue.public,
 				port: formValue.port,
 				env,
-				build_args,
 				build_secrets,
 				docker_build: {
 					file_path: formValue.docker_build.file_path,
@@ -212,17 +210,15 @@ export function useUpdateServiceDomainMutation(getServiceId: () => string) {
 type UpdateEnvFormValues = {
 	service_id: string;
 	env: string;
-	build_args: string;
 	build_secrets: string;
 };
 
 export function useUpdateEnvMutation(getServiceId: () => string) {
 	return createMutation(() => ({
-		mutationFn: async ({ env, build_args, build_secrets, ...rest }: UpdateEnvFormValues) => {
+		mutationFn: async ({ env, build_secrets, ...rest }: UpdateEnvFormValues) => {
 			const payload: UpdateEnvPayload = {
 				...rest,
 				env: env.split('\n').filter((l) => l.trim() !== ''),
-				build_args: build_args.split('\n').filter((l) => l.trim() !== ''),
 				build_secrets: build_secrets.split('\n').filter((l) => l.trim() !== '')
 			};
 			return api.put<ApiRes<null>>('/service/app/env', payload).then((res) => res.data);

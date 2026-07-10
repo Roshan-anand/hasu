@@ -258,7 +258,6 @@ func (d *DeploymentService) cloneAppServices(ctx context.Context, q *db.Queries,
 			BuildPath:         svc.BuildPath,
 			WatchPath:         svc.WatchPath,
 			Env:               svc.Env,
-			BuildArgs:         svc.BuildArgs,
 			BuildSecrets:      svc.BuildSecrets,
 			DockerFilepath:    svc.DockerFilepath,
 			DockerContextpath: svc.DockerContextpath,
@@ -380,7 +379,6 @@ func (d *DeploymentService) triggerAppServiceDeploys(ctx context.Context, q *db.
 	for _, item := range plan {
 		envData, err := utils.UnmarshalServiceEnv(&utils.ServiceEnvByte{
 			Env:          item.svc.Env,
-			BuildArgs:    item.svc.BuildArgs,
 			BuildSecrets: item.svc.BuildSecrets,
 		})
 		if err != nil {
@@ -429,7 +427,6 @@ func (d *DeploymentService) triggerAppServiceDeploys(ctx context.Context, q *db.
 			DockerBuildStage:  item.svc.DockerBuildstage,
 			ImgName:           item.newSwarm,
 			Env:               envData.Env,
-			BuildArgs:         envData.BuildArgs,
 			BuildSecrets:      envData.BuildSecrets,
 			IsPublic:          item.svc.IsPublic,
 		}, nil); err != nil {

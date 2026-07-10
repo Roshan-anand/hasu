@@ -37,7 +37,6 @@ func TestAppWorker(t *testing.T) {
 		BuildPath:     "/",
 		WatchPath:     "/",
 		Env:           []string{},
-		BuildArgs:     []string{},
 		BuildSecrets:  []string{},
 		DockerBuild:   &handlers.DockerBuildReq{},
 		DefaultBranch: "main",
@@ -57,7 +56,6 @@ func TestAppWorker(t *testing.T) {
 		// convert into bytes
 		envByte, err := utils.MarshalServiceEnv(&utils.ServiceEnvArray{
 			Env:          aps.Env,
-			BuildArgs:    aps.BuildArgs,
 			BuildSecrets: aps.BuildSecrets,
 		})
 		if err != nil {
@@ -86,7 +84,6 @@ func TestAppWorker(t *testing.T) {
 			BuildPath:         aps.BuildPath,
 			WatchPath:         aps.WatchPath,
 			Env:               envByte.Env,
-			BuildArgs:         envByte.BuildArgs,
 			BuildSecrets:      envByte.BuildSecrets,
 			DockerFilepath:    aps.DockerBuild.FilePath,
 			DockerContextpath: aps.DockerBuild.ContextPath,
@@ -130,7 +127,6 @@ func TestAppWorker(t *testing.T) {
 			DockerBuildStage:  aps.DockerBuild.BuildStage,
 			ImgName:           unique.ServiceName,
 			Env:               aps.Env,
-			BuildArgs:         aps.BuildArgs,
 			BuildSecrets:      aps.BuildSecrets,
 			IsPublic:          aps.Public,
 			GitProvider:       types.GitLocalProvider,
@@ -245,7 +241,6 @@ func TestAppWorker(t *testing.T) {
 		updateReq := &handlers.UpdateEnvReq{
 			ServiceID:    appServiceID,
 			Env:          []string{"KEY=value"},
-			BuildArgs:    []string{},
 			BuildSecrets: []string{},
 		}
 		rec, err := TestEchoHandler(&TestEchoBody{T: t, H: h.Service.UpdateAppServiceEnv, IsAuth: true, Body: updateReq})

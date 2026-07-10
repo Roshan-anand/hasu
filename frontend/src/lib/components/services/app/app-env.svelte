@@ -8,7 +8,6 @@
 	let { serviceID }: { serviceID: string } = $props();
 
 	let env = $state<string>('');
-	let buildArgs = $state<string>('');
 	let buildSecrets = $state<string>('');
 
 	const getEnvQuery = useGetServiceEnvQuery(() => serviceID);
@@ -18,7 +17,6 @@
 		updateEnv.mutate({
 			service_id: serviceID,
 			env,
-			build_args: buildArgs,
 			build_secrets: buildSecrets
 		});
 	};
@@ -31,23 +29,17 @@
 				{updateEnv.isPending ? 'updating ...' : 'update'}
 			</Button>
 		</div>
-		<div>
+		<div class="space-y-1.5">
 			<SecretTextarea
-				title="Environment Variables"
+				title="Environment Variables (Build & Runtime)"
 				name="env"
 				value={getEnvQuery.data.env.join('\n')}
 				oninput={(e) => (env = e.currentTarget.value)}
 				submitPending={updateEnv.isPending}
 			/>
+			<p class="text-xs text-muted-foreground">Available during build and when container runs.</p>
 			<AppDependency {serviceID} />
 		</div>
-		<SecretTextarea
-			title="Build Args"
-			name="build-args"
-			value={getEnvQuery.data.build_args.join('\n')}
-			oninput={(e) => (buildArgs = e.currentTarget.value)}
-			submitPending={updateEnv.isPending}
-		/>
 		<SecretTextarea
 			title="Build Secrets"
 			name="build-secrets"

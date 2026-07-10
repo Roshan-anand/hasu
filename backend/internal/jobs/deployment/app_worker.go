@@ -31,10 +31,10 @@ type deployData struct {
 
 type ReDeployData struct {
 	DeploymentID uuid.UUID `validate:"required"`
-	ServiceID    uuid.UUID
-	SwarmService string   `validate:"required"`
-	Env          []string `validate:"required"`
-	ImgName      string   `validate:"required"`
+	ServiceID    uuid.UUID `validate:"required"`
+	SwarmService string    `validate:"required"`
+	Env          []string
+	ImgName      string `validate:"required"`
 }
 
 type CloneDeployData struct {
@@ -63,7 +63,6 @@ type DeploymentServiceParams struct {
 	DockerBuildStage  string
 	ImgName           string   `validate:"required"`
 	Env               []string `validate:"required"`
-	BuildArgs         []string `validate:"required"`
 	BuildSecrets      []string `validate:"required"`
 	IsPublic          bool
 	GitProvider       types.GitProvider
@@ -118,7 +117,6 @@ func (d *DeploymentService) runDeploymentPipeline(ctx context.Context, data *Dep
 		DockerBuildStage:  data.DockerBuildStage,
 		ImgName:           data.ImgName,
 		Env:               data.Env,
-		BuildArgs:         data.BuildArgs,
 		BuildSecrets:      data.BuildSecrets,
 		GitProvider:       data.GitProvider,
 	})
@@ -235,7 +233,6 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 
 	envStr, err := utils.UnmarshalServiceEnv(&utils.ServiceEnvByte{
 		Env:          s.Env,
-		BuildArgs:    s.BuildArgs,
 		BuildSecrets: s.BuildSecrets,
 	})
 	if err != nil {
@@ -277,7 +274,6 @@ func (d *DeploymentService) RunRebuildPipeline(ctx context.Context, data *Rebuil
 		DockerBuildStage:  s.DockerBuildstage,
 		ImgName:           unique.ImgName,
 		Env:               envStr.Env,
-		BuildArgs:         envStr.BuildArgs,
 		BuildSecrets:      envStr.BuildSecrets,
 	})
 	if err != nil {
@@ -419,6 +415,9 @@ func (d *DeploymentService) Redeploy(ctx context.Context, data *ReDeployData) er
 	}
 	version := res.Version
 	spec := res.Spec
+
+	// Resolve dependencies at apply time so redeploys use current values.
+	data.Env = MergeDependencyEnv(d.db.Queries, data.ServiceID, data.Env)
 
 	// update the image and env
 	spec.TaskTemplate.ContainerSpec.Image = data.ImgName

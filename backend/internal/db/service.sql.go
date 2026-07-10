@@ -55,8 +55,8 @@ func (q *Queries) CheckServiceIsProduction(ctx context.Context, serviceID uuid.U
 }
 
 const createAppService = `-- name: CreateAppService :one
-INSERT INTO app_service (id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_args, build_secrets, docker_filepath, docker_contextpath, docker_buildstage, is_public, branch, swarm_service, domain, port, internal_url)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO app_service (id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, env, build_secrets, docker_filepath, docker_contextpath, docker_buildstage, is_public, branch, swarm_service, domain, port, internal_url)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, name, type
 `
 
@@ -73,7 +73,6 @@ type CreateAppServiceParams struct {
 	BuildPath         string            `json:"build_path"`
 	WatchPath         string            `json:"watch_path"`
 	Env               []byte            `json:"env"`
-	BuildArgs         []byte            `json:"build_args"`
 	BuildSecrets      []byte            `json:"build_secrets"`
 	DockerFilepath    string            `json:"docker_filepath"`
 	DockerContextpath string            `json:"docker_contextpath"`
@@ -106,7 +105,6 @@ func (q *Queries) CreateAppService(ctx context.Context, arg CreateAppServicePara
 		arg.BuildPath,
 		arg.WatchPath,
 		arg.Env,
-		arg.BuildArgs,
 		arg.BuildSecrets,
 		arg.DockerFilepath,
 		arg.DockerContextpath,
@@ -347,7 +345,7 @@ func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppSe
 
 const getAppServiceForRebuild = `-- name: GetAppServiceForRebuild :one
 SELECT
-    a.id, a.instance_id, a.name, a.gh_repo_url, a.gh_app_id, a.gh_repo_id, a.branch, a.build_path, a.docker_filepath, a.docker_contextpath, a.docker_buildstage, a.env, a.build_args, a.build_secrets, a.swarm_service, a.is_public, a.domain, a.port,
+    a.id, a.instance_id, a.name, a.gh_repo_url, a.gh_app_id, a.gh_repo_id, a.branch, a.build_path, a.docker_filepath, a.docker_contextpath, a.docker_buildstage, a.env, a.build_secrets, a.swarm_service, a.is_public, a.domain, a.port,
     d.id AS deployment_id, d.status AS deployment_status
 FROM app_service a
 JOIN deployments d ON d.service_id = a.id AND d.is_current
@@ -367,7 +365,6 @@ type GetAppServiceForRebuildRow struct {
 	DockerContextpath string                 `json:"docker_contextpath"`
 	DockerBuildstage  string                 `json:"docker_buildstage"`
 	Env               []byte                 `json:"env"`
-	BuildArgs         []byte                 `json:"build_args"`
 	BuildSecrets      []byte                 `json:"build_secrets"`
 	SwarmService      string                 `json:"swarm_service"`
 	IsPublic          bool                   `json:"is_public"`
@@ -393,7 +390,6 @@ func (q *Queries) GetAppServiceForRebuild(ctx context.Context, id uuid.UUID) (Ge
 		&i.DockerContextpath,
 		&i.DockerBuildstage,
 		&i.Env,
-		&i.BuildArgs,
 		&i.BuildSecrets,
 		&i.SwarmService,
 		&i.IsPublic,
@@ -433,7 +429,7 @@ func (q *Queries) GetAppServiceForRedeploy(ctx context.Context, id uuid.UUID) (G
 }
 
 const getAppServiceOnly = `-- name: GetAppServiceOnly :one
-SELECT id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, docker_filepath, docker_contextpath, docker_buildstage, env, build_args, build_secrets, is_public, branch, swarm_service, domain, internal_url, port, created_at FROM app_service WHERE id = ?
+SELECT id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, docker_filepath, docker_contextpath, docker_buildstage, env, build_secrets, is_public, branch, swarm_service, domain, internal_url, port, created_at FROM app_service WHERE id = ?
 `
 
 func (q *Queries) GetAppServiceOnly(ctx context.Context, id uuid.UUID) (AppService, error) {
@@ -455,7 +451,6 @@ func (q *Queries) GetAppServiceOnly(ctx context.Context, id uuid.UUID) (AppServi
 		&i.DockerContextpath,
 		&i.DockerBuildstage,
 		&i.Env,
-		&i.BuildArgs,
 		&i.BuildSecrets,
 		&i.IsPublic,
 		&i.Branch,
@@ -593,7 +588,7 @@ func (q *Queries) GetDomainAndPortByServiceId(ctx context.Context, serviceID uui
 }
 
 const getFullAppServicesByInstanceId = `-- name: GetFullAppServicesByInstanceId :many
-SELECT id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, docker_filepath, docker_contextpath, docker_buildstage, env, build_args, build_secrets, is_public, branch, swarm_service, domain, internal_url, port, created_at FROM app_service WHERE instance_id = ?
+SELECT id, instance_id, type, name, git_provider, gh_app_id, gh_repo_id, gh_repo_name, gh_repo_url, build_path, watch_path, docker_filepath, docker_contextpath, docker_buildstage, env, build_secrets, is_public, branch, swarm_service, domain, internal_url, port, created_at FROM app_service WHERE instance_id = ?
 `
 
 func (q *Queries) GetFullAppServicesByInstanceId(ctx context.Context, instanceID uuid.UUID) ([]AppService, error) {
@@ -621,7 +616,6 @@ func (q *Queries) GetFullAppServicesByInstanceId(ctx context.Context, instanceID
 			&i.DockerContextpath,
 			&i.DockerBuildstage,
 			&i.Env,
-			&i.BuildArgs,
 			&i.BuildSecrets,
 			&i.IsPublic,
 			&i.Branch,
@@ -667,21 +661,20 @@ func (q *Queries) GetPredefSwarmServiceById(ctx context.Context, serviceID uuid.
 }
 
 const getServiceEnv = `-- name: GetServiceEnv :one
-SELECT env, build_args, build_secrets
+SELECT env, build_secrets
 FROM app_service
 WHERE id = ?
 `
 
 type GetServiceEnvRow struct {
 	Env          []byte `json:"env"`
-	BuildArgs    []byte `json:"build_args"`
 	BuildSecrets []byte `json:"build_secrets"`
 }
 
 func (q *Queries) GetServiceEnv(ctx context.Context, id uuid.UUID) (GetServiceEnvRow, error) {
 	row := q.db.QueryRowContext(ctx, getServiceEnv, id)
 	var i GetServiceEnvRow
-	err := row.Scan(&i.Env, &i.BuildArgs, &i.BuildSecrets)
+	err := row.Scan(&i.Env, &i.BuildSecrets)
 	return i, err
 }
 
@@ -791,24 +784,18 @@ func (q *Queries) UpdateAppServiceBuildSettings(ctx context.Context, arg UpdateA
 
 const updateAppServiceEnv = `-- name: UpdateAppServiceEnv :exec
 UPDATE app_service
-SET env = ?, build_args = ?, build_secrets = ?
+SET env = ?, build_secrets = ?
 WHERE id = ?
 `
 
 type UpdateAppServiceEnvParams struct {
 	Env          []byte    `json:"env"`
-	BuildArgs    []byte    `json:"build_args"`
 	BuildSecrets []byte    `json:"build_secrets"`
 	ID           uuid.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateAppServiceEnv(ctx context.Context, arg UpdateAppServiceEnvParams) error {
-	_, err := q.db.ExecContext(ctx, updateAppServiceEnv,
-		arg.Env,
-		arg.BuildArgs,
-		arg.BuildSecrets,
-		arg.ID,
-	)
+	_, err := q.db.ExecContext(ctx, updateAppServiceEnv, arg.Env, arg.BuildSecrets, arg.ID)
 	return err
 }
 

@@ -62,6 +62,7 @@
 - [ ] enhance app service settings by controling few setting to check if service-exists in order to perform edits. 
 - [ ] gracefully handle redeploy when previous deployment is still in progress (also applies for new commit when prev dyp is still in progress)
 - [ ] for every get<any>service API add a layer of verifying swarm_service exists. also for predef check vol also.
+- [ ] add env is a text_area, make it a KV input fileds liek vercel
 
 ## Potential bugs
 
@@ -81,4 +82,4 @@
 - [ ] varify  github webhook issue_comment
 - [x] validate if users given domain is correctly stored in DB, later for preview service to create subdomains.
 - [ ] Delete project should also delete all preview instance.
-- [ ] integration tests mock onlly repo output and keep a copy of the code. else use git pull for lcoal folders.  
+- [ ] integration tests mock onlly repo output and keep a copy of the code. else use git pull for lcoal folders.
