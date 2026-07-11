@@ -80,8 +80,10 @@
 		<div class="flex items-center justify-between">
 			<div class="space-y-0.5">
 				<Label for="visibility-switch">Public Service</Label>
-				<p class="text-sm text-muted-foreground">
-					Make this service accessible via a public domain
+				<p class="text-sm text-muted-foreground *:bg-muted *:text-muted-foreground *:px-1">
+					Make this service accessible via a public domain. note : <span>example.com</span> is a
+					valid input. <span>http://example.com</span> or <span>https://example.com</span> will be automatically
+					parsed to host name.
 				</p>
 			</div>
 			<Switch.Root

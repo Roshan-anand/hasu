@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -9,15 +10,27 @@ import (
 // any code written here is not associated with the main project and will be deleted after the experimentation is done.
 func main() {
 
-	bodys := []string{"/godploy deploy", "", "good morning", "/godploy not", "/godploy deploy myself", "has deploy"}
+	urls := []string{"https://example.com", "example.com", "http://example.com/xyz", "noturl", "www.example.com", "https://www.example.com"}
 
-	for _, body := range bodys {
-		cmd := strings.Split(strings.TrimSpace(body), " ")
-		len := len(cmd)
-		if len < 2 || cmd[0] != "/godploy" || cmd[1] != "deploy" {
-			fmt.Println("not valid cmd :", body)
-		} else {
-			fmt.Println("valid cmd :", body)
+	for _, u := range urls {
+		fmt.Println("-------------------------------------")
+		fmt.Println("URL:", u)
+
+		if !strings.HasPrefix(u, "https://") && !strings.HasPrefix(u, "http://") {
+			u = "https://" + u
 		}
+
+		fmt.Println("after validaton :", u)
+
+		parseUrl, err := url.Parse(u)
+		if err != nil {
+			fmt.Println("Error parsing URL : ", err)
+			continue
+		}
+		fmt.Println("schema :", parseUrl.Scheme)
+		fmt.Println("host :", parseUrl.Host)
+		fmt.Println("hostname :", parseUrl.Hostname())
+		fmt.Println("path:", parseUrl.Path)
 	}
+
 }
