@@ -368,22 +368,22 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 		b.Domain = ""
 	}
 
+	var domainUrl string
+	var domainHost string
 	// validate domain only when public
 	if b.IsPublic && b.Domain != "" {
 		if !strings.HasPrefix(b.Domain, "https://") {
-			b.Domain = "https://" + b.Domain
+			domainUrl = "https://" + b.Domain
+		} else {
+			domainUrl = b.Domain
 		}
-		u, err := url.Parse(b.Domain)
+		u, err := url.Parse(domainUrl)
 		if err != nil || u.Hostname() == "" {
-			fmt.Println("host name:", u.Hostname())
-			fmt.Println("host :", u.Host)
-			fmt.Println("paht :", u.Path)
-
+			fmt.Println("invalid domain:", err, u.Hostname())
 			return c.JSON(http.StatusBadRequest,
 				types.Res[struct{}]{Message: "invalid domain"})
 		}
-
-		b.Domain = u.Host
+		domainHost = u.Hostname()
 	}
 
 	swarmService, err := q.GetSwarmServiceByServiceId(h.qCtx, b.ServiceID)
@@ -405,7 +405,7 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 		spec.Annotations.Labels["traefik.enable"] = "true"
 	}
 
-	spec.Annotations.Labels[fmt.Sprintf("traefik.http.routers.%s.rule", swarmService)] = fmt.Sprintf("Host(`%s`)", b.Domain)
+	spec.Annotations.Labels[fmt.Sprintf("traefik.http.routers.%s.rule", swarmService)] = fmt.Sprintf("Host(`%s`)", domainHost)
 	spec.Annotations.Labels[fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", swarmService)] = fmt.Sprintf("%d", b.Port)
 
 	// update the swarm service
@@ -415,7 +415,7 @@ func (h *ServiceHandler) UpdateAppServiceDomain(c *echo.Context) error {
 
 	// update the app service in database
 	if err := q.UpdateDomianAndPort(h.qCtx, db.UpdateDomianAndPortParams{
-		Domain:    sql.NullString{String: b.Domain, Valid: b.Domain != ""},
+		Domain:    sql.NullString{String: domainUrl, Valid: b.Domain != ""},
 		Port:      b.Port,
 		IsPublic:  b.IsPublic,
 		ServiceID: b.ServiceID,
