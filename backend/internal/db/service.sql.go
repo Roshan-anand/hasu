@@ -302,8 +302,10 @@ SELECT
     a.id, a.name, a.gh_repo_name, a.gh_repo_url, a.is_public, a.branch, a.swarm_service, a.domain, a.internal_url, a.port, a.created_at,
     d.status, d.commit_msg
 FROM app_service a
-JOIN deployments d ON d.service_id = a.id AND d.is_current
+LEFT JOIN deployments d ON d.service_id = a.id
 WHERE a.id = ?
+ORDER BY d.is_current DESC, d.created_at DESC
+LIMIT 1
 `
 
 type GetAppServiceByIdRow struct {
@@ -319,7 +321,7 @@ type GetAppServiceByIdRow struct {
 	Port         int32                  `json:"port"`
 	CreatedAt    time.Time              `json:"created_at"`
 	Status       types.DeploymentStatus `json:"status"`
-	CommitMsg    string                 `json:"commit_msg"`
+	CommitMsg    sql.NullString         `json:"commit_msg"`
 }
 
 func (q *Queries) GetAppServiceById(ctx context.Context, id uuid.UUID) (GetAppServiceByIdRow, error) {

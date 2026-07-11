@@ -57,7 +57,7 @@ func (h *HealthHandler) HealthCheck(c *echo.Context) error {
 		return c.JSON(500, types.Res[struct{}]{Message: "docker client not initialized"})
 	}
 
-	return c.JSON(200, types.Res[struct{}]{Message: "ok"})
+	return c.JSON(200, types.Res[struct{}]{Message: "ok server good health"})
 }
 
 // manually create GitHub app credentials in DB (dev only)

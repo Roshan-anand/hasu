@@ -209,7 +209,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		ServiceID:  service.ID,
 		CommitHash: ghData.CommitHash,
 		CommitMsg:  ghData.CommitMsg,
-		IsCurrent:  true,
+		IsCurrent:  false,
 	})
 	if err != nil {
 		tx.Rollback()
@@ -291,7 +291,7 @@ func (h *ServiceHandler) GetAppServiceById(c *echo.Context) error {
 			CreatedAt:    service.CreatedAt,
 			Replicas:     replicas,
 			Status:       service.Status,
-			CommitMsg:    service.CommitMsg,
+			CommitMsg:    service.CommitMsg.String,
 		},
 	})
 }

@@ -45,6 +45,7 @@ func createServer() (*config.Server, error) {
 	// start log broker workers
 	s.Services.LogBroker.Start(context.Background())
 
+	// TODO : before server exits store the info of the pending works from the chan
 	// clean up deployments that were interrupted by a previous server stop before
 	// any new deployment work can begin.
 	if err := s.Services.Deployment.CleanupInterruptedDeployments(context.Background()); err != nil {

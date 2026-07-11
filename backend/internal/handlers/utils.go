@@ -99,7 +99,7 @@ func getManifestData(url string, state string) (string, error) {
 			"pull_requests": "write",
 			"issues":        "write",
 		},
-		"default_events": []string{"push", "pull_request", "issues"},
+		"default_events": []string{"push", "pull_request", "issues", "issue_comment"},
 	}
 
 	manifestDataB, err := json.Marshal(manifest)
