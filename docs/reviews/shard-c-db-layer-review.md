@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS github_pull_requests ( ... );
 
 It is **missing `ALTER TABLE` statements** to add columns `git_source_type`, `git_source_value`, `status`, and `created_by` to the existing `instance` table.
 
-**Impact**:  
+**Impact**:
+
 - Migration 0001 (`0001_init_schema.up.sql`) defines these columns for **fresh installs** (`CREATE TABLE IF NOT EXISTS instance ( ... git_source_type ... )`).
 - For **existing databases** that were created with a prior version of 0001 (before these columns were added), running the migration chain from 0001→0002→0003→0004→0005 will **not** add these columns to `instance`.
 - All queries in `instance.sql` (e.g. `GetProductionInstanceByProject`, `CreatePreviewInstance`) reference these columns and will **fail at runtime** on existing databases.
@@ -114,8 +115,9 @@ type Instance struct {
 
 ### 🟡 WARNING-01: Missing `CHECK` constraints on `psql_service` status/type
 
-**Files**:  
-- `backend/sqlite/migrations/0001_init_schema.up.sql` (psql_service table)  
+**Files**:
+
+- `backend/sqlite/migrations/0001_init_schema.up.sql` (psql_service table)
 - `backend/sqlite/migrations/0003_redis_service.up.sql` (redis_service table for comparison)
 
 **Problem**:  
@@ -146,6 +148,7 @@ Invalid data (e.g., `status = 'invalid'`) can be inserted directly into `psql_se
 Add a migration (0006 or modify 0001 — but 0001 is fresh-install-only) to add `CHECK` constraints:
 
 Since SQLite cannot `ALTER TABLE ADD CHECK`, the options are:
+
 1. **For fresh installs**: Modify 0001's `psql_service` to add `CHECK(status IN ('running','paused'))` and `CHECK(type IN ('psql'))`.
 2. **For existing databases**: Create a new migration that recreates the table with constraints (dump, recreate, repopulate) — or accept the application-level enforcement as sufficient.
 
@@ -158,7 +161,8 @@ Since SQLite cannot `ALTER TABLE ADD CHECK`, the options are:
 **File**: `backend/internal/db/models.go` (GithubPullRequest struct)  
 **Lines**: ~89-95
 
-**Problem**:  
+**Problem**:
+
 ```go
 type GithubPullRequest struct {
     ...
@@ -283,13 +287,13 @@ const (
 
 **File**: `backend/integration_tests/app_service_domain_test.go`
 
-| Aspect | Verdict |
-|--------|---------|
-| Setup flow | ✅ Complete — registers user, fetches github app, creates service |
-| Validation cases | ✅ Empty body (400), non-existent service ID (500) |
-| Docker dependency handling | ✅ Graceful skip with `t.Log` when Docker unavailable |
-| DB verification | ✅ Checks `IsPublic` and `Domain.String` after update |
-| Cleanup | ✅ Deletes app service at end |
+| Aspect                     | Verdict                                                           |
+| -------------------------- | ----------------------------------------------------------------- |
+| Setup flow                 | ✅ Complete — registers user, fetches github app, creates service |
+| Validation cases           | ✅ Empty body (400), non-existent service ID (500)                |
+| Docker dependency handling | ✅ Graceful skip with `t.Log` when Docker unavailable             |
+| DB verification            | ✅ Checks `IsPublic` and `Domain.String` after update             |
+| Cleanup                    | ✅ Deletes app service at end                                     |
 
 **Issues**: None found. The test is well-structured.
 
@@ -297,15 +301,15 @@ const (
 
 **File**: `backend/integration_tests/dependency_test.go`
 
-| Aspect | Verdict |
-|--------|---------|
-| CRUD coverage | ✅ Create, read, update, delete all tested |
-| Edge cases | ✅ Self-dependency rejected (400), invalid env key (400), duplicate env key (500) |
-| Cross-instance rejection | ✅ Creates separate org/project/instance and verifies 400 |
-| PSQL/Redis dependency | ✅ Creates both service types and tests dependency creation |
-| Domain validation | ✅ Domain target rejected for internal services and public-with-empty-domain |
-| Cleanup on delete | ✅ Verifies incoming dependencies are cleaned up when PSQL/app target is deleted |
-| Graph endpoint | ✅ Verifies nodes, edges, invalid UUID |
+| Aspect                   | Verdict                                                                           |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| CRUD coverage            | ✅ Create, read, update, delete all tested                                        |
+| Edge cases               | ✅ Self-dependency rejected (400), invalid env key (400), duplicate env key (500) |
+| Cross-instance rejection | ✅ Creates separate org/project/instance and verifies 400                         |
+| PSQL/Redis dependency    | ✅ Creates both service types and tests dependency creation                       |
+| Domain validation        | ✅ Domain target rejected for internal services and public-with-empty-domain      |
+| Cleanup on delete        | ✅ Verifies incoming dependencies are cleaned up when PSQL/app target is deleted  |
+| Graph endpoint           | ✅ Verifies nodes, edges, invalid UUID                                            |
 
 **Issues**: None found. This is a thorough test suite.
 
@@ -313,13 +317,14 @@ const (
 
 **File**: `backend/integration_tests/utils.go`
 
-| Aspect | Verdict |
-|--------|---------|
-| Server initialization | ✅ Creates temp dirs, loads config, sets up routes |
-| Auth mocking | ✅ Sets `AuthUser` in echo context |
-| Cookie jar | ✅ Created but `hasCookie()` has a logic bug — returns `false` if the FIRST cookie checked matches, rather than checking all. This function appears unused. |
+| Aspect                | Verdict                                                                                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Server initialization | ✅ Creates temp dirs, loads config, sets up routes                                                                                                          |
+| Auth mocking          | ✅ Sets `AuthUser` in echo context                                                                                                                          |
+| Cookie jar            | ✅ Created but `hasCookie()` has a logic bug — returns `false` if the FIRST cookie checked matches, rather than checking all. This function appears unused. |
 
 **Minor issue in `hasCookie`** (line ~103):
+
 ```go
 func hasCookie(c []*http.Cookie, cfg *config.Config) bool {
     for _, cookie := range c {
@@ -332,6 +337,7 @@ func hasCookie(c []*http.Cookie, cfg *config.Config) bool {
     return true
 }
 ```
+
 This returns `false` if **any** cookie name doesn't match, rather than checking that **all** required cookies exist. The function appears unused in the test code, so this is a **cosmetic issue** only.
 
 ---
@@ -340,36 +346,36 @@ This returns `false` if **any** cookie name doesn't match, rather than checking 
 
 **File**: `backend/sqlc.yaml`
 
-| Override | Status |
-|----------|--------|
-| `user.role` → `types.UserRole` | ✅ |
-| `deployments.status` → `types.DeploymentStatus` | ✅ |
-| `psql_service.type` → `types.ServiceType` | ✅ |
-| `psql_service.status` → `types.PredefinedServiceStatus` | ✅ |
-| `redis_service.type` → `types.ServiceType` | ✅ |
-| `redis_service.status` → `types.PredefinedServiceStatus` | ✅ |
-| `app_service.type` → `types.ServiceType` | ✅ |
-| `instance.git_source_type` (nullable) → `types.GitSourceType` | ✅ |
-| `instance.status` → `types.InstanceStatus` | ✅ |
-| `instance.created_by` → `types.CreatedBy` | ✅ |
-| `orphan_volume.type` → `types.PredefServiceType` | ✅ |
-| UUID → `uuid.UUID` / `uuid.NullUUID` | ✅ |
-| `app_service.port` → `int32` | ✅ |
+| Override                                                      | Status |
+| ------------------------------------------------------------- | ------ |
+| `user.role` → `types.UserRole`                                | ✅     |
+| `deployments.status` → `types.DeploymentStatus`               | ✅     |
+| `psql_service.type` → `types.ServiceType`                     | ✅     |
+| `psql_service.status` → `types.PredefinedServiceStatus`       | ✅     |
+| `redis_service.type` → `types.ServiceType`                    | ✅     |
+| `redis_service.status` → `types.PredefinedServiceStatus`      | ✅     |
+| `app_service.type` → `types.ServiceType`                      | ✅     |
+| `instance.git_source_type` (nullable) → `types.GitSourceType` | ✅     |
+| `instance.status` → `types.InstanceStatus`                    | ✅     |
+| `instance.created_by` → `types.CreatedBy`                     | ✅     |
+| `orphan_volume.type` → `types.PredefServiceType`              | ✅     |
+| UUID → `uuid.UUID` / `uuid.NullUUID`                          | ✅     |
+| `app_service.port` → `int32`                                  | ✅     |
 
 All overrides correctly match model field names and Go types. **No issues.**
 
 ### Type alignment check
 
-| SQL CHECK | Go type | Matching? |
-|-----------|---------|-----------|
-| `instance.status IN ('creating','ready','deleting')` | `InstanceStatus` with same 3 values | ✅ |
-| `instance.git_source_type IN ('pr','branch')` | `GitSourceType` with `'pr'`, `'branch'` | ✅ |
-| `instance.created_by IN ('manual','webhook')` | `CreatedBy` with `'manual'`, `'webhook'` | ✅ |
-| `deployments.status IN ('building','ready','error','queued','inactive','pruned','paused')` | `DeploymentStatus` with all 7 | ✅ |
-| `redis_service.status IN ('running','paused')` | `PredefinedServiceStatus` with both | ✅ |
-| `redis_service.type IN ('redis')` | `ServiceType` includes `'redis'` | ✅ |
-| **`psql_service.status` — NO CHECK** | `PredefinedServiceStatus` | ⚠️ Mismatch (see WARNING-01) |
-| `orphan_volume.type IN ('psql','redis','mongodb')` | `PredefServiceType` with all 3 | ✅ |
+| SQL CHECK                                                                                  | Go type                                  | Matching?                    |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------- | ---------------------------- |
+| `instance.status IN ('creating','ready','deleting')`                                       | `InstanceStatus` with same 3 values      | ✅                           |
+| `instance.git_source_type IN ('pr','branch')`                                              | `GitSourceType` with `'pr'`, `'branch'`  | ✅                           |
+| `instance.created_by IN ('manual','webhook')`                                              | `CreatedBy` with `'manual'`, `'webhook'` | ✅                           |
+| `deployments.status IN ('building','ready','error','queued','inactive','pruned','paused')` | `DeploymentStatus` with all 7            | ✅                           |
+| `redis_service.status IN ('running','paused')`                                             | `PredefinedServiceStatus` with both      | ✅                           |
+| `redis_service.type IN ('redis')`                                                          | `ServiceType` includes `'redis'`         | ✅                           |
+| **`psql_service.status` — NO CHECK**                                                       | `PredefinedServiceStatus`                | ⚠️ Mismatch (see WARNING-01) |
+| `orphan_volume.type IN ('psql','redis','mongodb')`                                         | `PredefServiceType` with all 3           | ✅                           |
 
 ---
 
@@ -377,15 +383,15 @@ All overrides correctly match model field names and Go types. **No issues.**
 
 **File**: `frontend/src/lib/components/InstancePRPreviewDropdown.svelte`
 
-| Aspect | Verdict |
-|--------|---------|
-| Component structure | ✅ Well-organized with clear sections (search, list, selection, actions) |
-| Loading/error/empty states | ✅ All three states handled |
-| Search/filter UX | ✅ Filters by title and PR number, case-insensitive |
-| Selection UX | ✅ Visual highlight, clear button, confirmation dialog |
-| Accessibility | ✅ Uses `button` elements with proper types, labels via `aria`-adjacent patterns |
-| Svelte 5 runes usage | ✅ `$state`, `$derived`, `$props` used correctly |
-| Dialog portal | ✅ Uses portal for overlay rendering |
+| Aspect                     | Verdict                                                                          |
+| -------------------------- | -------------------------------------------------------------------------------- |
+| Component structure        | ✅ Well-organized with clear sections (search, list, selection, actions)         |
+| Loading/error/empty states | ✅ All three states handled                                                      |
+| Search/filter UX           | ✅ Filters by title and PR number, case-insensitive                              |
+| Selection UX               | ✅ Visual highlight, clear button, confirmation dialog                           |
+| Accessibility              | ✅ Uses `button` elements with proper types, labels via `aria`-adjacent patterns |
+| Svelte 5 runes usage       | ✅ `$state`, `$derived`, `$props` used correctly                                 |
+| Dialog portal              | ✅ Uses portal for overlay rendering                                             |
 
 **Issues**: None significant. The component is clean and well-implemented.
 
@@ -393,19 +399,19 @@ All overrides correctly match model field names and Go types. **No issues.**
 
 ## Final Checklist
 
-| Check | Status |
-|-------|--------|
-| All migration files parse correctly | ✅ |
-| 0005 adds `github_pull_requests` table | ✅ |
-| 0005 adds `ALTER TABLE` for instance columns | ❌ **CRITICAL-01** |
-| Down migration is safe (DROP TABLE only) | ✅ (per design — non-reversible for instance columns is documented) |
-| sqlc generated code matches query files | ✅ |
-| All Go types match CHECK constraints | ❌ **WARNING-01** (psql_service missing CHECK) |
-| `AppService.Domain` is `sql.NullString` everywhere | ✅ |
-| Instance model handles nullable fields correctly | ✅ (GitSourceType nullable, GitSourceValue nullable) |
-| Integration tests compile and cover new paths | ✅ |
-| Frontend component renders and handles states | ✅ |
-| Migration 0004 asymmetry documented | ✅ (see WARNING-02) |
+| Check                                              | Status                                                              |
+| -------------------------------------------------- | ------------------------------------------------------------------- |
+| All migration files parse correctly                | ✅                                                                  |
+| 0005 adds `github_pull_requests` table             | ✅                                                                  |
+| 0005 adds `ALTER TABLE` for instance columns       | ❌ **CRITICAL-01**                                                  |
+| Down migration is safe (DROP TABLE only)           | ✅ (per design — non-reversible for instance columns is documented) |
+| sqlc generated code matches query files            | ✅                                                                  |
+| All Go types match CHECK constraints               | ❌ **WARNING-01** (psql_service missing CHECK)                      |
+| `AppService.Domain` is `sql.NullString` everywhere | ✅                                                                  |
+| Instance model handles nullable fields correctly   | ✅ (GitSourceType nullable, GitSourceValue nullable)                |
+| Integration tests compile and cover new paths      | ✅                                                                  |
+| Frontend component renders and handles states      | ✅                                                                  |
+| Migration 0004 asymmetry documented                | ✅ (see WARNING-02)                                                 |
 
 ---
 
@@ -414,6 +420,5 @@ All overrides correctly match model field names and Go types. **No issues.**
 1. **🔴 CRITICAL**: Add `ALTER TABLE ADD COLUMN` to `0005_preview_instance.up.sql` for the 4 instance columns.
 2. **🔴 CRITICAL**: Reorder `Instance` struct fields in `models.go` to match SQL column order, OR add a comment warning against using `SELECT *` with this struct.
 3. **🟡 WARNING**: Add `CHECK` constraints to `psql_service.status` and `psql_service.type` (or document why application-level enforcement is sufficient).
-4. **🟡 WARNING**: Fix migration 0004 to cleanly drop `domain_dependencies`/`internal_dependencies` in up migration and restore them in down.
-5. **🟡 WARNING**: Change `GithubPullRequest.CreatedAt`/`UpdatedAt` from `sql.NullTime` to `time.Time`.
-6. **🔵 INFO**: Fix `hasCookie()` utility function logic if it becomes used.
+4. **🟡 WARNING**: Change `GithubPullRequest.CreatedAt`/`UpdatedAt` from `sql.NullTime` to `time.Time`.
+5. **🔵 INFO**: Fix `hasCookie()` utility function logic if it becomes used.

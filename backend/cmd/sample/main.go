@@ -1,43 +1,23 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"log"
-	"os/exec"
-
-	"github.com/creack/pty"
+	"strings"
 )
 
 // this /sample/main.go is only for experimentation purpose.
 // any code written here is not associated with the main project and will be deleted after the experimentation is done.
 func main() {
 
-	cmd := exec.Command("git", "clone", "--depth", "1", "file:///home/roshan-anand/workspace/personal/godploy_workspace/samples/portfolio", "./newapp-main-ikc", "&&", "git", "-C", "./newapp-main-ikc", "fetch", "--depth", "1", "origin", "main", "&&", "git", "-C", "./newapp-main-ikc", "switch", "-C", "deploy_branch", "FETCH_HEAD")
+	bodys := []string{"/godploy deploy", "", "good morning", "/godploy not", "/godploy deploy myself", "has deploy"}
 
-	ptmx, err := pty.Start(cmd)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	reader := bufio.NewReader(ptmx)
-
-	go func() {
-		for {
-			line, err := reader.ReadString('\n')
-			if len(line) > 0 {
-				fmt.Println(line)
-			}
-
-			if err != nil {
-				break
-			}
+	for _, body := range bodys {
+		cmd := strings.Split(strings.TrimSpace(body), " ")
+		len := len(cmd)
+		if len < 2 || cmd[0] != "/godploy" || cmd[1] != "deploy" {
+			fmt.Println("not valid cmd :", body)
+		} else {
+			fmt.Println("valid cmd :", body)
 		}
-	}()
-
-	if err := cmd.Wait(); err != nil {
-		log.Fatal(err)
 	}
-
-	fmt.Println("finished job")
 }

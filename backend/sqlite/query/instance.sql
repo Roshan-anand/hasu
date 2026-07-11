@@ -25,14 +25,26 @@ FROM instance
 WHERE project_id = ? AND is_production = false
 ORDER BY created_at DESC;
 
--- name: GetActivePreviewByPR :one
-SELECT id, project_id, is_production, name, network,
-    git_source_type, git_source_value, status, created_by,
-    created_at
-FROM instance
-WHERE project_id = ? AND git_source_type = 'pr' AND git_source_value = ?
-    AND status NOT IN ('deleting', 'error')
-LIMIT 1;
+-- name: GetAllProjectIDsByPR :many
+SELECT p.id
+FROM project p
+JOIN instance i ON p.id = i.project_id AND i.is_production
+WHERE
+    (CAST(@project_name AS TEXT) = ''
+    OR p.name = @project_name)
+    AND EXISTS(
+        SELECT 1 FROM app_service aps
+        WHERE aps.instance_id = i.id AND aps.gh_repo_id = @repo_id
+    )
+    AND NOT EXISTS(
+        SELECT 1 FROM instance pi
+        WHERE pi.project_id = p.id AND pi.git_source_type = 'pr' AND pi.git_source_value = @pr_number
+    );
+
+-- name: GetAllInstanceByPR :many
+SELECT i.id
+FROM instance i
+WHERE i.git_source_type = 'pr' AND i.git_source_value = @pr_number;
 
 -- name: GetPreviewInstanceByID :one
 SELECT id, project_id, is_production, name, network,

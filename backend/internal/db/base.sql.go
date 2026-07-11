@@ -82,8 +82,8 @@ func (q *Queries) CountUserOrgs(ctx context.Context) (int64, error) {
 }
 
 const createInstance = `-- name: CreateInstance :exec
-INSERT INTO instance (id, project_id, is_production, name, network, status)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO instance (id, project_id, is_production, name, network, status, git_source_type, git_source_value, created_by)
+VALUES (?, ?, ?, ?, ?, ?, 'branch', '', 'manual')
 `
 
 type CreateInstanceParams struct {

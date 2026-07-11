@@ -81,8 +81,8 @@ DELETE FROM project
 WHERE id = ?;
 
 -- name: CreateInstance :exec
-INSERT INTO instance (id, project_id, is_production, name, network, status)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO instance (id, project_id, is_production, name, network, status, git_source_type, git_source_value, created_by)
+VALUES (?, ?, ?, ?, ?, ?, 'branch', '', 'manual');
 
 -- name: GetAllInstance :many
 SELECT i.id, i.name, i.is_production

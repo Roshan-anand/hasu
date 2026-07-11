@@ -52,6 +52,7 @@ func (d *DeploymentService) RebuildPreviewOnPush(ctx context.Context, previewID 
 ```
 
 This means:
+
 - `pull_request.synchronize` → silently does nothing (line 610 of github.go)
 - `issue_comment "/godploy deploy"` when preview exists → silently does nothing (line 695 of github.go)
 
@@ -124,6 +125,7 @@ const (
 ```
 
 The PRD (§3.1 schema) and the CHECK constraint in `0005_preview_instance.up.sql` define four valid statuses: `'creating','ready','updating','deleting','error'`. The `updating` and `error` statuses are referenced in the PRD (§5.2, §6) but have no Go constant. This will cause:
+
 - Compile errors if any code path attempts to set status to `updating` or `error`.
 - Silent bugs if status comparison uses string literals.
 
@@ -276,28 +278,28 @@ Compare with `AuthUser` (line 64) which correctly uses `org.ID`. This appears to
 
 ## 📋 Invariant Compliance Summary
 
-| # | Invariant | Status | Notes |
-|---|-----------|--------|-------|
-| 1 | Webhook pull_request: opened/reopened → queue; synchronize → rebuild; closed → delete; all idempotent | ❌ | opened/reopened not idempotent; synchronize stub (C2) |
-| 2 | issue_comment: HeadBranch="" must NOT fail validation | ❌ | Fails validation in submit[T] (C1) |
-| 3 | GitHub manifest: contents=read, metadata=read, pull_requests=write, issues=write | ✅ | Correct in utils.go |
-| 4 | Domain changed from string to sql.NullString | ✅ | All paths use .String or .Valid |
-| 5 | DeployPredefinedService handles network, volume, spec identically | ✅ | Verified identical behavior |
-| 6 | Preview routes protected by auth middleware | ✅ | Under `protected` group in routes/core.go |
-| 7 | ListPreviews must verify caller owns project | ❌ | No ownership check (H1) |
-| 8 | CreatePreview passes GitSourceType + GitSourceValue to worker | ✅ | Correctly forwarded |
-| 9 | InstanceStatus has all required values | ❌ | Missing `updating` and `error` (M1) |
-| 10 | sqlc.yaml overrides match model.go | ✅ | Overrides present for all new columns |
+| #   | Invariant                                                                                             | Status | Notes                                                 |
+| --- | ----------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------- |
+| 1   | Webhook pull_request: opened/reopened → queue; synchronize → rebuild; closed → delete; all idempotent | ❌     | opened/reopened not idempotent; synchronize stub (C2) |
+| 2   | issue_comment: HeadBranch="" must NOT fail validation                                                 | ❌     | Fails validation in submit[T] (C1)                    |
+| 3   | GitHub manifest: contents=read, metadata=read, pull_requests=write, issues=write                      | ✅     | Correct in utils.go                                   |
+| 4   | Domain changed from string to sql.NullString                                                          | ✅     | All paths use .String or .Valid                       |
+| 5   | DeployPredefinedService handles network, volume, spec identically                                     | ✅     | Verified identical behavior                           |
+| 6   | Preview routes protected by auth middleware                                                           | ✅     | Under `protected` group in routes/core.go             |
+| 7   | ListPreviews must verify caller owns project                                                          | ❌     | No ownership check (H1)                               |
+| 8   | CreatePreview passes GitSourceType + GitSourceValue to worker                                         | ✅     | Correctly forwarded                                   |
+| 9   | InstanceStatus has all required values                                                                | ❌     | Missing `updating` and `error` (M1)                   |
+| 10  | sqlc.yaml overrides match model.go                                                                    | ✅     | Overrides present for all new columns                 |
 
 ---
 
 ## Summary
 
-| Severity | Count | Key Action Required |
-|----------|-------|---------------------|
-| 🔴 Critical | 2 | Fix HeadBranch validation (C1); Implement RebuildPreviewOnPush (C2) |
-| 🟠 High | 3 | Add auth check to ListPreviews (H1); Add validation to DeletePreview (H2); Make opened/reopened idempotent (H3) |
-| 🟡 Medium | 4 | Add missing InstanceStatus values (M1); Fix GraphNode type duplication (M2); Fix dead validation tags (M3); Log push handler DB error (M4) |
-| 🔵 Low | 4 | Remove ShutDownInstance stub (L1); Document network idempotency (L2); Use typed response for ListPreviews (L3); Fix AppLogin OrgId bug (L4) |
+| Severity    | Count | Key Action Required                                                                                                                         |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 Critical | 2     | Fix HeadBranch validation (C1); Implement RebuildPreviewOnPush (C2)                                                                         |
+| 🟠 High     | 3     | Add auth check to ListPreviews (H1); Add validation to DeletePreview (H2); Make opened/reopened idempotent (H3)                             |
+| 🟡 Medium   | 4     | Add missing InstanceStatus values (M1); Fix GraphNode type duplication (M2); Fix dead validation tags (M3); Log push handler DB error (M4)  |
+| 🔵 Low      | 4     | Remove ShutDownInstance stub (L1); Document network idempotency (L2); Use typed response for ListPreviews (L3); Fix AppLogin OrgId bug (L4) |
 
 **Total: 13 issues** (2 critical, 3 high, 4 medium, 4 low)

@@ -2,7 +2,6 @@ package deployjob
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/Roshan-anand/godploy/internal/db"
@@ -79,17 +78,4 @@ func (d *DeploymentService) cleanupPreview(ctx context.Context, previewID uuid.U
 // ListPreviews returns all preview instances for a project.
 func (d *DeploymentService) ListPreviews(ctx context.Context, projectID uuid.UUID) ([]db.GetPreviewInstancesByProjectRow, error) {
 	return d.db.Queries.GetPreviewInstancesByProject(ctx, projectID)
-}
-
-// GetActivePreviewByPR finds an active preview for a given repo and PR number.
-func (d *DeploymentService) GetActivePreviewByPR(ctx context.Context, repoID int, prNum int) (db.GetActivePreviewByPRRow, error) {
-	q := d.db.Queries
-	projectID, err := q.GetProjectIDByRepoID(ctx, int64(repoID))
-	if err != nil {
-		return db.GetActivePreviewByPRRow{}, fmt.Errorf("failed to resolve project: %w", err)
-	}
-	return q.GetActivePreviewByPR(ctx, db.GetActivePreviewByPRParams{
-		ProjectID:      projectID,
-		GitSourceValue: sql.NullString{Valid: true, String: fmt.Sprintf("%d", prNum)},
-	})
 }

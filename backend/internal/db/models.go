@@ -82,7 +82,7 @@ type Instance struct {
 	Network        string               `json:"network"`
 	CreatedAt      time.Time            `json:"created_at"`
 	GitSourceType  types.GitSourceType  `json:"git_source_type"`
-	GitSourceValue sql.NullString       `json:"git_source_value"`
+	GitSourceValue string               `json:"git_source_value"`
 	Status         types.InstanceStatus `json:"status"`
 	CreatedBy      types.CreatedBy      `json:"created_by"`
 }

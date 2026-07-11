@@ -7,7 +7,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/Roshan-anand/godploy/internal/lib/types"
@@ -28,7 +27,7 @@ type CreatePreviewInstanceParams struct {
 	Name           string               `json:"name"`
 	Network        string               `json:"network"`
 	GitSourceType  types.GitSourceType  `json:"git_source_type"`
-	GitSourceValue sql.NullString       `json:"git_source_value"`
+	GitSourceValue string               `json:"git_source_value"`
 	Status         types.InstanceStatus `json:"status"`
 	CreatedBy      types.CreatedBy      `json:"created_by"`
 }
@@ -58,50 +57,79 @@ func (q *Queries) DeletePreviewInstance(ctx context.Context, id uuid.UUID) error
 	return err
 }
 
-const getActivePreviewByPR = `-- name: GetActivePreviewByPR :one
-SELECT id, project_id, is_production, name, network,
-    git_source_type, git_source_value, status, created_by,
-    created_at
-FROM instance
-WHERE project_id = ? AND git_source_type = 'pr' AND git_source_value = ?
-    AND status NOT IN ('deleting', 'error')
-LIMIT 1
+const getAllInstanceByPR = `-- name: GetAllInstanceByPR :many
+SELECT i.id
+FROM instance i
+WHERE i.git_source_type = 'pr' AND i.git_source_value = ?1
 `
 
-type GetActivePreviewByPRParams struct {
-	ProjectID      uuid.UUID      `json:"project_id"`
-	GitSourceValue sql.NullString `json:"git_source_value"`
+func (q *Queries) GetAllInstanceByPR(ctx context.Context, prNumber string) ([]uuid.UUID, error) {
+	rows, err := q.db.QueryContext(ctx, getAllInstanceByPR, prNumber)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
-type GetActivePreviewByPRRow struct {
-	ID             uuid.UUID            `json:"id"`
-	ProjectID      uuid.UUID            `json:"project_id"`
-	IsProduction   bool                 `json:"is_production"`
-	Name           string               `json:"name"`
-	Network        string               `json:"network"`
-	GitSourceType  types.GitSourceType  `json:"git_source_type"`
-	GitSourceValue sql.NullString       `json:"git_source_value"`
-	Status         types.InstanceStatus `json:"status"`
-	CreatedBy      types.CreatedBy      `json:"created_by"`
-	CreatedAt      time.Time            `json:"created_at"`
+const getAllProjectIDsByPR = `-- name: GetAllProjectIDsByPR :many
+SELECT p.id
+FROM project p
+JOIN instance i ON p.id = i.project_id AND i.is_production
+WHERE
+    (CAST(?1 AS TEXT) = ''
+    OR p.name = ?1)
+    AND EXISTS(
+        SELECT 1 FROM app_service aps
+        WHERE aps.instance_id = i.id AND aps.gh_repo_id = ?2
+    )
+    AND NOT EXISTS(
+        SELECT 1 FROM instance pi
+        WHERE pi.project_id = p.id AND pi.git_source_type = 'pr' AND pi.git_source_value = ?3
+    )
+`
+
+type GetAllProjectIDsByPRParams struct {
+	ProjectName string `json:"project_name"`
+	RepoID      int64  `json:"repo_id"`
+	PrNumber    string `json:"pr_number"`
 }
 
-func (q *Queries) GetActivePreviewByPR(ctx context.Context, arg GetActivePreviewByPRParams) (GetActivePreviewByPRRow, error) {
-	row := q.db.QueryRowContext(ctx, getActivePreviewByPR, arg.ProjectID, arg.GitSourceValue)
-	var i GetActivePreviewByPRRow
-	err := row.Scan(
-		&i.ID,
-		&i.ProjectID,
-		&i.IsProduction,
-		&i.Name,
-		&i.Network,
-		&i.GitSourceType,
-		&i.GitSourceValue,
-		&i.Status,
-		&i.CreatedBy,
-		&i.CreatedAt,
-	)
-	return i, err
+func (q *Queries) GetAllProjectIDsByPR(ctx context.Context, arg GetAllProjectIDsByPRParams) ([]uuid.UUID, error) {
+	rows, err := q.db.QueryContext(ctx, getAllProjectIDsByPR, arg.ProjectName, arg.RepoID, arg.PrNumber)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getPreviewInstanceByID = `-- name: GetPreviewInstanceByID :one
@@ -119,7 +147,7 @@ type GetPreviewInstanceByIDRow struct {
 	Name           string               `json:"name"`
 	Network        string               `json:"network"`
 	GitSourceType  types.GitSourceType  `json:"git_source_type"`
-	GitSourceValue sql.NullString       `json:"git_source_value"`
+	GitSourceValue string               `json:"git_source_value"`
 	Status         types.InstanceStatus `json:"status"`
 	CreatedBy      types.CreatedBy      `json:"created_by"`
 	CreatedAt      time.Time            `json:"created_at"`
@@ -159,7 +187,7 @@ type GetPreviewInstancesByProjectRow struct {
 	Name           string               `json:"name"`
 	Network        string               `json:"network"`
 	GitSourceType  types.GitSourceType  `json:"git_source_type"`
-	GitSourceValue sql.NullString       `json:"git_source_value"`
+	GitSourceValue string               `json:"git_source_value"`
 	Status         types.InstanceStatus `json:"status"`
 	CreatedBy      types.CreatedBy      `json:"created_by"`
 	CreatedAt      time.Time            `json:"created_at"`

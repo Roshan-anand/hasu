@@ -524,14 +524,21 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 				HtmlUrl:    pr.GetHTMLURL(),
 			})
 		case "closed":
-			// TODO : cleaup all the projects having this PR number and repo id preview.
 			_ = q.DeletePullRequest(h.qCtx, db.DeletePullRequestParams{
 				RepoID:   repo.GetID(),
 				PrNumber: int64(pr.GetNumber()),
 			})
-			preview, err := h.Server.Services.Deployment.GetActivePreviewByPR(h.qCtx, int(repo.GetID()), pr.GetNumber())
-			if err == nil && preview.ID != uuid.Nil {
-				_ = h.Server.Services.Deployment.DeletePreview(h.qCtx, preview.ID)
+
+			instanceIDs, err := q.GetAllInstanceByPR(h.qCtx, fmt.Sprintf("%d", pr.GetNumber()))
+			if err != nil {
+				fmt.Println("failed to get instances for PR:", err)
+				return nil
+			}
+
+			for _, instanceID := range instanceIDs {
+				if err := h.Server.Services.Deployment.DeletePreview(h.qCtx, instanceID); err != nil {
+					fmt.Println("failed to delete preview for instance:", instanceID, "error:", err)
+				}
 			}
 		}
 	}
@@ -578,11 +585,11 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 			}
 		}
 
-		// TODO : convert this to an array
-		// deploy : loop all project.prod-instance.service have repo_id.
-		// deploy <project> : get <project>.prod-instance.service have repo_id.
-		body := strings.TrimSpace(icEvent.GetComment().GetBody())
-		if !strings.Contains(body, "/godploy deploy") {
+		// parse comment body for command
+		cmd := strings.Split(strings.TrimSpace(icEvent.GetComment().GetBody()), " ")
+		len := len(cmd)
+
+		if len < 2 || cmd[0] != "/godploy" || cmd[1] != "deploy" {
 			return nil
 		}
 
@@ -594,11 +601,12 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 
 		repo := icEvent.GetRepo()
 		prNumber := issue.GetNumber()
+		repoID := repo.GetID()
 
 		// upsert PR cache (comment may arrive before pull_request webhook)
 		_ = q.UpsertPullRequest(h.qCtx, db.UpsertPullRequestParams{
 			ID:         uuid.New(),
-			RepoID:     repo.GetID(),
+			RepoID:     repoID,
 			PrNumber:   int64(prNumber),
 			Title:      issue.GetTitle(),
 			HeadBranch: "", // unknown from comment event; resolved later
@@ -607,12 +615,28 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 			HtmlUrl:    issue.GetHTMLURL(),
 		})
 
+		// check if project name is mentioned
+		var projectName string
+		if len == 3 {
+			projectName = cmd[2]
+		}
+
+		// get all projects associated with this PR
+		projectIDs, err := q.GetAllProjectIDsByPR(h.qCtx, db.GetAllProjectIDsByPRParams{
+			ProjectName: projectName,
+			RepoID:      repoID,
+			PrNumber:    fmt.Sprintf("%d", prNumber),
+		})
+		if err != nil {
+			fmt.Println("failed to get projects for PR:", err)
+			return nil
+		}
+
 		// attempt to create a preview for this PR
-		_, err := h.Server.Services.Deployment.GetActivePreviewByPR(h.qCtx, int(repo.GetID()), prNumber)
-		if err != nil && h.Server.DB.IsNoRowsError(err) {
-			fmt.Println("start a assign create preview")
+		for _, ID := range projectIDs {
+			fmt.Println("start a assign create preview for ", ID)
 			if err := h.Server.Services.Deployment.AssignCreatePreview(h.qCtx, &deployjob.CreatePreviewJobParams{
-				ProjectID:      uuid.Nil,
+				ProjectID:      ID,
 				Name:           fmt.Sprintf("pr-%d", prNumber),
 				PRNumber:       prNumber,
 				RepoID:         int(repo.GetID()),
@@ -621,8 +645,6 @@ func (h *GitHandler) GithubWebhook(c *echo.Context) error {
 			}, nil); err != nil {
 				fmt.Println("erro r ", err)
 			}
-		} else {
-			// TODO : notify back to the PR comment that preview already exists.
 		}
 	}
 
