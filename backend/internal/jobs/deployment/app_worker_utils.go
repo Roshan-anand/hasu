@@ -87,9 +87,8 @@ func getOutputPath(baseDir, swarmService string) string {
 
 // returns a base service spec for the given parameters
 func (d *deployData) getBaseSpec() *swarm.ServiceSpec {
-	lbPort := d.port
-	if lbPort == 0 {
-		lbPort = 80
+	if d.port == 0 {
+		d.port = 80
 	}
 
 	spec := &swarm.ServiceSpec{
@@ -97,7 +96,7 @@ func (d *deployData) getBaseSpec() *swarm.ServiceSpec {
 			Name: d.swarmService,
 			Labels: map[string]string{
 				fmt.Sprintf("traefik.http.routers.%s.entrypoints", d.swarmService):               "websecure",
-				fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", d.swarmService): fmt.Sprintf("%d", lbPort),
+				fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", d.swarmService): fmt.Sprintf("%d", d.port),
 				fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", d.swarmService):          "le",
 				"traefik.constraint-label": "head-proxy",
 			},
@@ -217,7 +216,7 @@ func (d *DeploymentServiceParams) getDeployData(network string) *deployData {
 		env:          d.Env,
 		imgName:      d.ImgName,
 		domain:       d.Domain,
-		port:         80,
+		port:         d.Port,
 	}
 }
 

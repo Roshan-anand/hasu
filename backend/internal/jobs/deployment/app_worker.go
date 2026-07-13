@@ -67,6 +67,7 @@ type DeploymentServiceParams struct {
 	BuildSecrets      []string `validate:"required"`
 	IsPublic          bool
 	Domain            string
+	Port              int32
 	GitProvider       types.GitProvider
 	JobID             int64
 }

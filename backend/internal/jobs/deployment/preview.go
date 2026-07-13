@@ -435,6 +435,8 @@ func (d *DeploymentService) triggerAppServiceDeploys(ctx context.Context, q *db.
 			Env:               envData.Env,
 			BuildSecrets:      envData.BuildSecrets,
 			IsPublic:          item.svc.IsPublic,
+			Domain:            item.previewDomain,
+			Port:              item.svc.Port,
 		}, nil); err != nil {
 			return fmt.Errorf("failed to assign deploy for %s: %w", item.svc.Name, err)
 		}

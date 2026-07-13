@@ -237,6 +237,7 @@ func (h *ServiceHandler) CreateAppService(c *echo.Context) error {
 		Env:               b.Env,
 		BuildSecrets:      b.BuildSecrets,
 		IsPublic:          b.Public,
+		Port:              b.Port,
 		GitProvider:       b.GitProvider,
 	}, nil); err != nil {
 		fmt.Println("error assigning deploy job:", err)
