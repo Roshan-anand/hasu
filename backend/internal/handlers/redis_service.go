@@ -9,12 +9,11 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
-	deployjob "github.com/Roshan-anand/godploy/internal/jobs/deployment"
 	"github.com/Roshan-anand/godploy/internal/lib/auth"
+	predef "github.com/Roshan-anand/godploy/internal/lib/predef_utils"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -56,13 +55,6 @@ func isRedisImage(image string) bool {
 	return strings.Contains(image, "redis")
 }
 
-func buildRedisInternalURL(password, serviceName string) string {
-	if password == "" {
-		return fmt.Sprintf("redis://%s:6379", serviceName)
-	}
-	return fmt.Sprintf("redis://:%s@%s:6379", password, serviceName)
-}
-
 // create a new redis service
 //
 // route: POST /api/service/redis
@@ -101,15 +93,11 @@ func (h *ServiceHandler) CreateRedisService(c *echo.Context) error {
 	// if user selects orphan volume then claim it or else create a new volume
 	var volumeName string
 	if b.Volume == "" {
-		newVolume, err := docker.VolumeCreate(h.qCtx, volume.CreateOptions{
-			Name:   serviceName + "_redisdata",
-			Driver: "local",
-		})
+		volumeName, err = predef.CreatePredefVolume(h.qCtx, serviceName, docker, predef.RedisVol)
 		if err != nil {
 			fmt.Println("err :", err)
-			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create volume"})
+			return fmt.Errorf("failed to create redis volume: %w", err)
 		}
-		volumeName = newVolume.Name
 	} else {
 		row, err := q.ClaimOrphanVolume(h.qCtx, db.ClaimOrphanVolumeParams{
 			Volume:         b.Volume,
@@ -136,21 +124,11 @@ func (h *ServiceHandler) CreateRedisService(c *echo.Context) error {
 		env = append(env, "REDIS_PASSWORD="+b.Password)
 	}
 
-	err = deployjob.DeployPredefinedService(
-		h.qCtx,
-		h.Server.Docker,
-		network,
-		serviceName,
-		b.Image,
-		env,
-		volumeName,
-		deployjob.RedisMountTarget,
-	)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to deploy service"})
+	if err := predef.DeployPredefService(h.qCtx, h.Server.Docker, network, serviceName, b.Image, env, volumeName, predef.RedisMountTarget); err != nil {
+		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to deploy redis service"})
 	}
 
-	internalUrl := buildRedisInternalURL(b.Password, serviceName)
+	internalURL := predef.BuildRedisInternalURL(b.Password, serviceName)
 
 	service, err := q.CreateRedisService(h.qCtx, db.CreateRedisServiceParams{
 		ID:           security.GeneratePrimaryKey(),
@@ -160,7 +138,7 @@ func (h *ServiceHandler) CreateRedisService(c *echo.Context) error {
 		SwarmService: serviceName,
 		Name:         b.Name,
 		Password:     b.Password,
-		InternalUrl:  internalUrl,
+		InternalUrl:  internalURL,
 		Image:        b.Image,
 		Volume:       volumeName,
 	})
@@ -211,11 +189,11 @@ func (h *ServiceHandler) UpdateRedisServiceDetails(c *echo.Context) error {
 		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
 	}
 
-	internalUrl := buildRedisInternalURL(b.Password, service.SwarmService)
+	internalURL := predef.BuildRedisInternalURL(b.Password, service.SwarmService)
 
 	if err := q.UpdateRedisServiceDetails(h.qCtx, db.UpdateRedisServiceDetailsParams{
 		Password:    b.Password,
-		InternalUrl: internalUrl,
+		InternalUrl: internalURL,
 		ID:          b.ServiceID,
 	}); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to update service details"})

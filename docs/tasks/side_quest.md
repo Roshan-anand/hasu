@@ -64,6 +64,7 @@
 - [ ] for every get<any>service API add a layer of verifying swarm_service exists. also for predef check vol also.
 - [ ] add env is a text_area, make it a KV input fileds liek vercel
 - [ ] auto remove image of old deploments.
+- [ ] more deep module for predefined service creations (both in API and Preview worker)
 
 ## Potential bugs
 

@@ -8,10 +8,10 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/db"
 	ghservice "github.com/Roshan-anand/godploy/internal/lib/gh"
+	predef "github.com/Roshan-anand/godploy/internal/lib/predef_utils"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/Roshan-anand/godploy/internal/lib/utils"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/google/uuid"
 )
 
@@ -134,26 +134,27 @@ func (d *DeploymentService) clonePsqlServices(ctx context.Context, q *db.Queries
 		newID := security.GeneratePrimaryKey()
 		idMap[svc.ID] = newID
 		newSwarm := fmt.Sprintf("%s-%s", previewSlug, svc.Name)
-		newVol := fmt.Sprintf("volume-%s", newID)
 
-		if _, err := d.docker.Client.VolumeCreate(ctx, volume.CreateOptions{
-			Name:   newVol,
-			Driver: "local",
-		}); err != nil {
+		// create new volume for the preview service
+		newVol, err := predef.CreatePredefVolume(ctx, newSwarm, d.docker.Client, predef.PSQLVol)
+		if err != nil {
+			fmt.Println("err :", err)
 			return fmt.Errorf("failed to create psql volume: %w", err)
 		}
 
+		// deploy psql service with the new volume and environment variables
 		env := []string{
 			fmt.Sprintf("POSTGRES_DB=%s", svc.DbName),
 			fmt.Sprintf("POSTGRES_USER=%s", svc.DbUser),
 			fmt.Sprintf("POSTGRES_PASSWORD=%s", svc.DbPassword),
 			"sslmode=disable",
 		}
-		if err := DeployPredefinedService(ctx, d.docker, previewNetwork, newSwarm, svc.Image, env, newVol, PSQLMountTarget); err != nil {
+		if err := predef.DeployPredefService(ctx, d.docker, previewNetwork, newSwarm, svc.Image, env, newVol, predef.PSQLMountTarget); err != nil {
 			return fmt.Errorf("failed to deploy preview psql: %w", err)
 		}
 
-		internalURL := fmt.Sprintf("http://%s:5432", newSwarm)
+		internalURL := predef.BuildPsqlInternalURL(svc.DbUser, svc.DbPassword, newSwarm, svc.DbName)
+
 		if _, err := q.CreatePsqlService(ctx, db.CreatePsqlServiceParams{
 			ID:           newID,
 			InstanceID:   previewID,
@@ -186,24 +187,24 @@ func (d *DeploymentService) cloneRedisServices(ctx context.Context, q *db.Querie
 		newID := security.GeneratePrimaryKey()
 		idMap[svc.ID] = newID
 		newSwarm := fmt.Sprintf("%s-%s", previewSlug, svc.Name)
-		newVol := fmt.Sprintf("volume-%s", newID)
 
-		if _, err := d.docker.Client.VolumeCreate(ctx, volume.CreateOptions{
-			Name:   newVol,
-			Driver: "local",
-		}); err != nil {
-			return fmt.Errorf("failed to create redis volume: %w", err)
+		// create new volume for preview redis service
+		newVol, err := predef.CreatePredefVolume(ctx, newSwarm, d.docker.Client, predef.RedisVol)
+		if err != nil {
+			fmt.Println("err :", err)
+			return fmt.Errorf("failed to create psql volume: %w", err)
 		}
 
 		env := []string{}
 		if svc.Password != "" {
 			env = append(env, fmt.Sprintf("REDIS_PASSWORD=%s", svc.Password))
 		}
-		if err := DeployPredefinedService(ctx, d.docker, previewNetwork, newSwarm, svc.Image, env, newVol, RedisMountTarget); err != nil {
+		if err := predef.DeployPredefService(ctx, d.docker, previewNetwork, newSwarm, svc.Image, env, newVol, predef.RedisMountTarget); err != nil {
 			return fmt.Errorf("failed to deploy preview redis: %w", err)
 		}
 
-		internalURL := fmt.Sprintf("http://%s:6379", newSwarm)
+		internalURL := predef.BuildRedisInternalURL(svc.Password, newSwarm)
+
 		if _, err := q.CreateRedisService(ctx, db.CreateRedisServiceParams{
 			ID:           newID,
 			InstanceID:   previewID,

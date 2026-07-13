@@ -9,12 +9,11 @@ import (
 
 	"github.com/Roshan-anand/godploy/internal/config"
 	"github.com/Roshan-anand/godploy/internal/db"
-	deployjob "github.com/Roshan-anand/godploy/internal/jobs/deployment"
 	"github.com/Roshan-anand/godploy/internal/lib/auth"
+	predef "github.com/Roshan-anand/godploy/internal/lib/predef_utils"
 	"github.com/Roshan-anand/godploy/internal/lib/security"
 	"github.com/Roshan-anand/godploy/internal/lib/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
@@ -65,10 +64,6 @@ func isPsqlImage(image string) bool {
 	return strings.Contains(image, "postgres")
 }
 
-func buildPsqlInternalURL(dbUser, dbPassword, serviceName, dbName string) string {
-	return fmt.Sprintf("postgres://%s:%s@%s:5432/%s?sslmode=disable", dbUser, dbPassword, serviceName, dbName)
-}
-
 // create a new psql service
 //
 // route: POST /api/service/psql
@@ -107,15 +102,11 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 	// if user selects orphan volume then claim it or else create a new volume
 	var volumeName string
 	if b.Volume == "" {
-		volume, err := docker.VolumeCreate(h.qCtx, volume.CreateOptions{
-			Name:   serviceName + "_pgdata",
-			Driver: "local",
-		})
+		volumeName, err = predef.CreatePredefVolume(h.qCtx, serviceName, docker, predef.PSQLVol)
 		if err != nil {
 			fmt.Println("err :", err)
 			return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create volume"})
 		}
-		volumeName = volume.Name
 	} else {
 		row, err := q.ClaimOrphanVolume(h.qCtx, db.ClaimOrphanVolumeParams{
 			Volume:         b.Volume,
@@ -137,26 +128,18 @@ func (h *ServiceHandler) CreatePsqlService(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to fetch project network"})
 	}
 
-	err = deployjob.DeployPredefinedService(
-		h.qCtx,
-		h.Server.Docker,
-		network,
-		serviceName,
-		b.Image,
-		[]string{
-			"POSTGRES_PASSWORD=" + b.DbPassword,
-			"POSTGRES_USER=" + b.DbUser,
-			"POSTGRES_DB=" + b.DbName,
-			"sslmode=disable",
-		},
-		volumeName,
-		deployjob.PSQLMountTarget,
-	)
-	if err != nil {
+	env := []string{
+		"POSTGRES_PASSWORD=" + b.DbPassword,
+		"POSTGRES_USER=" + b.DbUser,
+		"POSTGRES_DB=" + b.DbName,
+		"sslmode=disable",
+	}
+
+	if err := predef.DeployPredefService(h.qCtx, h.Server.Docker, network, serviceName, b.Image, env, volumeName, predef.PSQLMountTarget); err != nil {
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to deploy service"})
 	}
 
-	internalUrl := buildPsqlInternalURL(b.DbUser, b.DbPassword, serviceName, b.DbName)
+	internalUrl := predef.BuildPsqlInternalURL(b.DbUser, b.DbPassword, serviceName, b.DbName)
 
 	service, err := q.CreatePsqlService(h.qCtx, db.CreatePsqlServiceParams{
 		ID:           security.GeneratePrimaryKey(),
@@ -219,7 +202,7 @@ func (h *ServiceHandler) UpdatePsqlServiceDetails(c *echo.Context) error {
 		return c.JSON(http.StatusNotFound, types.Res[struct{}]{Message: "service not found"})
 	}
 
-	internalUrl := buildPsqlInternalURL(b.DbUser, b.DbPassword, service.SwarmService, b.DbName)
+	internalUrl := predef.BuildPsqlInternalURL(b.DbUser, b.DbPassword, service.SwarmService, b.DbName)
 
 	if err := q.UpdatePsqlServiceDetails(h.qCtx, db.UpdatePsqlServiceDetailsParams{
 		DbName:      b.DbName,
