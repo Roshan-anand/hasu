@@ -1,114 +1,63 @@
-.PHONY: start reset restart build install-web install-server install check build-web build-bin generate test img-build setup dev services-rm web-logs server-logs traefik-logs cloud-tunnel clean clean-web clean-server clean-cache clean-all
-
-permission:
-	@sudo chown -R $(id -u):$(id -g) ./frontend/.svelte-kit
+.PHONY: env install check format build generate setup start stop cloud-tunnel test-backend test traefik-logs services-rm clean clean-web clean-server
 
 env:
-	@cp .env.example .env && \
-	cd frontend && cp .env.example .env
-	
-install-web:
-	cd frontend && \
-	bun install && \
-	bun run prepare
+	@cd apps/server && cp .env.example .env && \
+	cd apps/web && cp .env.example .env
 
-install-server:
-	cd backend && go mod tidy
+install:
+	@bun i && \
+	turbo install
 
-install: install-web install-server
+check:
+	turbo check
 
-format-server:
-	cd backend && go fmt ./...
+format:
+	turbo format
 
-format-web:
-	cd frontend && bun run format && bun run lint
-
-format: format-server format-web
-
-check-web:
-	cd frontend && bun run check
-
-check-server:
-	cd backend && go vet ./...
-
-check: check-web check-server
-
-build-web:
-	cd frontend && \
-	bun install && bun run build
-
-build-bin:
-	cd backend && \
-	go mod tidy && \
-	go build -o ../bin/godploy cmd/server/main.go
-
-build: build-web build-bin
+build:
+	turbo build
 
 generate:
-	cd backend && \
+	cd apps/server && \
 	sqlc generate
 
-start: generate build
-	@./bin/godploy
+setup: install build
+	@turbo setup
 
-reset:
-	rm -rf ./backend/data/* ./data/*
+start:
+	turbo dev --ui tui
 
-restart: reset start
+stop:
+	@pkill -f "make start" && \
+	cd apps/server && \
+	go run cmd/setup/main.go dev-stop
+
+cloud-tunnel:
+	cloudflared tunnel run dev
+
+test-backend:
+	@cd apps/server && \
+	go run cmd/setup/main.go test-backend
 
 test:
-	cd backend && \
+	cd apps/server && \
 	go test -race -v ./...
 
-setup: install build-web
-	@cd backend && \
-	go run cmd/setup/main.go setup
-
-dev-start:
-	@cd backend && \
-	go run cmd/setup/main.go dev-start
-
-server-start:
-	@cd backend && \
-	go run cmd/setup/main.go server-start
-
-web-start:
-	@cd frontend && \
-	bun run dev --host 0.0.0.0 --port 3000
-
-dev-stop:
-	@cd backend && \
-	go run cmd/setup/main.go dev-stop
+traefik-logs:
+	@cd apps/server && \
+	go run cmd/setup/main.go traefik-logs
 
 services-rm:
 	docker service rm godploy_traefik
 
-test-backend:
-	@cd backend && \
-	go run cmd/setup/main.go test-backend
-
-web-logs:
-	@cd backend && \
-	go run cmd/setup/main.go web-logs
-
-server-logs:
-	@cd backend && \
-	go run cmd/setup/main.go server-logs
-
-traefik-logs:
-	@cd backend && \
-	go run cmd/setup/main.go traefik-logs
-
-cloud-tunnel:
-	docker run --rm -it \
-        --network host \
-        cloudflare/cloudflared:latest \
-        tunnel --no-autoupdate --url http://localhost:8080
-
+# cleanup func to remove all node_modules and build artifacts
 clean-web:
-	rm -rf ./frontend/node_modules ./frontend/.svelte-kit ./frontend/build
+	@cd apps/web && \
+	rm -rf node_modules .svelte-kit build
 
 clean-server:
-	rm -rf ./backend/bin ./backend/frontend/dist ./bin/godploy ./backend/data
+	@cd apps/server && \
+	rm -rf bin frontend/dist bin data
 
 clean: clean-web clean-server
+	@rm -rf node_modules

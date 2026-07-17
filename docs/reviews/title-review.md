@@ -16,8 +16,8 @@ The preview instances implementation is structurally sound and follows the exist
 
 ### 🔴 C1: `GetAllService` returns empty `swarm_service` for psql/redis → cleanup silently skips predefined services
 
-**File:** `backend/sqlite/query/service.sql` (lines 9-10, 19-20)  
-**Cascading to:** `backend/internal/jobs/deployment/preview_utils.go` lines 33-40
+**File:** `apps/server/sqlite/query/service.sql` (lines 9-10, 19-20)  
+**Cascading to:** `apps/server/internal/jobs/deployment/preview_utils.go` lines 33-40
 
 **Problem:**  
 The `GetAllService` query uses `'' AS swarm_service` for the psql and redis UNION arms instead of the actual `ps.swarm_service` / `rs.swarm_service` column:
@@ -42,7 +42,7 @@ WHERE ps.instance_id = @instance_id
 
 ### 🔴 C2: Webhook creates preview with `uuid.Nil` for `ProjectID` → `GetProductionInstanceByProject` fails or returns wrong instance
 
-**File:** `backend/internal/handlers/github.go` lines 506-513
+**File:** `apps/server/internal/handlers/github.go` lines 506-513
 
 **Problem:**  
 The webhook `pull_request.opened`/`reopened` handler passes `ProjectID: uuid.Nil`:
@@ -68,8 +68,8 @@ if err != nil { /* log and return */ }
 
 ### 🔴 C3: `HeadBranch` required validation fails for webhook-triggered previews
 
-**File:** `backend/internal/handlers/github.go` line 597  
-**File:** `backend/internal/jobs/deployment/core.go` lines 70-71
+**File:** `apps/server/internal/handlers/github.go` line 597  
+**File:** `apps/server/internal/jobs/deployment/core.go` lines 70-71
 
 **Problem:**  
 `CreatePreviewJobParams.HeadBranch` has `validate:"required"`. The `issue_comment` handler passes `HeadBranch: ""`. The `submit[T]` function calls `d.v.Struct(body)` which will **reject the job** silently.
@@ -82,7 +82,7 @@ if err != nil { /* log and return */ }
 
 ### 🟠 H1: No DB transaction wrapping the clone operations
 
-**File:** `backend/internal/jobs/deployment/preview.go` lines 72-97
+**File:** `apps/server/internal/jobs/deployment/preview.go` lines 72-97
 
 **Problem:**  
 `clonePsqlServices`, `cloneRedisServices`, `cloneAppServices`, and `cloneDependencies` each execute individual INSERT statements. If any step fails mid-way (e.g., `cloneRedisServices` fails after `clonePsqlServices` succeeds), partial state remains in the DB — orphaned app services, psql services, and Docker resources with no cleanup.
@@ -95,7 +95,7 @@ The PRD explicitly says **"B3 — Clone Services (DB transaction)"**.
 
 ### 🟠 H2: `cleanupPreview` recovery and error handling gap
 
-**File:** `backend/internal/jobs/deployment/preview_utils.go` lines 34-62
+**File:** `apps/server/internal/jobs/deployment/preview_utils.go` lines 34-62
 
 **Problems:**
 1. **No panic recovery** — if any panic occurs inside the goroutine, the entire process crashes.
@@ -116,7 +116,7 @@ func (d *DeploymentService) cleanupPreview(ctx context.Context, previewID uuid.U
 
 ### 🟠 H3: `status='ready'` set immediately after queueing deploys, not after completion
 
-**File:** `backend/internal/jobs/deployment/preview.go` line 99
+**File:** `apps/server/internal/jobs/deployment/preview.go` line 99
 
 **Problem:**  
 ```go
@@ -133,7 +133,7 @@ This is called right after `triggerAppServiceDeploys` submits jobs to channels. 
 
 ### 🟠 H4: `runCloneDeployPipeline` creates the network that already exists
 
-**File:** `backend/internal/jobs/deployment/app_worker.go` lines 177-184
+**File:** `apps/server/internal/jobs/deployment/app_worker.go` lines 177-184
 
 **Problem:**  
 `CreateNetwork` is called inside `runCloneDeployPipeline`. The network was already created in `CreatePreviewFromPR` (preview.go line 58). While `CreateNetwork` is idempotent (checks existence), this is a logic error — the clone-deploy pipeline should not be managing network lifecycle. If the network was somehow deleted between creation and deployment, recreating it here creates a race condition.
@@ -146,7 +146,7 @@ This is called right after `triggerAppServiceDeploys` submits jobs to channels. 
 
 ### 🟡 M1: `InstanceStatus` missing `"error"` state
 
-**File:** `backend/internal/lib/types/types.go` lines 34-40
+**File:** `apps/server/internal/lib/types/types.go` lines 34-40
 
 **Problem:**  
 The PRD schema defines `CHECK(status IN ('creating','ready','updating','deleting','error'))`. The code only defines `InstanceCreating`, `InstanceReady`, `InstanceDeleting`. There's no `InstanceError` type. The `GetActivePreviewByPR` query filters out `'error'` but the constant is never used.
@@ -157,7 +157,7 @@ The PRD schema defines `CHECK(status IN ('creating','ready','updating','deleting
 
 ### 🟡 M2: `deployData.port` hardcoded to 80 in preview flows
 
-**File:** `backend/internal/jobs/deployment/app_worker_utils.go` lines 140-149
+**File:** `apps/server/internal/jobs/deployment/app_worker_utils.go` lines 140-149
 
 **Problem:**  
 ```go
@@ -177,8 +177,8 @@ And in `runCloneDeployPipeline` (line 196), the port from `CloneDeployData` is u
 
 ### 🟡 M3: Thread safety — `DockerClient.ServiceCreate` and `ServiceRemove` called concurrently without coordination
 
-**File:** `backend/internal/jobs/deployment/preview.go` (clone methods)  
-**File:** `backend/internal/jobs/deployment/preview_utils.go` (cleanup runs in goroutine)
+**File:** `apps/server/internal/jobs/deployment/preview.go` (clone methods)  
+**File:** `apps/server/internal/jobs/deployment/preview_utils.go` (cleanup runs in goroutine)
 
 **Problem:**  
 Preview creation and deletion can overlap. `CreatePreviewFromPR` is called from a worker sequentially, but `DeletePreview` launches `cleanupPreview` in a goroutine. If a user deletes a preview concurrently while creation is still deploying services, Docker swarm operations race.
@@ -189,7 +189,7 @@ Preview creation and deletion can overlap. `CreatePreviewFromPR` is called from 
 
 ### 🟡 M4: `cloneDependencies` silently skips missing ID mappings
 
-**File:** `backend/internal/jobs/deployment/preview.go` lines 220-225
+**File:** `apps/server/internal/jobs/deployment/preview.go` lines 220-225
 
 **Problem:**  
 ```go
@@ -208,7 +208,7 @@ If a dependency references a service that wasn't cloned (shouldn't happen, but p
 
 ### 🟡 M5: Orphaned Docker network if instance DB record creation fails
 
-**File:** `backend/internal/jobs/deployment/preview.go` lines 58-71
+**File:** `apps/server/internal/jobs/deployment/preview.go` lines 58-71
 
 **Problem:**  
 Current order is correct per invariant 9 (network first) — but if `CreatePreviewInstance` (the INSERT) fails after `CreateNetwork` succeeds, the Docker network is orphaned with no cleanup path.
@@ -239,7 +239,7 @@ Status `'error'` is never written to any instance. The SQL filter is harmless bu
 
 ### 🔵 L3: `slugify` is simplistic — doesn't handle special characters or unicode
 
-**File:** `backend/internal/jobs/deployment/preview.go` lines 252-256
+**File:** `apps/server/internal/jobs/deployment/preview.go` lines 252-256
 
 ```go
 func slugify(name string) string {
@@ -253,17 +253,17 @@ No handling of: multiple consecutive hyphens, leading/trailing hyphens, non-ASCI
 
 ### 🔵 L4: `DockerClient.RemoveVolume` doesn't check if name is empty
 
-**File:** `backend/internal/lib/docker/docker.go` lines 110-115
+**File:** `apps/server/internal/lib/docker/docker.go` lines 110-115
 
 If `volumeName` is `""`, Docker's `VolumeRemove` will fail with an error. The cleanup code checks `svc.Volume != ""` before collecting, so this is safe currently — but defensive validation would prevent future bugs.
 
-### 🔵 L5: PRD §12 mentions `backend/internal/service/preview.go` — actual code lives in `jobs/deployment/preview.go`
+### 🔵 L5: PRD §12 mentions `apps/server/internal/service/preview.go` — actual code lives in `jobs/deployment/preview.go`
 
-The PRD says the orchestration logic should be in `backend/internal/service/preview.go`. Instead, it's implemented as methods on `DeploymentService` in `jobs/deployment/`. This is not a bug per se, but a design deviation worth documenting. The orchestration mixes job-queue concerns with business logic. If preview logic needs to be tested independently, it should be extractable without the `DeploymentService` worker infrastructure.
+The PRD says the orchestration logic should be in `apps/server/internal/service/preview.go`. Instead, it's implemented as methods on `DeploymentService` in `jobs/deployment/`. This is not a bug per se, but a design deviation worth documenting. The orchestration mixes job-queue concerns with business logic. If preview logic needs to be tested independently, it should be extractable without the `DeploymentService` worker infrastructure.
 
 ### 🔵 L6: `RebuildPreviewOnPush` is a no-op stub
 
-**File:** `backend/internal/jobs/deployment/preview_utils.go` lines 65-68
+**File:** `apps/server/internal/jobs/deployment/preview_utils.go` lines 65-68
 
 ```go
 func (d *DeploymentService) RebuildPreviewOnPush(ctx context.Context, previewID uuid.UUID, repoID int, branch string) error {

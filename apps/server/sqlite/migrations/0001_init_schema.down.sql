@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS user;
+DROP TABLE IF EXISTS organization;
+DROP TABLE IF EXISTS user_organization;
+DROP TABLE IF EXISTS session;
+DROP TABLE IF EXISTS project;
+DROP TABLE IF EXISTS psql_service;
+DROP TABLE IF EXISTS app_service;
+DROP TABLE IF EXISTS app_service_branch;
+DROP TABLE IF EXISTS deployments;
+DROP TABLE IF EXISTS redirect_session;
+DROP TABLE IF EXISTS github_app;

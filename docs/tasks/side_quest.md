@@ -60,7 +60,7 @@
 - [x] if app service is internal then ask for port so in backend it automanically create internal url for internal communication between services.
 - [ ] enhance log broker worker cunncurrency as per users
 - [ ] enhance app service settings by controling few setting to check if service-exists in order to perform edits. 
-- [ ] gracefully handle redeploy when previous deployment is still in progress (also applies for new commit when prev dyp is still in progress)
+- [x] gracefully handle redeploy when previous deployment is still in progress (also applies for new commit when prev dyp is still in progress)
 - [ ] for every get<any>service API add a layer of verifying swarm_service exists. also for predef check vol also.
 - [ ] add env is a text_area, make it a KV input fileds liek vercel
 - [ ] auto remove image of old deploments.
@@ -68,7 +68,6 @@
 
 ## Potential bugs
 
-- [x] not using enums for column user.role in [sql](../../backend/sqlite/migrations/0001_init_schema.up.sql).
 - [ ] service data is stored in DB and deployed, but what if user remove the service from terminal. the data still exists.
 - [ ] the github app is stored linked to org_ig, what if user fails on instllation then data still ramins. so retry fails because there is multiple github app store in singe org.
 - [ ] delete github app only deletes app from the DB and not from the github.
@@ -77,9 +76,4 @@
 - [x] in create_service_form, if the name input have '/' in the string then this cause bug while creating a file for that code in the name of the service_name. so need to prevent user from entering '/' in the name input field. [easy, ui]
 - [x] when view deployment logs after it is ended, or late subscribed then logs are not fully shown or have random logs.
 - [ ] when deleting github app the every delete btn shows deleting if any one is clicked. [easy, ui]
-- [x] if current dyp is in progress and either new commit trigger dyp or user click rebuild may leave a stale deployment worker. 
-
-## TODOs
-
-- [x] validate if users given domain is correctly stored in DB, later for preview service to create subdomains.
-- [ ] Delete project should also delete all preview instance.
+- [x] if current dyp is in progress and either new commit trigger dyp or user click rebuild may leave a stale deployment worker.

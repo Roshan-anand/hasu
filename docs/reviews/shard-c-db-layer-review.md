@@ -18,7 +18,7 @@ This review covers ~25 files spanning SQLite migrations (0001–0005), query def
 
 ### 🔴 CRITICAL-01: Migration 0005 missing `ALTER TABLE ADD COLUMN` for instance columns
 
-**File**: `backend/sqlite/migrations/0005_preview_instance.up.sql`  
+**File**: `apps/server/sqlite/migrations/0005_preview_instance.up.sql`  
 **Lines**: entire file (14 lines)
 
 **Problem**:  
@@ -52,7 +52,7 @@ ALTER TABLE instance ADD COLUMN created_by TEXT NOT NULL DEFAULT 'manual';
 
 ### 🔴 CRITICAL-02: Instance model field ordering mismatch for `SELECT *` queries
 
-**File**: `backend/internal/db/models.go` (Instance struct)  
+**File**: `apps/server/internal/db/models.go` (Instance struct)  
 **Lines**: Instance struct definition (lines 127-139)
 
 **Problem**:  
@@ -117,8 +117,8 @@ type Instance struct {
 
 **Files**:
 
-- `backend/sqlite/migrations/0001_init_schema.up.sql` (psql_service table)
-- `backend/sqlite/migrations/0003_redis_service.up.sql` (redis_service table for comparison)
+- `apps/server/sqlite/migrations/0001_init_schema.up.sql` (psql_service table)
+- `apps/server/sqlite/migrations/0003_redis_service.up.sql` (redis_service table for comparison)
 
 **Problem**:  
 `psql_service` has **no** `CHECK` constraints on `status` or `type`:
@@ -158,7 +158,7 @@ Since SQLite cannot `ALTER TABLE ADD CHECK`, the options are:
 
 ### 🟡 WARNING-03: `GithubPullRequest.CreatedAt`/`UpdatedAt` should be `time.Time`, not `sql.NullTime`
 
-**File**: `backend/internal/db/models.go` (GithubPullRequest struct)  
+**File**: `apps/server/internal/db/models.go` (GithubPullRequest struct)  
 **Lines**: ~89-95
 
 **Problem**:
@@ -205,7 +205,7 @@ UpdatedAt  time.Time `json:"updated_at"`
 
 ### 🔵 INFO-01: `GetActivePreviewByPR` — `NULL` comparison semantics
 
-**File**: `backend/sqlite/query/instance.sql` (GetActivePreviewByPR)  
+**File**: `apps/server/sqlite/query/instance.sql` (GetActivePreviewByPR)  
 **Lines**: 29-35
 
 ```sql
@@ -220,14 +220,14 @@ WHERE project_id = ? AND git_source_type = 'pr' AND git_source_value = ?
 
 ### 🔵 INFO-02: `orphan_volume.type` CHECK matches `PredefServiceType` — consistent
 
-**File**: `backend/sqlite/migrations/0002_orphan_schema.up.sql`  
+**File**: `apps/server/sqlite/migrations/0002_orphan_schema.up.sql`  
 **Lines**: type definition
 
 ```sql
 type TEXT NOT NULL CHECK(type IN ('psql','redis','mongodb'))
 ```
 
-Compare with `backend/internal/lib/types/types.go`:
+Compare with `apps/server/internal/lib/types/types.go`:
 
 ```go
 const (
@@ -243,7 +243,7 @@ const (
 
 ### 🔵 INFO-03: Deployment status CHECK matches `DeploymentStatus` enum — consistent
 
-**File**: `backend/sqlite/migrations/0001_init_schema.up.sql` (deployments table)  
+**File**: `apps/server/sqlite/migrations/0001_init_schema.up.sql` (deployments table)  
 **Lines**: status CHECK
 
 ```sql
@@ -285,7 +285,7 @@ const (
 
 ### Test: `TestAppServiceDomainUpdate`
 
-**File**: `backend/integration_tests/app_service_domain_test.go`
+**File**: `apps/server/integration_tests/app_service_domain_test.go`
 
 | Aspect                     | Verdict                                                           |
 | -------------------------- | ----------------------------------------------------------------- |
@@ -299,7 +299,7 @@ const (
 
 ### Test: `TestDependency`
 
-**File**: `backend/integration_tests/dependency_test.go`
+**File**: `apps/server/integration_tests/dependency_test.go`
 
 | Aspect                   | Verdict                                                                           |
 | ------------------------ | --------------------------------------------------------------------------------- |
@@ -315,7 +315,7 @@ const (
 
 ### Test Utils
 
-**File**: `backend/integration_tests/utils.go`
+**File**: `apps/server/integration_tests/utils.go`
 
 | Aspect                | Verdict                                                                                                                                                     |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -344,7 +344,7 @@ This returns `false` if **any** cookie name doesn't match, rather than checking 
 
 ## sqlc Configuration Review
 
-**File**: `backend/sqlc.yaml`
+**File**: `apps/server/sqlc.yaml`
 
 | Override                                                      | Status |
 | ------------------------------------------------------------- | ------ |

@@ -1,0 +1,5 @@
+.env
+dist
+bin
+/data
+frontend/dist

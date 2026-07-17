@@ -1,9 +1,9 @@
 # Handler Diff Review — Rebuild Cancellation & Delayed Promotion
 
 ## Files Reviewed
-- `backend/internal/handlers/deployment.go`  (+56/-)
-- `backend/internal/handlers/github.go`      (+11/-)
-- `backend/internal/handlers/project.go`      (+9/-)
+- `apps/server/internal/handlers/deployment.go`  (+56/-)
+- `apps/server/internal/handlers/github.go`      (+11/-)
+- `apps/server/internal/handlers/project.go`      (+9/-)
 
 ---
 
@@ -55,7 +55,7 @@ The outer `for {}` + `select` was already redundant — a single-case select blo
 
 ## 🔴 HIGH: `MergeDependencyEnv` returns `nil` on error, wiping all env vars
 
-**File:** `backend/internal/jobs/deployment/app_worker_utils.go`, line ~347
+**File:** `apps/server/internal/jobs/deployment/app_worker_utils.go`, line ~347
 
 ```go
 func MergeDependencyEnv(q *db.Queries, sourceServiceID uuid.UUID, manualEnv []string) []string {

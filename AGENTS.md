@@ -4,6 +4,7 @@
 
 **Godploy** is a lightweight, single-binary, self-hosted PaaS (Platform as a Service) — an alternative to Dokploy and Coolify.
 **Stack:** Go (Echo) · SvelteKit SPA (embedded in binary) · SQLite (via sqlc) · Docker · Traefik
+**Monorepo:** Bun workspaces + Turborepo
 
 To understand the project, read:
 - **PRD:** `./docs/prd.md`
@@ -11,25 +12,33 @@ To understand the project, read:
 
 **Structure:**
 
-- `backend/` — production-grade Go backend following clean architecture
-  - `cmd/` — entrypoints
-    - `server/` — HTTP server main
-    - `setup/` — CLI setup commands
-    - `sample/` — sample data generation
-  - `internal/` — app logic organized by concern
-    - `config/` — configuration loaders
-    - `db/` — sqlc-generated database layer (models, queries) — **do not modify**; generated via `make generate` from `sqlite/query/*.sql`
-    - `handlers/` — HTTP handlers (auth, project, service, github, health)
-    - `jobs/` — background job processing
-    - `lib/` — utilities (session, password, csrf, docker, github install)
-    - `middleware/` — HTTP middleware (auth, cors, rate limiting)
-    - `routes/` — route registration
-    - `service/` — business logic layer
-  - `sqlite/` — migrations and raw SQL queries (sqlc input)
-  - `frontend/` — embedded SvelteKit SPA build output
-  - `integration_tests/` — integration test suites
-- `frontend/` — SvelteKit SPA source (see `frontend/AGENTS.md`)
-- `docs/` — project documentation
+```
+godploy/
+├── apps/
+│   ├── server/            — Go backend (Echo v5, SQLite, Docker SDK)
+│   │   ├── cmd/           — entrypoints (server, setup, sample)
+│   │   ├── internal/      — app logic
+│   │   │   ├── config/    — configuration loaders
+│   │   │   ├── db/        — sqlc-generated database layer — **do not modify**; generated via `make generate`
+│   │   │   ├── handlers/  — HTTP handlers (auth, project, service, github, health)
+│   │   │   ├── jobs/      — background job processing
+│   │   │   ├── lib/       — utilities (session, password, csrf, docker, github install)
+│   │   │   ├── middleware/ — HTTP middleware (auth, cors, rate limiting)
+│   │   │   ├── routes/    — route registration
+│   │   │   └── service/   — business logic layer
+│   │   ├── sqlite/        — migrations and raw SQL queries (sqlc input)
+│   │   ├── frontend/      — embedded SvelteKit SPA build output (from apps/web)
+│   │   └── integration_tests/
+│   └── web/               — SvelteKit SPA frontend (see apps/web/AGENTS.md)
+├── packages/              — reserved for shared packages (currently empty)
+├── docker/                — Docker Compose files (dev, Traefik)
+└── docs/                  — project documentation
+```
+
+**Key configs:**
+- `package.json` — Bun workspaces (`apps/*`, `packages/*`)
+- `turbo.json` — Turborepo pipeline (build, dev, check-types, lint, format)
+- `makefile` — dev convenience commands (`make start`, `make build`, `make test`, etc.)
 
 ---
 
@@ -53,12 +62,3 @@ To understand the project, read:
 - Follow existing conventions in the codebase (formatting, naming, structure)
 - Don't introduce new libraries or patterns without the owner understanding why
 - Keep changes minimal — only touch what's needed
-
----
-
-## Documentation Rules
-
-- The owner is a learner — write docs in **simple language but keep them fully technical**
-- Don't oversimplify to the point of losing accuracy
-- Don't over-explain to the point of being patronizing
-- Reference existing docs and code rather than duplicating information

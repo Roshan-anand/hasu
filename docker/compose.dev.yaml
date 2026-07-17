@@ -1,66 +1,31 @@
 services:
-  web:
-    build:
-      context: ..
-      dockerfile: docker/dev/Dockerfile
-      target: frontend-dev
-    image: godploy-frontend-dev
-    container_name: godploy-frontend-dev
-    develop:
-      watch:
-        - action: sync
-          path: ../frontend
-          target: /app/frontend
-          initial_sync: true
-          ignore:
-            - node_modules/
-            - build/
-        - action: rebuild
-          path: ../frontend/package.json
-        - action: rebuild
-          path: ../frontend/bun.lock
-    volumes:
-      - ../frontend/.svelte-kit:/app/frontend/.svelte-kit:rw
-    environment:
-      - NODE_ENV=development
-      - DEV_BACKEND_URL=http://server:8080
-    user: "bun"
-    ports:
-      - "3000:3000"
-    depends_on:
-      - server
-    restart: unless-stopped
-    networks:
-      - godploy-dev
-
   server:
     build:
-      context: ..
-      dockerfile: docker/dev/Dockerfile
+      context: ../apps/server
+      dockerfile: Dockerfile.dev
       target: backend-dev
     image: godploy-backend-dev
     container_name: godploy-backend-dev
     develop:
       watch:
         - action: sync
-          path: ../backend
-          target: /app/backend
+          path: ../apps/server
+          target: /app/server
           initial_sync: true
           ignore:
             - bin
             - data
         - action: rebuild
-          path: ../backend/go.mod
+          path: ../apps/server/go.mod
         - action: rebuild
-          path: ../backend/go.sum
+          path: ../apps/server/go.sum
         - action: rebuild
-          path: ../.env
+          path: ../apps/server/.env
     volumes:
-      # - ../backend:/app/backend
       - /var/run/docker.sock:/var/run/docker.sock
-      - ../.env:/app/backend/.env:rw
-      - godploy-dev-data:/app/backend/data/sqlite
-      - godploy-dev-logs:/app/backend/data/badger
+      - ../apps/server/.env:/app/server/.env:rw
+      - godploy-dev-data:/app/server/data/sqlite
+      - godploy-dev-logs:/app/server/data/badger
       - godploy-dev-codebase:/etc/godploy/code
     environment:
       - JWT_SECRET=red_balloon
@@ -68,7 +33,7 @@ services:
       - WEB_URL=http://localhost:3000
     ports:
       - "8080:8080"
-    working_dir: /app/backend
+    working_dir: /app/server
     restart: unless-stopped
     networks:
       - godploy-dev

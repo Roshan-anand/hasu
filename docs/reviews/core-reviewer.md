@@ -88,6 +88,6 @@ return fmt.Errorf("failed to fetch deployment: %w", err)
 ```
 
 ### 15. Race: `CancelDeployment` Finds DB Row But Registry `deploymentID` Is nil
-**Files:** `backend/internal/jobs/deployment/core.go:615-625` + `app_worker.go:189-192`
+**Files:** `apps/server/internal/jobs/deployment/core.go:615-625` + `app_worker.go:189-192`
 Worker creates deployment DB row → then calls `SetRebuildDeploymentID`. Between those two points, `CancelDeployment` finds the DB row but `entry.deploymentID` is nil, returning `"deployment is not owned by an active rebuild"`.
 **Fix:** Move deployment UUID generation before DB insert, call `SetRebuildDeploymentID` before `CreateDeployment`. If DB insert fails, remove from registry.
