@@ -4,6 +4,8 @@
 <p>Lightweight, single-binary, self-hosted alternative to railway, render, vercel.</p>
 </div>
 
+### watch some of the demos [here](https://x.com/i/status/2070881427894489300)
+
 ## Features
 
 - Connect Github and deploy any repo, automatically sync latest commit.
