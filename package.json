@@ -30,8 +30,8 @@
     "check": "oxlint && oxfmt --write"
   },
   "dependencies": {
-    "@hasu/env": "workspace:*",
     "dotenv": "catalog:",
+    "next": "^16.2.0",
     "zod": "catalog:"
   },
   "devDependencies": {

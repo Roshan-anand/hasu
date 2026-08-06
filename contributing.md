@@ -47,13 +47,13 @@ it get's really tricky to manage external service like Github with dynamic urls 
 
   ```bash
     cloudflared tunnel login
-    cloudflared tunnel create dev
+    cloudflared tunnel create hasu-server
   ```
 
 - Create a DNS record for the subdomain
 
   ```bash
-    cloudflared tunnel route dns dev dev.<your-domain>.com
+    cloudflared tunnel route dns hasu-server hasu-dev-server.<your-domain>.com
   ```
 
 - Configure the tunnel
@@ -64,7 +64,7 @@ it get's really tricky to manage external service like Github with dynamic urls 
   credentials-file: /home/your-user/.cloudflared/<tunnel-id>.json
 
   ingress:
-    - hostname: dev.<your-domain>.com
+    - hostname: hasu-dev-server.<your-domain>.com
       service: http://localhost:8080
 
     - service: http_status:404
@@ -72,5 +72,5 @@ it get's really tricky to manage external service like Github with dynamic urls 
 
 - Start the tunnel
   ```bash
-    cloudflared tunnel run dev
+    cloudflared tunnel run hasu-server
   ```
