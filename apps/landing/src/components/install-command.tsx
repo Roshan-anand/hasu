@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { cn } from "@hasu/ui/lib/utils";
 
-const COMMAND = "curl -sSL https://raw.githubusercontent.com/hasu/install.sh | sh";
+// const COMMAND = "curl -sSL https://raw.githubusercontent.com/hasu/install.sh | sh";
+const COMMAND = "curl .... still under development";
 
 export default function InstallCommand({
   className,
