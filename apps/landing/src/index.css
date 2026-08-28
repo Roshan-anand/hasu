@@ -1,1 +1,99 @@
 @import "@hasu/ui/globals.css";
+
+:root {
+    --radius: 0.75rem;
+    /* How far horizontal rules stick past vertical rails (emdash boxy frame) */
+    --frame-gutter: 1.25rem;
+}
+
+.dark {
+    --radius: 0.75rem;
+}
+
+@layer base {
+    h1 {
+        font-family: var(--font-geist-mono);
+    }
+
+    h3,
+    p,
+    span {
+        font-family: var(--font-jetbrains-mono);
+    }
+
+    body {
+        background-color: var(--background);
+    }
+}
+
+
+@layer components {
+    /* Continuous left/right rails for the page column */
+    .page-rails {
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+    }
+
+    /* Full-width horizontal rule (section separator on the rails) */
+    .frame-rule {
+        border-bottom: 1px solid var(--border);
+    }
+
+    /* Nested box: vertical borders + horizontal rules that stick out past them */
+    .box-frame {
+        position: relative;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+    }
+
+    .box-frame::before,
+    .box-frame::after {
+        content: "";
+        position: absolute;
+        left: calc(-1 * var(--frame-gutter));
+        right: calc(-1 * var(--frame-gutter));
+        height: 1px;
+        background-color: var(--border);
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .box-frame::before {
+        top: 0;
+    }
+
+    .box-frame::after {
+        bottom: 0;
+    }
+
+    /* Top rule only (when stacking boxes that share a bottom edge) */
+    .box-frame-top::before {
+        content: "";
+        position: absolute;
+        left: calc(-1 * var(--frame-gutter));
+        right: calc(-1 * var(--frame-gutter));
+        top: 0;
+        height: 1px;
+        background-color: var(--border);
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    /* Bottom rule only */
+    .box-frame-bottom::after {
+        content: "";
+        position: absolute;
+        left: calc(-1 * var(--frame-gutter));
+        right: calc(-1 * var(--frame-gutter));
+        bottom: 0;
+        height: 1px;
+        background-color: var(--border);
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    /* Gutter padding so extended rules have room inside the page rails */
+    .frame-gutter {
+        padding-inline: var(--frame-gutter);
+    }
+}
