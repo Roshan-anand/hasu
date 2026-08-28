@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa";
 import { cn } from "@hasu/ui/lib/utils";
+import { ModeToggle } from "./mode-toggle";
 
 const links = [
   { href: "#features", label: "Features" },
@@ -56,9 +57,12 @@ export default function Nav() {
           ))}
         </ul>
 
-        <Link href="https://github.com/Roshan-anand/hasu">
-          <FaGithub className="size-6 text-foreground" />
-        </Link>
+        <div className="flex gap-2 items-center">
+          <Link href="https://github.com/Roshan-anand/hasu">
+            <FaGithub className="size-6 text-foreground" />
+          </Link>
+          <ModeToggle />
+        </div>
       </nav>
     </header>
   );

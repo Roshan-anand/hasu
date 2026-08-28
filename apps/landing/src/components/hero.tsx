@@ -42,7 +42,7 @@ export default function Hero() {
             </Button>
               <Button className={"bg-[#5865F2] text-white"}>
               <Link
-                href="https://discord.gg/hasu"
+                href="#"
                 className="flex items-center gap-1"
                 target="_blank"
                 rel="noopener noreferrer"
