@@ -29,7 +29,7 @@ start:
 	turbo dev --ui tui --filter=web --filter=server
 
 start-landing:
-	turbo dev --ui tui --filter=landing --filter=@hasu/ui
+	turbo dev --ui tui --filter=@hasu/ui --filter=landing
 
 start-all:
 	turbo dev --ui tui
