@@ -289,7 +289,7 @@ Compare with `AuthUser` (line 64) which correctly uses `org.ID`. This appears to
 | 7   | ListPreviews must verify caller owns project                                                          | ❌     | No ownership check (H1)                               |
 | 8   | CreatePreview passes GitSourceType + GitSourceValue to worker                                         | ✅     | Correctly forwarded                                   |
 | 9   | InstanceStatus has all required values                                                                | ❌     | Missing `updating` and `error` (M1)                   |
-| 10  | sqlc.yaml overrides match model.go                                                                    | ✅     | Overrides present for all new columns                 |
+| 10  | sqlc.yml overrides match model.go                                                                    | ✅     | Overrides present for all new columns                 |
 
 ---
 

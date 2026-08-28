@@ -6,6 +6,8 @@ services:
       target: backend-dev
     image: hasu-backend-dev
     container_name: hasu-backend-dev
+    env_file:
+      - ../apps/server/.env
     develop:
       watch:
         - action: sync

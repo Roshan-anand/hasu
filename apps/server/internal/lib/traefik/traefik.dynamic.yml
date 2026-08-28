@@ -1,0 +1,16 @@
+http:
+  routers:
+    dashboard:
+      rule: "Host(`traefik.hasu.localhost`)"
+      entryPoints:
+        - websecure
+      service: api@internal
+      tls: true
+      middlewares:
+        - dashboard-auth
+
+  middlewares:
+    dashboard-auth:
+      basicAuth:
+        users:
+          - "hasu:$apr1$dC8ZtEPI$fqwt1ZCXVVp4AvD2/jzPq/"

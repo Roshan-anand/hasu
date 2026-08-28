@@ -28,36 +28,36 @@ func main() {
 
 	switch os.Args[1] {
 	case "setup":
-		if err := runCommand("docker", "stack", "deploy", "-c", "../../docker/compose.traefik-dev.yaml", "hasu"); err != nil {
+		if err := runCommand("docker", "stack", "deploy", "-c", "../../docker/compose.traefik-dev.yml", "hasu"); err != nil {
 			fmt.Println("failed to setup traefik stack :", err)
 			return
 		}
-		if err := runCommand("docker", "compose", "-f", "../../docker/compose.dev.yaml", "build"); err != nil {
+		if err := runCommand("docker", "compose", "-f", "../../docker/compose.dev.yml", "build"); err != nil {
 			fmt.Println("failed to build hasu backend image :", err)
 			return
 		}
 	case "dev-start":
-		if err := runCommand("docker", "compose", "-p", "hasu", "-f", "../../docker/compose.dev.yaml", "up", "--watch"); err != nil {
+		if err := runCommand("docker", "compose", "-p", "hasu", "-f", "../../docker/compose.dev.yml", "up", "--watch"); err != nil {
 			fmt.Println("failed to setup hasu stack :", err)
 			return
 		}
 	case "dev-stop":
-		if err := runCommand("docker", "compose", "-p", "hasu", "-f", "../../docker/compose.dev.yaml", "down"); err != nil {
+		if err := runCommand("docker", "compose", "-p", "hasu", "-f", "../../docker/compose.dev.yml", "down"); err != nil {
 			fmt.Println("failed to stop hasu stack :", err)
 			return
 		}
 	case "test-backend":
-		if err := runCommand("docker", "compose", "-f", "../../docker/compose.dev.yaml", "run", "--rm", "server", "go", "test", "-v", "./..."); err != nil {
+		if err := runCommand("docker", "compose", "-f", "../../docker/compose.dev.yml", "run", "--rm", "server", "go", "test", "-v", "./..."); err != nil {
 			fmt.Println("failed to stop hasu stack :", err)
 			return
 		}
 	case "server-logs":
-		if err := runCommand("docker", "compose", "-p", "hasu", "-f", "../../docker/compose.dev.yaml", "logs", "-f", "server"); err != nil {
+		if err := runCommand("docker", "compose", "-p", "hasu", "-f", "../../docker/compose.dev.yml", "logs", "-f", "server"); err != nil {
 			fmt.Println("failed to fetch hasu backend logs :", err)
 			return
 		}
 	case "web-logs":
-		if err := runCommand("docker", "compose", "-p", "hasu", "-f", "../../docker/compose.dev.yaml", "logs", "-f", "web"); err != nil {
+		if err := runCommand("docker", "compose", "-p", "hasu", "-f", "../../docker/compose.dev.yml", "logs", "-f", "web"); err != nil {
 			fmt.Println("failed to fetch hasu frontend logs :", err)
 			return
 		}

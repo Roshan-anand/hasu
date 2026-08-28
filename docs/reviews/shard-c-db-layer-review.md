@@ -344,7 +344,7 @@ This returns `false` if **any** cookie name doesn't match, rather than checking 
 
 ## sqlc Configuration Review
 
-**File**: `apps/server/sqlc.yaml`
+**File**: `apps/server/sqlc.yml`
 
 | Override                                                      | Status |
 | ------------------------------------------------------------- | ------ |

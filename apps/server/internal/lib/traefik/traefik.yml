@@ -1,0 +1,48 @@
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false
+
+log:
+  level: DEBUG
+
+accessLog: {}
+
+api:
+  dashboard: true
+  insecure: false
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: le
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    watch: true
+    swarmMode: true
+    exposedByDefault: false
+    network: "hasu_proxy"
+  file:
+    filename: "/etc/traefik/dynamic.yml"
+    watch: true
+
+certificatesResolvers:
+  le:
+    acme:
+      email: "roshananand2005@gmail.com"
+      storage: "/letsencrypt/acme.json"
+      httpChallenge:
+        entryPoint: web
+
+# TODO : change the email to users entry

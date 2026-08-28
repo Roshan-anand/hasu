@@ -32,7 +32,7 @@
 - [x] API & tests for orphan volume operations
 - [x] switching org dosent refetch other query like get project, gh_app etc.
 - [x] add watch_path docker file,context and build path settigns in app settings.
-- [ ] Manual deletion of depdendency if service_id == target_id
+- [x] Manual deletion of depdendency if service_id == target_id
 
 ## enhancements
 
@@ -65,6 +65,7 @@
 - [ ] add env is a text_area, make it a KV input fileds liek vercel
 - [ ] auto remove image of old deploments.
 - [ ] more deep module for predefined service creations (both in API and Preview worker)
+- [ ] make prod image more slim
 
 ## Potential bugs
 

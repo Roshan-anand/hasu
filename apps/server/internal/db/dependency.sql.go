@@ -381,7 +381,8 @@ SELECT
         WHEN 'db_password' THEN t.db_password
         WHEN 'password' THEN t.password
         WHEN 'name' THEN t.name
-    END AS resolved_value
+    END AS resolved_value,
+    d.target_col
 FROM service_dependencies d
 JOIN app_service source ON source.id = d.source_service_id
 JOIN dependency_targets t ON t.id = d.target_service_id
@@ -390,8 +391,9 @@ WHERE d.source_service_id = ?
 `
 
 type ResolveDependencyEnvRow struct {
-	EnvKey        string      `json:"env_key"`
-	ResolvedValue interface{} `json:"resolved_value"`
+	EnvKey        string                    `json:"env_key"`
+	ResolvedValue interface{}               `json:"resolved_value"`
+	TargetCol     types.DependencyTargetCol `json:"target_col"`
 }
 
 func (q *Queries) ResolveDependencyEnv(ctx context.Context, sourceServiceID uuid.UUID) ([]ResolveDependencyEnvRow, error) {
@@ -403,7 +405,7 @@ func (q *Queries) ResolveDependencyEnv(ctx context.Context, sourceServiceID uuid
 	var items []ResolveDependencyEnvRow
 	for rows.Next() {
 		var i ResolveDependencyEnvRow
-		if err := rows.Scan(&i.EnvKey, &i.ResolvedValue); err != nil {
+		if err := rows.Scan(&i.EnvKey, &i.ResolvedValue, &i.TargetCol); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

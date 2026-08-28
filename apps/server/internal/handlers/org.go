@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
-	"github.com/mattn/go-sqlite3"
 )
 
 type OrgHandler struct {
@@ -104,8 +102,7 @@ func (h *OrgHandler) CreateOrg(c *echo.Context) error {
 	})
 	if err != nil {
 		tx.Rollback()
-		var sqliteErr sqlite3.Error
-		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+		if h.Server.DB.IsUniqueConstraintError(err) {
 			return c.JSON(http.StatusConflict, types.Res[struct{}]{Message: "Organization with this name already exists"})
 		}
 		return c.JSON(http.StatusInternalServerError, types.Res[struct{}]{Message: "Failed to create organization"})

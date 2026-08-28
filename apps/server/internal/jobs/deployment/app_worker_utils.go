@@ -123,7 +123,7 @@ func (d *deployData) getBaseSpec() *swarm.ServiceSpec {
 	// if the service is public connect to traefik
 	if d.isPublic {
 		spec.TaskTemplate.Networks = append(spec.TaskTemplate.Networks, swarm.NetworkAttachmentConfig{
-			Target: "hasu_traefik_proxy",
+			Target: "hasu_proxy",
 		})
 		spec.Annotations.Labels["traefik.enable"] = "true"
 	} else {
@@ -202,7 +202,7 @@ func (d *DeploymentServiceUtils) getCloneRepoCmd(ctx context.Context) *exec.Cmd 
 		strconv.Quote(d.OutputPath),
 	)
 
-	return exec.CommandContext(ctx, "bash", "-c", cmdStr)
+	return exec.CommandContext(ctx, "sh", "-c", cmdStr)
 }
 
 // helper fucntion to fill deploy data
@@ -352,7 +352,14 @@ func MergeDependencyEnv(q *db.Queries, sourceServiceID uuid.UUID, manualEnv []st
 	}
 
 	for _, row := range rows {
-		manualEnv = append(manualEnv, fmt.Sprintf("%s=%s", row.EnvKey, row.ResolvedValue))
+		resolvedValue := row.ResolvedValue
+
+		// validate url if the target col is domain
+		if row.TargetCol == types.TargetColDomain {
+			resolvedValue = fmt.Sprintf("https://%s", resolvedValue)
+		}
+
+		manualEnv = append(manualEnv, fmt.Sprintf("%s=%s", row.EnvKey, resolvedValue))
 	}
 
 	return manualEnv

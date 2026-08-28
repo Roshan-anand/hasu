@@ -1,0 +1,48 @@
+services:
+  server:
+    # build:
+    #   context: ..
+    #   dockerfile: docker/Dockerfile
+    image: ghcr.io/roshan-anand/hasu:0.1.0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - hasu-prod-data:/app/hasu-data/sqlite
+      - hasu-prod-logs:/app/hasu-data/badger
+      - hasu-prod-codebase:/etc/hasu/code
+    environment:
+      - JWT_SECRET=red_balloon
+      - APP_ENV=production
+      - SERVER_PUBLIC_URL=https://hasu-dev-server.rshn.cloud
+    # ports:
+    #   - "3000:8080"
+    # restart: unless-stopped
+    networks:
+      - hasu_proxy
+    deploy:
+      update_config:
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.constraint-label=head-proxy"
+        - "traefik.swarm.network=hasu_proxy"
+        - "traefik.http.routers.hasu.rule=Host(`hasu.rshn.cloud`)"
+        - "traefik.http.routers.hasu.entrypoints=websecure"
+        - "traefik.http.routers.hasu.tls=true"
+        - "traefik.http.routers.hasu.tls.certresolver=le"
+        - "traefik.http.services.hasu.loadbalancer.server.port=8080"
+
+networks:
+  hasu_proxy:
+    attachable: true
+
+volumes:
+  hasu-prod-data:
+    name: hasu-prod-data
+  hasu-prod-logs:
+    name: hasu-prod-logs
+  hasu-prod-codebase:
+    name: hasu-prod-codebase

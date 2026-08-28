@@ -3,3 +3,5 @@ frontend/dist
 .env.*
 .env
 !.env.example
+bin
+.turbo

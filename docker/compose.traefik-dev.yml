@@ -3,7 +3,7 @@ services:
     image: traefik:v3.6
 
     networks:
-      - traefik_proxy
+      - hasu_proxy
 
     ports:
       - target: 80
@@ -48,7 +48,7 @@ services:
       - "--providers.swarm.exposedbydefault=false"
 
       # Specify the default network for Traefik to connect to services
-      - "--providers.swarm.network=hasu_traefik_proxy"
+      - "--providers.swarm.network=hasu_proxy"
 
       # API & Dashboard
       - "--api.dashboard=true" # Enable the dashboard
@@ -90,7 +90,7 @@ services:
 
 # Define the overlay network for Swarm
 networks:
-  traefik_proxy:
+  hasu_proxy:
     driver: overlay
     attachable: true
 

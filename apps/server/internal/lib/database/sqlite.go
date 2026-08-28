@@ -84,6 +84,13 @@ func InitDb(dir string) (*DataBase, error) {
 		return nil, err
 	}
 
+	// print sqlite3 version
+	var version string
+	if err := pool.QueryRow("SELECT sqlite_version()").Scan(&version); err != nil {
+		return nil, fmt.Errorf("failed to get sqlite version: %w", err)
+	}
+	fmt.Println("sqlite version:", version)
+
 	pool.SetMaxOpenConns(MAX_DB_OPEN_CONNECTIONS)
 	pool.SetMaxIdleConns(MAX_DB_IDLE_CONNECTIONS)
 

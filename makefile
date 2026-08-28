@@ -24,11 +24,12 @@ generate:
 setup: install build
 	@turbo setup
 
+# lcoal development cmds
 start:
 	turbo dev --ui tui --filter=web --filter=server
 
 start-landing:
-	turbo dev --ui tui --filter=landing
+	turbo dev --ui tui --filter=landing --filter=@hasu/ui
 
 start-all:
 	turbo dev --ui tui
@@ -36,10 +37,10 @@ start-all:
 stop:
 	@cd apps/server && \
 	go run cmd/setup/main.go dev-stop && \
-	pkill -f "turbo dev" 
+	pkill -f "turbo dev"
 
 cloud-tunnel:
-	cloudflared tunnel run dev
+	cloudflared tunnel run hasu-server
 
 test-backend:
 	@cd apps/server && \
@@ -55,6 +56,16 @@ traefik-logs:
 
 services-rm:
 	docker service rm hasu_traefik
+
+# production server cmds
+start-prod-build:
+	docker compose -f docker/compose.prod.yml up --build
+
+start-prod:
+	docker compose -f docker/compose.prod.yml up
+
+stop-prod:
+	docker compose -f docker/compose.prod.yml down
 
 # cleanup func to remove all node_modules and build artifacts
 clean-web:

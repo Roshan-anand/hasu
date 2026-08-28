@@ -106,7 +106,8 @@ SELECT
         WHEN 'db_password' THEN t.db_password
         WHEN 'password' THEN t.password
         WHEN 'name' THEN t.name
-    END AS resolved_value
+    END AS resolved_value,
+    d.target_col
 FROM service_dependencies d
 JOIN app_service source ON source.id = d.source_service_id
 JOIN dependency_targets t ON t.id = d.target_service_id
