@@ -30,8 +30,18 @@ update_hasu() {
 }
 
 install_hasu() {
-    # take input of the domain name from the user
-    read -p "Enter the domain name for Hasu (e.g., dashboard.example.com): " DOMAIN_NAME
+    # Read prompts from the terminal because curl | sh uses stdin for the script body.
+    if [ -z "$DOMAIN_NAME" ]; then
+        if [ -r /dev/tty ]; then
+            printf "Enter the domain name for Hasu (e.g., dashboard.example.com): " >/dev/tty
+            read -r DOMAIN_NAME </dev/tty
+        else
+            echo "Domain name cannot be read without a terminal."
+            echo "Run this from an interactive shell, or set DOMAIN_NAME before running the installer."
+            exit 1
+        fi
+    fi
+
     if [ -z "$DOMAIN_NAME" ]; then
         echo "Domain name cannot be empty. Please run the script again and provide a valid domain name."
         exit 1

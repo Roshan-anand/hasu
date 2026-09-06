@@ -76,5 +76,13 @@ clean-server:
 	@cd apps/server && \
 	rm -rf bin frontend/dist bin data
 
-clean: clean-web clean-server
-	@rm -rf node_modules
+clean-landing:
+	@cd apps/landing && \
+	rm -rf node_modules .next .turbo
+
+clean-docs:
+	@cd apps/docs && \
+	rm -rf node_modules .next .turbo .source	
+
+clean: clean-web clean-server clean-landing clean-docs
+	@rm -rf node_modules .turbo
