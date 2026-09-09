@@ -1,7 +1,14 @@
 
 get_hasu_version() {
     # TODO : Implement logic to fetch the latest version from GitHub releases or tags
-    echo "0.1.0"
+    local version="${HASU_VERSION}"
+
+    # if no version specified
+    if [ -z "$version" ]; then
+        version="0.1.1"
+    fi
+
+    echo "$version"
 }
 
 generate_jwt_secret() {
