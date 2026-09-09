@@ -50,7 +50,7 @@ install_hasu() {
 
     # Detect version tag
     VERSION_TAG=$(get_hasu_version)
-    DOCKER_IMAGE="hasu:${VERSION_TAG}"
+    DOCKER_IMAGE="ghcr.io/roshan-anand/hasu:${VERSION_TAG}"
 
     echo "Installing hasu..."
 
@@ -91,7 +91,18 @@ install_hasu() {
     else
         echo "Docker is not installed. Installing Docker..."
         curl -sSL https://get.docker.com | sh -s -- --version 29.6.2
-        exit 1
+    fi
+
+    # Add the invoking user to the docker group so their own shell can run
+    # docker without sudo. Sudo preserves SUDO_USER through the root re-exec
+    # at the bottom of this script, which is how we recover the real user.
+    REAL_USER="${SUDO_USER:-$(logname 2>/dev/null || true)}"
+    if [ -n "$REAL_USER" ] && [ "$REAL_USER" != "root" ]; then
+        if usermod -aG docker "$REAL_USER" 2>/dev/null; then
+            echo "Added $REAL_USER to the docker group. Log out and back in for it to take effect."
+        else
+            echo "Warning: could not add $REAL_USER to the docker group." >&2
+        fi
     fi
 
     # TODO : Check compatibility for Proxmox LXC container
@@ -235,8 +246,20 @@ install_hasu() {
     echo ""
     printf "${GREEN}Congratulations, Hasu is installed!${NC}\n"
     printf "${BLUE}Wait 15 seconds for the server to start${NC}\n"
-    printf "${YELLOW}Please go to http://${formatted_addr}:8080${NC}\n\n"
+    printf "${YELLOW}Please go to https://${DOMAIN_NAME}${NC}\n\n"
 }
+
+# Docker swarm, binding ports 80/443, and writing /etc/hasu all require root,
+# so re-exec the whole script under sudo before anything else runs. When piped
+# (curl | sh) there is no file to re-exec, so buffer stdin to a temp file first.
+if [ "$(id -u)" -ne 0 ]; then
+    if [ -t 0 ] && [ -f "$0" ]; then
+        exec sudo bash "$0" "$@"
+    fi
+    tmp="$(mktemp /tmp/hasu-install.XXXXXX.sh)"
+    cat > "$tmp"
+    exec sudo bash "$tmp" "$@"
+fi
 
 # Entry point for the script
 if [ "$1" = "update" ]; then

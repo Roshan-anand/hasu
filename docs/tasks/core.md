@@ -6,7 +6,7 @@
 - [x] 02 — Create a Project with a default production Project Instance [easy]
 - [x] 03 — Create an internal application Service inside the production Project Instance [easy]
 - [x] 04 — Expose a public application Service from the production Project Instance [easy]
-- [ ] 05 — Show project instance switching in the dashboard [easy]
+- [x] 05 — Show project instance switching in the dashboard [easy]
 - [ ] 06 — Create a branch preview Project Instance from a production snapshot [easy]
 - [x] 07 — Create a pull request preview Project Instance from available PR candidates [easy]
 - [ ] 08 — Keep open pull request candidates in SQLite and show them in the dashboard [easy]

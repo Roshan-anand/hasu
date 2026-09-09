@@ -5,7 +5,7 @@ import { Copy, Check } from "lucide-react";
 import { cn } from "@hasu/ui/lib/utils";
 
 // const COMMAND = "curl -sSL https://raw.githubusercontent.com/hasu/install.sh | sh";
-const COMMAND = "curl .... still under development";
+const COMMAND = "curl -sSL https://hasu.rshn.cloud/install.sh | sh";
 
 export default function InstallCommand({
   className,
