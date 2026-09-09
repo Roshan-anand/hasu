@@ -52,7 +52,11 @@ install_hasu() {
     VERSION_TAG=$(get_hasu_version)
     DOCKER_IMAGE="ghcr.io/roshan-anand/hasu:${VERSION_TAG}"
 
-    echo "Installing hasu..."
+    echo "Installing HASU version: ${VERSION_TAG}"
+      if [ "$(id -u)" != "0" ]; then
+          echo "This script must be run as root" >&2
+          exit 1
+      fi
 
     # check if is Mac OS
     if [ "$(uname)" = "Darwin" ]; then
@@ -248,18 +252,6 @@ install_hasu() {
     printf "${BLUE}Wait 15 seconds for the server to start${NC}\n"
     printf "${YELLOW}Please go to https://${DOMAIN_NAME}${NC}\n\n"
 }
-
-# Docker swarm, binding ports 80/443, and writing /etc/hasu all require root,
-# so re-exec the whole script under sudo before anything else runs. When piped
-# (curl | sh) there is no file to re-exec, so buffer stdin to a temp file first.
-if [ "$(id -u)" -ne 0 ]; then
-    if [ -t 0 ] && [ -f "$0" ]; then
-        exec sudo bash "$0" "$@"
-    fi
-    tmp="$(mktemp /tmp/hasu-install.XXXXXX.sh)"
-    cat > "$tmp"
-    exec sudo bash "$tmp" "$@"
-fi
 
 # Entry point for the script
 if [ "$1" = "update" ]; then
