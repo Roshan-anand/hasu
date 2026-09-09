@@ -53,3 +53,6 @@ coverage
 .cache
 tmp
 temp
+
+# extras
+sample.sh

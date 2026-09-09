@@ -1,6 +1,7 @@
 
 get_hasu_version() {
-    echo "latest"
+    # TODO : Implement logic to fetch the latest version from GitHub releases or tags
+    echo "0.1.0"
 }
 
 generate_jwt_secret() {
@@ -196,7 +197,7 @@ install_hasu() {
     # volumes for hasu
     docker volume create hasu-data 2>/dev/null || true
     docker volume create hasu-logs 2>/dev/null || true
-    # docker volume create hasu-codebase 2>/dev/null || true
+    docker volume create hasu-codebase 2>/dev/null || true
     docker volume create hasu-letsencrypt 2>/dev/null || true
 
     # generate a unique JWT secret for this installation
@@ -210,7 +211,7 @@ install_hasu() {
       --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
       --mount type=volume,src=hasu-data,dst=/app/hasu-data/sqlite \
       --mount type=volume,src=hasu-logs,dst=/app/hasu-data/badger \
-      --mount type=volume,src=/etc/hasu/code,dst=/etc/hasu/code \
+      --mount type=volume,src=hasu-codebase,dst=/etc/hasu/code \
       --env JWT_SECRET="$JWT_SECRET" \
       --env APP_ENV=production \
       --env SERVER_PUBLIC_URL=https://$DOMAIN_NAME \
