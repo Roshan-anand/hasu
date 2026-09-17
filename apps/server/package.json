@@ -5,12 +5,12 @@
     "web": "workspace:*"
   },
   "scripts": {
-    "dev": "go run cmd/setup/main.go dev-start",
-    "build":"go mod tidy && go build -o ./bin/hasu cmd/server/main.go",
-    "check":"go build ./...",
+    "dev": "air",
+    "build": "go mod tidy && go build -o ./bin/hasu cmd/server/main.go",
+    "check": "go build ./...",
     "lint": "golangci-lint run",
     "format": "golangci-lint fmt",
     "install": "go mod tidy",
-    "setup":"go run cmd/setup/main.go setup"
+    "setup": "go run cmd/setup/main.go setup"
   }
 }

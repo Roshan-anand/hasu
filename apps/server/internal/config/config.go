@@ -21,10 +21,15 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	appEnv := os.Getenv("SERVER_ENV")
+	appEnv := types.AppEnv(os.Getenv("SERVER_ENV"))
 	jwtSecrect := os.Getenv("JWT_SECRET")
 	webUrl := os.Getenv("WEB_URL")
 	srvUrl := os.Getenv("SERVER_PUBLIC_URL")
+
+	codeDir := "hasu-data/code"
+	if appEnv == types.ProdMode {
+		codeDir = "/etc/hasu/code"
+	}
 
 	// TODO : load from env variable
 	return &Config{
@@ -36,8 +41,8 @@ func LoadConfig() (*Config, error) {
 		WebUrl:           webUrl,
 		SqliteDir:        "hasu-data/sqlite",
 		BadgerDir:        "hasu-data/badger",
-		AppEnv:           types.AppEnv(appEnv),
+		AppEnv:           appEnv,
 		ServerUrl:        srvUrl,
-		CodeStoreDir:     "/etc/hasu/code",
+		CodeStoreDir:     codeDir,
 	}, nil
 }

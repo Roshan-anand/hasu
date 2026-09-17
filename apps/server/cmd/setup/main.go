@@ -32,10 +32,10 @@ func main() {
 			fmt.Println("failed to setup traefik stack :", err)
 			return
 		}
-		if err := runCommand("docker", "compose", "-f", "../../docker/compose.dev.yml", "build"); err != nil {
-			fmt.Println("failed to build hasu backend image :", err)
-			return
-		}
+		// if err := runCommand("docker", "compose", "-f", "../../docker/compose.dev.yml", "build"); err != nil {
+		// 	fmt.Println("failed to build hasu backend image :", err)
+		// 	return
+		// }
 	case "dev-start":
 		if err := runCommand("docker", "compose", "-p", "hasu", "-f", "../../docker/compose.dev.yml", "up", "--watch"); err != nil {
 			fmt.Println("failed to setup hasu stack :", err)

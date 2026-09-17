@@ -36,7 +36,6 @@ start-all:
 
 stop:
 	@cd apps/server && \
-	go run cmd/setup/main.go dev-stop && \
 	pkill -f "turbo dev"
 
 cloud-tunnel:

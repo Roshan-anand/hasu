@@ -8,6 +8,8 @@ import (
 	"syscall"
 
 	"github.com/Roshan-anand/hasu/internal/config"
+	"github.com/Roshan-anand/hasu/internal/lib/types"
+	"github.com/Roshan-anand/hasu/internal/lib/utils"
 	"github.com/Roshan-anand/hasu/internal/routes"
 	"github.com/joho/godotenv"
 )
@@ -23,9 +25,10 @@ func createServer() (*config.Server, error) {
 	// validate public ip
 	// if cfg.AppEnv == types.ProdMode {
 	// 	cfg.ServerUrl = utils.GetPublicUrl()
-	// } else if !utils.ValidatePublicUrl(cfg.ServerUrl) {
-	// 	return nil, fmt.Errorf("invalid server url: %s", cfg.ServerUrl)
-	// }
+	// } else
+	if cfg.AppEnv == types.DevMode && !utils.ValidatePublicUrl(cfg.ServerUrl) {
+		return nil, fmt.Errorf("invalid server url: %s", cfg.ServerUrl)
+	}
 
 	// create server instance
 	s, err := config.NewServer(cfg)

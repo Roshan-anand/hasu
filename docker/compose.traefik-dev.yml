@@ -3,7 +3,7 @@ services:
     image: traefik:v3.6
 
     networks:
-      - hasu_proxy
+      - proxy
 
     ports:
       - target: 80
@@ -88,9 +88,11 @@ services:
         # Service hint
         - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
-# Define the overlay network for Swarm
+# Define the overlay network for Swarm.
+# Swarm prefixes network names with the stack name, so declaring `proxy`
+# under stack `hasu` yields the runtime network `hasu_proxy`.
 networks:
-  hasu_proxy:
+  proxy:
     driver: overlay
     attachable: true
 
