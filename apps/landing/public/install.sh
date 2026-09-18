@@ -198,8 +198,8 @@ install_hasu() {
     docker network create --driver overlay --attachable hasu_proxy
     echo "Network created"
 
-    mkdir -p /etc/hasu
-    chmod 777 /etc/hasu
+    mkdir -p /etc/hasu/code /etc/hasu/traefik
+    chmod 777 /etc/hasu/
 
     # volumes for hasu
     docker volume create hasu-data 2>/dev/null || true
@@ -219,6 +219,7 @@ install_hasu() {
       --mount type=volume,src=hasu-data,dst=/app/hasu-data/sqlite \
       --mount type=volume,src=hasu-logs,dst=/app/hasu-data/badger \
       --mount type=volume,src=hasu-codebase,dst=/etc/hasu/code \
+      --mount type=bind,src=/etc/hasu/traefik,dst=/etc/hasu/traefik \
       --env JWT_SECRET="$JWT_SECRET" \
       --env APP_ENV=production \
       --env SERVER_PUBLIC_URL=https://$DOMAIN_NAME \
@@ -236,7 +237,9 @@ install_hasu() {
       --restart-max-attempts 3 \
       $DOCKER_IMAGE
 
-    sleep 4
+    sleep 5
+
+    echo "settingup traefik service ..."
 
     docker service create \
         --name hasu-traefik \

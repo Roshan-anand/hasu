@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/Roshan-anand/hasu/internal/config"
+	"github.com/Roshan-anand/hasu/internal/lib/traefik"
 	"github.com/Roshan-anand/hasu/internal/lib/types"
 	"github.com/Roshan-anand/hasu/internal/lib/utils"
 	"github.com/Roshan-anand/hasu/internal/routes"
@@ -91,6 +92,13 @@ func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("No .env file found, loading environment variables from system")
+	}
+
+	// write the embedded Traefik static and dynamic configs to /etc/hasu/traefik
+	// so the hasu-traefik service can bind-mount them from the host. In local dev
+	// this path isn't writable; warn instead of exiting so dev still runs.
+	if err := traefik.SetupTraefik(); err != nil {
+		log.Println("failed to setup traefik config: ", err)
 	}
 
 	server, err := createServer()

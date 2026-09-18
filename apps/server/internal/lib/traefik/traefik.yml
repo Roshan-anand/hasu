@@ -25,12 +25,10 @@ entryPoints:
     http:
       tls:
         certResolver: le
-
 providers:
-  docker:
+  swarm:
     endpoint: "unix:///var/run/docker.sock"
     watch: true
-    swarmMode: true
     exposedByDefault: false
     network: "hasu_proxy"
   file:

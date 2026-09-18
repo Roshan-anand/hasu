@@ -21,7 +21,7 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	appEnv := types.AppEnv(os.Getenv("SERVER_ENV"))
+	appEnv := types.AppEnv(os.Getenv("APP_ENV"))
 	jwtSecrect := os.Getenv("JWT_SECRET")
 	webUrl := os.Getenv("WEB_URL")
 	srvUrl := os.Getenv("SERVER_PUBLIC_URL")
