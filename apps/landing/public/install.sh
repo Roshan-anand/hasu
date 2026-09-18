@@ -5,7 +5,7 @@ get_hasu_version() {
 
     # if no version specified
     if [ -z "$version" ]; then
-        version="0.1.1"
+        version="0.1.0"
     fi
 
     echo "$version"

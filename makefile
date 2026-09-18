@@ -81,7 +81,10 @@ clean-landing:
 
 clean-docs:
 	@cd apps/docs && \
-	rm -rf node_modules .next .turbo .source	
+	rm -rf node_modules .next .turbo .source
 
 clean: clean-web clean-server clean-landing clean-docs
 	@rm -rf node_modules .turbo
+
+prod-image:
+	@docker build . -f docker/Dockerfile -t hasu-prod
